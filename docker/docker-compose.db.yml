@@ -5,6 +5,8 @@ version: '3'
 services:
   postgres:
     image: '${PRIMERO_IMAGE_REPOSITORY:-primeroims}/postgres:${PRIMERO_TAG:-latest}-pg${PRIMERO_POSTGRES_VERSION:-15}'
+    ports:
+      - 5432:5432
     volumes:
       - database:/var/lib/postgresql/data
     env_file:
@@ -13,23 +15,24 @@ services:
     restart: always
     profiles:
       - db
+
   application:
     profiles:
       - app
     depends_on:
       solr:
         condition: 'service_started'
-        required: false
       postgres:
         condition: 'service_started'
-        required: false
+
   worker:
     profiles:
       - app
     depends_on:
       solr:
         condition: 'service_started'
-        required: false
       postgres:
         condition: 'service_started'
-        required: false
+
+volumes:
+  database:

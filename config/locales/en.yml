@@ -2328,6 +2328,7 @@ en:
       sort_disabled_name_fields: Sort disabled when searching by name fields
   navigation:
     bulk_exports: Exports
+    newdashboard: Dashboard
     cases: Cases
     home: Home
     key_performance_indicators: Pulse/KPIs

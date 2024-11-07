@@ -11,6 +11,7 @@ import { cx } from "@emotion/css";
 import { ROUTES, PERMITTED_URL, APPLICATION_NAV } from "../../config";
 import AgencyLogo from "../agency-logo";
 import ModuleLogo from "../module-logo";
+import BalLogo from "../../images/logo.png";
 import useMemoizedSelector from "../../libs/use-memoized-selector";
 import MobileToolbar from "../mobile-toolbar";
 import { useApp } from "../application";
@@ -114,9 +115,13 @@ function Nav() {
 
   const drawerContent = (
     <>
-      <Box sx={{ display: { xs: "none", md: "block" } }}>
-        <ModuleLogo username={username} />
-      </Box>
+        {/* <ModuleLogo username={username} /> */}
+        <div className={css.box}>
+        <img src={BalLogo} height="80px" width="100px" alt="Logo" />
+          <p className={css.head}>Government of Punjab</p>
+          {/* <p className={css.head}>Information Management System</p> */}
+          {/* <p className={css.head}>Ministry of Human Rights</p> */}
+        </div>
       <div className={css.drawerHeaderContainer}>
         <Box sx={{ display: { md: "none", xs: "block" } }}>
           <div className={drawerHeaderClasses}>

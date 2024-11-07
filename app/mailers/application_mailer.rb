@@ -4,6 +4,7 @@
 
 # Superclass for all Mailers
 class ApplicationMailer < ActionMailer::Base
+  default from: "primerocpims@gmail.com"
   layout 'mailer'
 
   rescue_from StandardError do |error|

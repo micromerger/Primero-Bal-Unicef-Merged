@@ -215,7 +215,8 @@ const ROUTES = {
   password_reset_request: "/password_reset_request",
   registry_records: "/registry_records",
   subscriptions: "/webpush/subscriptions",
-  subscriptions_current: "/webpush/subscriptions/current"
+  subscriptions_current: "/webpush/subscriptions/current",
+  newdashboard: "/newdashboard"
 };
 
 const PERMITTED_URL = [
@@ -234,7 +235,8 @@ const PERMITTED_URL = [
   ROUTES.registry_records,
   ROUTES.families,
   ROUTES.code_of_conduct,
-  ROUTES.password_reset_request
+  ROUTES.password_reset_request,
+  ROUTES.newdashboard
 ];
 
 const DATE_FORMAT = "dd-MMM-yyyy";
@@ -383,6 +385,11 @@ const APPLICATION_NAV = (permissions, userId) => {
       resources: RESOURCES.dashboards,
       actions: SHOW_TASKS,
       disableOffline: true
+    },
+    {
+      name: "navigation.newdashboard",
+      to: ROUTES.newdashboard,
+      icon: "insights"
     },
     {
       name: "navigation.cases",

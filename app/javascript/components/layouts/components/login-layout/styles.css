@@ -168,7 +168,18 @@
 .footerContained {
   flex-direction: column;
 }
+.box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: white;
+  padding-top: 7px;
+}
 
+.head {
+  margin: 5px;
+}
 @media (max-width:600px) {
   .loginLogo {
     display: none;
