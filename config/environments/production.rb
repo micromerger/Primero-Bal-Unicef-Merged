@@ -23,7 +23,7 @@ Rails.application.configure do
   config.active_support.deprecation = :notify
 
   config.eager_load = true
-
+  config.action_dispatch.default_headers['X-Frame-Options'] = "ALLOW-FROM https://dashboard.primero.mmis.space:8443"
   config.filter_parameters += %i[child incident tracing_request]
 
   if ENV['LOG_TO_STDOUT'].present?
