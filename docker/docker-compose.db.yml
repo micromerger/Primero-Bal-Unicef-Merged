@@ -15,24 +15,23 @@ services:
     restart: always
     profiles:
       - db
-
   application:
     profiles:
       - app
     depends_on:
       solr:
         condition: 'service_started'
+        required: false
       postgres:
         condition: 'service_started'
-
+        required: false
   worker:
     profiles:
       - app
     depends_on:
       solr:
         condition: 'service_started'
+        required: false
       postgres:
         condition: 'service_started'
-
-volumes:
-  database:
+        required: false

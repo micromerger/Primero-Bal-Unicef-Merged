@@ -12,12 +12,12 @@ services:
     profiles:
       - solr
     restart: always
-
   application:
     image: '${PRIMERO_IMAGE_REPOSITORY:-primeroims}/application:${PRIMERO_TAG:-latest}'
     depends_on:
       solr:
         condition: 'service_started'
+        required: false
     volumes:
       - public:/share/public
       - storage:/srv/primero/application/storage
@@ -28,12 +28,12 @@ services:
     stdin_open: true
     tty: true
     restart: always
-
   worker:
     image: '${PRIMERO_IMAGE_REPOSITORY:-primeroims}/application:${PRIMERO_TAG:-latest}'
     depends_on:
       solr:
         condition: 'service_started'
+        required: false
     volumes:
       - storage:/srv/primero/application/storage
     env_file:
@@ -42,7 +42,6 @@ services:
     profiles:
       - app
     restart: always
-
 volumes:
   database:
   public:
