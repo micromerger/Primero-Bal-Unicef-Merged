@@ -17,7 +17,7 @@ export default function NewDashboard() {
             <iframe
                 key={refreshKey}
                 title="new-dashboard"
-                src="https://dashboard.primero.mmis.space:8443/insights/public/dashboard/652c6417146956036820f8db88aa33e643a28fb73012bad8db8ec560"
+                src="https://dashboard.primero.mmis.space:8443/insights/public/dashboard/02daa6add9371a3229d79528b965f5d1dbdc23a51f1f70631dc0b739"
                 width="100%"
                 height="800px"
                 frameBorder="0"

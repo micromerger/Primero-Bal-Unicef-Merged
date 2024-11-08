@@ -43,8 +43,8 @@ function Component({ children }) {
           </div> */}
           <div className={css.box}>
 
-<img src={BalLogo} height="200px" width="240px" alt="Logo" />
-  <h3 className={css.head}>Government of Balochistan</h3>
+<img src={BalLogo} height="270px" width="240px" alt="Logo" />
+  <h3 className={css.head}>Government of Sindh</h3>
 {/* <h3 className={css.head}>s</h3> */}
 </div>
           <div className={css.authContainer}>
