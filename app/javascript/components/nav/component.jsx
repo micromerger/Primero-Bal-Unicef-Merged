@@ -118,10 +118,8 @@ function Nav() {
         {/* <ModuleLogo username={username} /> */}
         <div className={css.box}>
         <img src={BalLogo} height="80px" width="100px" alt="Logo" />
-          <p className={css.head}>Government of Punjab</p>
-          {/* <p className={css.head}>Information Management System</p> */}
-          {/* <p className={css.head}>Ministry of Human Rights</p> */}
-        </div>
+     <p className={css.head}>CP-IMS</p>  
+       </div>
       <div className={css.drawerHeaderContainer}>
         <Box sx={{ display: { md: "none", xs: "block" } }}>
           <div className={drawerHeaderClasses}>

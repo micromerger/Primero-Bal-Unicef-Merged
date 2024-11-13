@@ -20,7 +20,7 @@ else
 path_elements.last
 end
 puts "Location Third value: #{third_value}"
-dcpu_admin_role = Role.find_by(name: 'DCPU Admin')
+dcpu_admin_role = Role.find_by(name: 'CPI')
 dcpu_admin_users = User.where(role: dcpu_admin_role)
 filtered_users = dcpu_admin_users.select do |user|
 user.location && third_value.include?(user.location)
