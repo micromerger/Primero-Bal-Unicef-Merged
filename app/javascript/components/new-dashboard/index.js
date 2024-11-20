@@ -17,7 +17,7 @@ export default function NewDashboard() {
             <iframe
                 key={refreshKey}
                 title="new-dashboard"
-                src="https://dashboard.primero.mmis.space:8443/insights/public/dashboard/297f0826e8ba3ef9bd52b69153328aaf407e6f235bf7bf2e4309f33a"
+                src="https://cpims.mohr.gov.pk:8443/insights/public/dashboard/3781584b8af23c7cd9e95ab2e10dd7ba6db3359512fc65d80120c504"
                 width="100%"
                 height="800px"
                 frameBorder="0"

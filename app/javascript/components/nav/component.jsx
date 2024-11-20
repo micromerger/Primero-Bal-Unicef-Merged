@@ -117,7 +117,7 @@ function Nav() {
     <>
         {/* <ModuleLogo username={username} /> */}
         <div className={css.box}>
-        <img src={BalLogo} height="80px" width="100px" alt="Logo" />
+        <img src={BalLogo} height="100px" width="100px" alt="Logo" />
      <p className={css.head}>CP-IMS</p>  
        </div>
       <div className={css.drawerHeaderContainer}>
