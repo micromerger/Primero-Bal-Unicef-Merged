@@ -13,7 +13,11 @@ class UserMailer < ApplicationMailer
       subject: subject(user)
     )
   end
-
+  def notify_admin(recipients, record_id)
+    @recipients = recipients
+    @record_id = record_id
+    mail to: recipients, subject: 'New Case Alert'
+    end
   private
 
   def subject(user)

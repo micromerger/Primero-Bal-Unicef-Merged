@@ -6,6 +6,8 @@ import { useMediaQuery } from "@material-ui/core";
 
 import ModuleLogo from "../../../module-logo";
 import AgencyLogo from "../../../agency-logo";
+import SindhLogo from "../../../../images/mohr_logo.jpg";
+import primeroLogo from "../../../../images/primero-logo.png";
 import Notifier from "../../../notifier";
 import DemoIndicator from "../../../demo-indicator";
 import { useMemoizedSelector } from "../../../../libs";
@@ -36,16 +38,23 @@ const Component = ({ children }) => {
       <Notifier />
       <div className={classes}>
         <div className={css.content}>
-          <div className={css.loginHeader}>
+                    {/* <div className={css.loginHeader}>
             <ModuleLogo white />
-          </div>
+          </div> */}
+          <div className={css.box}>
+
+<img src={SindhLogo} height="250px" width="240px" alt="Logo" />
+<h2 className={css.head}>Government of Sindh</h2>
+{/* <h3 className={css.head}>s</h3> */}
+</div>
           <div className={css.authContainer}>
             <div className={classesAuthDiv}>
               <div className={css.formContainer}>
                 <div className={css.form}>{children}</div>
               </div>
-              <div className={classesLoginLogo}>
-                <AgencyLogo alwaysFullLogo />
+              <div className={css.loginLogo}>
+                <img src={primeroLogo} width="240px" alt="Logo" />
+                {/* <AgencyLogo alwaysFullLogo /> */}
               </div>
             </div>
             {isContainedAndMobile && <LoginLayoutFooter useContainedNavStyle />}

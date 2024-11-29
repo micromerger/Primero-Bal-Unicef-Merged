@@ -11,6 +11,7 @@ import clsx from "clsx";
 import { ROUTES, PERMITTED_URL, APPLICATION_NAV } from "../../config";
 import AgencyLogo from "../agency-logo";
 import ModuleLogo from "../module-logo";
+import ICTLogo from "../../images/mohr_logo.jpg"
 import useMemoizedSelector from "../../libs/use-memoized-selector";
 import MobileToolbar from "../mobile-toolbar";
 import { useApp } from "../application";
@@ -114,7 +115,13 @@ const Nav = () => {
   const drawerContent = (
     <>
       <Hidden smDown implementation="css">
-        <ModuleLogo username={username} />
+        {/* <ModuleLogo username={username} /> */}
+        <div className={css.box}>
+          <img src={ICTLogo} height="110px" width="100px" alt="Logo" />
+          <p className={css.head}>Government of Sindh</p>
+          {/* <p className={css.head}>Information Management System</p> */}
+          {/* <p className={css.head}>Ministry of Human Rights</p> */}
+        </div>
       </Hidden>
       <div className={css.drawerHeaderContainer}>
         <Hidden mdUp implementation="css">

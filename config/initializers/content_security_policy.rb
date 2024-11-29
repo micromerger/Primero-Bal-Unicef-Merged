@@ -20,9 +20,11 @@ storage_sources =
 
 media_sources = storage_sources + %i[data blob]
 font_and_image_sources = self_sources + %i[data blob]
-style_sources = self_sources
+style_sources = self_sources + %i[unsafe_inline] + [-> { "'nonce-#{request.content_security_policy_nonce}'" }]
 child_sources = self_sources + %i[blob]
 script_sources = self_sources + %i[strict_dynamic]
+feed_url = ["https://dashboard.primero.mmis.space:8443"]
+defaults = %i[self https]
 
 Rails.application.config.content_security_policy do |policy|
   policy.default_src(*self_sources)
@@ -33,7 +35,7 @@ Rails.application.config.content_security_policy do |policy|
   policy.script_src(*script_sources)
   policy.style_src(*style_sources)
   policy.child_src(*child_sources)
-  policy.frame_src(:none)
+  policy.frame_src(*defaults, *feed_url)
   policy.base_uri(:self)
 
   # Specify URI for violation reports
