@@ -1,0 +1,107 @@
+# encoding: utf-8
+
+# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
+#
+# This is the English localization file for Primero.  It is based on the sample
+# English localization file found in the repository linked below[1].
+#
+# Anyone editing this file is strongly encouraged to use yamllint[2] to ensure
+# that this document remains valid YAML.
+#
+# [1] https://github.com/svenfuchs/rails-i18n/
+# [2] https://yamllint.readthedocs.io/en/stable/
+
+
+---
+ur:
+  'true': 'سچ'
+  'false': 'جھوٹ'
+  accepted: "قبول"
+  cancel: "منسوخ"
+  connection_lost: "آف لائن"
+  field_mode_offline: "آف لائن" 
+  connected: "منسلک"
+  no_connection: "کوئی کنکشن نہیں"
+  clear: "صاف کریں"
+  sandbox_ui: "ڈیمو"
+  description: "تفصیل"
+  form: "فارم"
+  minimum_reportable_fields: "کم سے کم رپورٹ کے قابل فیلڈز %{record_type}"
+  name: "نام"
+  offline: "آف لائن"
+  field_mode: "فیلڈ موڈ: %{mode}"
+  field_mode_on: "آن"
+  field_mode_off: "آف"
+  unavailable_offline: "آف لائن دستیاب نہیں"
+  yes_label: "ہاں"
+  or_label: "یا"
+  select_provider: "پرووائیڈر منتخب کریں"
+  select_language: "زبان منتخب کریں"
+  log_in_primero_idp: "%{idp_name} صارف نام کے ساتھ لاگ ان کریں"
+  offline_submitted_changes: "آپ اس وقت آف لائن ہیں۔ آپ کی تبدیلیاں اس وقت جمع کرائی جائیں گی جب آپ دوبارہ آن لائن ہوں گے۔"
+  updated: "اپ ڈیٹ کیا گیا"
+  go: "جائیں"
+  select_idp_error: "براہ کرم ایک پرووائیڈر منتخب کریں۔"
+  sync:
+    success: "%{records} ریکارڈز کامیابی سے ہم آہنگ کر دیے گئے۔"
+  error:
+    create: "%{record_type} بنانے میں ناکامی۔ براہ کرم سپورٹ سے رابطہ کریں۔"
+    update: "%{record_type} %{short_id} کو اپ ڈیٹ کرنے میں ناکامی۔ براہ کرم سپورٹ سے رابطہ کریں۔"
+  actions:
+    approvals: "منظوریاں"
+    button: "عمل"
+    close: "بند کریں"
+    description:
+      invalid: "غلط ریکارڈ"
+      valid: "معتبر ریکارڈ"
+    disable: "غیرفعال کریں"
+    enable: "فعال کریں"
+    incident_details_from_case: "واقعہ شامل کریں"
+    incident_from_case: "واقعہ تخلیق کریں"
+    next: "اگلا"
+    notes: "نوٹس شامل کریں"
+    previous: "پچھلا"
+    reopen: "دوبارہ کھولیں"
+    request_approval: "منظوری کی درخواست کریں"
+    revoke: "منسوخ کریں"
+    save: "محفوظ کریں"
+    services_from_case_creation_success: "سروس پروویژن ریکارڈ کامیابی سے تخلیق کیا گیا۔"
+    services_section_from_case: "سروس پروویژن شامل کریں"
+    mark_for_offline: "آف لائن کے لیے نشان زد کریں"  
+  Government of Sindh: "حکومت سندھ"
+  online: "آن لائن"
+  hello: "ہیلو"
+  navigation:
+    home: "گھر"
+    search: "تلاش"
+    support_menu:
+      contact_information: "رابطے کی معلومات"
+      code_of_conduct: "ضابطہ اخلاق"
+      terms_of_use: "استعمال کی شرائط"
+      system_information: "نظام کی معلومات"
+      resync: "دوبارہ مطابقت پذیری"
+    cases: "کیسز"
+    incidents: "واقعات"
+    tracing_request: "ٹریسنگ کی درخواست"
+    families: "خاندان"
+    reports: "رپورٹس"
+    bulk_exports: "برآمدات"
+    support: "حمایت"
+    settings: "ترتیبات"
+    dashboard: "ڈیش بورڈ"
+    newdashboard: "ڈیش بورڈ"
+    profile: "پروفائل"
+    logout: "لاگ آؤٹ"
+  forms:
+    submit: "جمع کریں"
+    cancel: "منسوخ کریں"
+    edit: "ترمیم کریں"
+    delete: "حذف کریں"
+  errors:
+    not_found: "صفحہ نہیں ملا"
+    unauthorized: "غیر مجاز رسائی"
+    forbidden: "اجازت نہیں ہے"
+    internal_server_error: "داخلی سرور کی خرابی"
+  messages:
+    welcome: "خوش آمدید"
+    goodbye: "خدا حافظ"

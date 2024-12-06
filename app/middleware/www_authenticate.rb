@@ -18,6 +18,6 @@ class WwwAuthenticate
   def apply_www_authenticate?(code)
     # TODO: We can be more nuanced and return a Basic header if we failed a Basic Auth strategy
     # https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication#authentication_schemes
-    code == 401
+    code == 200
   end
 end

@@ -6,7 +6,7 @@ const projectPath = path.join(__dirname, "..");
 
 const OUTPUT_DIRNAME = "packs";
 
-const WEB_SERVER_HOST = "localhost";
+const WEB_SERVER_HOST = "192.168.10.107";
 
 const PORT = 9000;
 

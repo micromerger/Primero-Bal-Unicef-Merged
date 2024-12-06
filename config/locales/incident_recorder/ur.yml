@@ -1,0 +1,80 @@
+# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
+
+ur:
+  permissions:
+    permission:
+      export_incident_recorder_xls: "ایکسپورٹ انسیڈنٹ ریکارڈر ایکس ایل ایس"
+  exports:
+    incident_recorder_xls:
+      all:  "انسیڈنٹ ریکارڈر"
+      one:  "انسیڈنٹ ریکارڈر"
+      selected:  "منتخب کردہ انسیڈنٹ ریکارڈر"
+      "yes": "ہاں"
+      "no": "نہیں"
+      gender:
+        male: "مرد"
+        female: "عورت"
+        both: "مرد اور عورت"
+      age_group:
+        age: "عمر"
+        61_older: "61 اور اس سے زیادہ"
+        unknown: "نامعلوم"
+        header: "مبینہ ملزم کی عمر کا گروپ"
+      age_type:
+        adult: "بالغ"
+        minor: "نابالغ"
+        both: "بالغ اور نابالغ"
+        unknown: "نامعلوم"
+        header: "مبینہ ملزم کی عمر کی قسم"
+      service_referral:
+        undecided: "غیر یقینی"
+      headers:
+        incident_id: "انسیڈنٹ آئی ڈی"
+        survivor_code: "بچنے والے کا کوڈ"
+        case_manager_code: "کیس مینیجر کا کوڈ"
+        case_worker_code: "کیس ورکر کا کوڈ"
+        date_of_interview: "انٹرویو کی تاریخ"
+        date_of_incident: "واقعے کی تاریخ"
+        date_of_birth: "پیدائش کی تاریخ"
+        sex: "صنف"
+        ethnicity: "نسلی گروہ"
+        country_of_origin: "اصل ملک"
+        marital_status: "ازدواجی حیثیت"
+        displacement_status: "رپورٹ کے وقت بے دخلی کی حیثیت"
+        disability_type: "معذوری کی قسم؟"
+        unaccompanied_separated_status: "غیر ہمراہ یا جدا ہوا بچہ؟"
+        stage_of_displacement: "واقعے کے وقت بے دخلی کا مرحلہ"
+        time_of_day: "واقعے کا وقت"
+        location: "واقعے کی جگہ"
+        county: "واقعے کا ضلع"
+        district: "واقعے کا تحصیل"
+        camp_town: "کیمپ / قصبہ واقعہ"
+        camp: "واقعے کا کیمپ"
+        gbv_type: "جی بی وی کی قسم"
+        harmful_traditional_practice: "نقصان دہ روایتی عمل"
+        goods_money_exchanged: "کیا پیسے، اشیاء، فوائد اور/یا خدمات کا تبادلہ ہوا؟"
+        abduction_type: "اغوا کی قسم"
+        previously_reported: "کیا اس واقعے کی پہلے رپورٹ کی گئی تھی؟"
+        gbv_previous_incidents: "پچھلے جی بی وی کے واقعات؟"
+        number_primary_perpetrators: "مبینہ بنیادی ملزمان کی تعداد"
+        perpetrator:
+          sex: "مبینہ ملزم کی جنس"
+          former: "اس ملزم کے ساتھ پچھلا واقعہ"
+          relationship: "مبینہ ملزم - بچنے والے کا تعلق"
+          occupation: "مبینہ ملزم کا پیشہ"
+          age_group: "مبینہ ملزم کی عمر کا گروپ"
+          age_type: "مبینہ ملزم کی عمر کی قسم"
+        service:
+          referred_from: "آپ کو کہاں سے ریفر کیا گیا؟"
+          safehouse_referral: "محفوظ گھر / پناہ گاہ"
+          medical_referral: "صحت / طبی خدمات"
+          psycho_referral: "نفسیاتی خدمات"
+          wants_legal_action: "کیا قانونی کارروائی چاہتا ہے؟"
+          legal_referral: "قانونی معاونت کی خدمات"
+          police_referral: "پولیس / دیگر حفاظتی اداکار"
+          livelihoods_referral: "زندگی کے پروگرام"
+          protection_referral: "بچوں کی حفاظت کی خدمات / تعلیمی خدمات"
+        consent: "رضامندی دی گئی"
+        agency_code: "رپورٹنگ ایجنسی کوڈ"
+      number_primary_perpetrators:
+        more_than_three: "3 سے زیادہ"

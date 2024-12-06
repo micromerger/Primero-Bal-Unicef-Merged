@@ -9,6 +9,7 @@ Rails.application.configure do
   config.logger = Logger.new(config.paths['log'].first, 1, 50.megabytes)
   # Full error reports are disabled and caching is turned on
   config.consider_all_requests_local = true
+  config.action_dispatch.default_headers['X-Frame-Options'] = "ALLOW-FROM https://dashboard.primero.mmis.space:8443"
   config.eager_load = ENV['PROFILE'] == 'true'
   config.action_mailer.raise_delivery_errors = false
 
