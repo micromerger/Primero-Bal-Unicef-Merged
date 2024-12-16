@@ -43,9 +43,9 @@ function Component({ children }) {
           </div> */}
           <div className={css.box}>
 
-<img src={BalLogo} height="200px" width="240px" alt="Logo" />
-  <h3 className={css.head}>Child Protection - Information Management System</h3>
-{/* <h3 className={css.head}>s</h3> */}
+<img src={BalLogo} height="220px" width="240px" alt="Logo" />
+  <h3 className={css.head}>KP Child Protection & Welfare Commission</h3>
+{/* <h3 className={css.head}>Government of KPK</h3> */}
 </div>
           <div className={css.authContainer}>
             <div className={classesAuthDiv}>

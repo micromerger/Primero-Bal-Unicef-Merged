@@ -11,7 +11,7 @@ import { cx } from "@emotion/css";
 import { ROUTES, PERMITTED_URL, APPLICATION_NAV } from "../../config";
 import AgencyLogo from "../agency-logo";
 import ModuleLogo from "../module-logo";
-import BalLogo from "../../images/logo.png";
+import BalLogo from "../../images/kpk_logo.png";
 import useMemoizedSelector from "../../libs/use-memoized-selector";
 import MobileToolbar from "../mobile-toolbar";
 import { useApp } from "../application";
@@ -117,8 +117,8 @@ function Nav() {
     <>
         {/* <ModuleLogo username={username} /> */}
         <div className={css.box}>
-        <img src={BalLogo} height="80px" width="100px" alt="Logo" />
-     <p className={css.head}>CP-IMS</p>  
+        <img src={BalLogo} height="100%" width="80%"  alt="Logo" />
+ {/* <p className={css.head}>CP-IMS</p>   */}
        </div>
       <div className={css.drawerHeaderContainer}>
         <Box sx={{ display: { md: "none", xs: "block" } }}>
