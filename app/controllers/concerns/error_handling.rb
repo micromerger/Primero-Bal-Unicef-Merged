@@ -12,7 +12,7 @@ module ErrorHandling
       @errors.map(&:headers).compact.inject({}, &:merge).each do |name, value|
         response.set_header(name, value)
       end
-      render 'api/v2/errors/errors', status:
+      render 'api/v2/errors/errors', status: status and return # Added 'and return' to prevent further execution
     end
   end
 end
