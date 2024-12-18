@@ -96,6 +96,7 @@ class Api::V2::ChildrenController < ApplicationApiController
         family_details: family_details
       }
     end
-    render json: result, status: :ok
+    total_count = cases.size
+    render json: { cases: result, total_cases: total_count }, status: :ok
   end
 end
