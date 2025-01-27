@@ -17,7 +17,7 @@ export default function NewDashboard() {
             <iframe
                 key={refreshKey}
                 title="new-dashboard"
-                src="https://dashboard.primero.mmis.space:8443/insights/public/dashboard/297f0826e8ba3ef9bd52b69153328aaf407e6f235bf7bf2e4309f33a"
+                src="https://frappe.erp.mmis.space:8444/insights/public/dashboard/9e0f5baebf8909968b951c685cb9f4adb8d45054d1760013d8b42ac4"
                 width="100%"
                 height="800px"
                 frameBorder="0"
