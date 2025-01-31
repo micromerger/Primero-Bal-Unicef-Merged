@@ -216,7 +216,8 @@ const ROUTES = {
   registry_records: "/registry_records",
   subscriptions: "/webpush/subscriptions",
   subscriptions_current: "/webpush/subscriptions/current",
-  newdashboard: "/newdashboard"
+  newdashboard: "/newdashboard",
+  helpline: "/helpline"
 };
 
 const PERMITTED_URL = [
@@ -236,7 +237,8 @@ const PERMITTED_URL = [
   ROUTES.families,
   ROUTES.code_of_conduct,
   ROUTES.password_reset_request,
-   ROUTES.newdashboard
+  ROUTES.newdashboard,
+  ROUTES.helpline
 ];
 
 const DATE_FORMAT = "dd-MMM-yyyy";
@@ -391,6 +393,11 @@ const APPLICATION_NAV = (permissions, userId) => {
        to: ROUTES.newdashboard,
        icon: "insights"
      },
+     {
+      name: "navigation.helpline",
+      to: ROUTES.helpline,
+      icon: "registry_records"
+    },
     {
       name: "navigation.cases",
       to: ROUTES.cases,

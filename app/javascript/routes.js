@@ -40,6 +40,7 @@ import InsightsSubReport from "./components/insights-sub-report";
 import Account from "./components/pages/account";
 import PasswordReset from "./components/password-reset";
 import NewDashboard from "./components/new-dashboard";
+import helpline from "./components/helpline";
 import CodeOfConduct from "./components/code-of-conduct";
 import ActivityLog from "./components/activity-log";
 import { AppLayout, LoginLayout, EmptyLayout } from "./components/layouts";
@@ -138,6 +139,10 @@ export default [
         {
           path: "/newdashboard",
           component: NewDashboard
+        },
+        {
+          path: "/helpline",
+          component: helpline
         },
       {
         path: "/tracing_requests",

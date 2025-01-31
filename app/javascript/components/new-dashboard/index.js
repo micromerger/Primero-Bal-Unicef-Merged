@@ -8,6 +8,7 @@ export default function NewDashboard() {
     };
 
     useEffect(() => {
+
         // Call the refreshIframe function whenever needed
         refreshIframe();
     }, []); // Empty dependency array means this runs once on component mount
