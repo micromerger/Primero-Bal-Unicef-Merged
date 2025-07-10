@@ -218,6 +218,7 @@ const ROUTES = {
   password_reset_request: "/password_reset_request",
   registry_records: "/registry_records",
   subscriptions: "/webpush/subscriptions",
+  newdashboard: "/newdashboard",
   subscriptions_current: "/webpush/subscriptions/current",
   usage_reports: "/admin/usage_reports"
 };
@@ -235,6 +236,7 @@ const PERMITTED_URL = [
   ROUTES.cases,
   ROUTES.tracing_requests,
   ROUTES.incidents,
+  ROUTES.newdashboard,
   ROUTES.registry_records,
   ROUTES.families,
   ROUTES.code_of_conduct,
@@ -378,6 +380,11 @@ const APPLICATION_NAV = (permissions, userId) => {
       icon: "home",
       validateWithUserPermissions: true
     },
+     {
+name: "navigation.newdashboard",
+to: ROUTES.newdashboard,
+icon: "insights"
+},
     {
       name: "navigation.activity_log",
       to: ROUTES.activity_log,

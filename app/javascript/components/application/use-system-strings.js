@@ -81,10 +81,10 @@ function useSystemStrings(feature) {
   return {
     label: (key, fallbackI18nKey, options = {}) => {
       if (feature) {
-        const systemOrDefaultFieldLabel = fieldLabels.getIn(
-          [key, i18n.locale],
-          i18n.t(fallbackI18nKey || key, options)
-        );
+       const systemOrDefaultFieldLabel = fieldLabels?.getIn?.(
+  [key, i18n.locale],
+  i18n.t(fallbackI18nKey || key, options)
+) || i18n.t(fallbackI18nKey || key, options);
         const allowedKeys = selectAllowedFeatureKeys(feature);
 
         if (allowedKeys.includes(key)) {

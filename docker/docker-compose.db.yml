@@ -5,6 +5,8 @@ version: '3'
 services:
   postgres:
     image: '${PRIMERO_IMAGE_REPOSITORY:-primeroims}/postgres:${PRIMERO_TAG:-latest}-pg${PRIMERO_POSTGRES_VERSION:-15}'
+    ports:
+      - 5432:5432
     volumes:
       - database:/var/lib/postgresql/data
     env_file:

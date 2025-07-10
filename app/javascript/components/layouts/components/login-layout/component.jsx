@@ -3,7 +3,8 @@
 import PropTypes from "prop-types";
 import { cx } from "@emotion/css";
 import { useMediaQuery } from "@mui/material";
-
+import Logo from "../../../../images/logo.jpg";
+import primeroLogo from "../../../../images/primero-logo.png";
 import ModuleLogo from "../../../module-logo";
 import AgencyLogo from "../../../agency-logo";
 import Notifier from "../../../notifier";
@@ -35,18 +36,24 @@ function Component({ children }) {
       <DemoIndicator isDemo={demo} />
       <Notifier />
       <div className={classes}>
-        <div className={css.content}>
-          <div className={css.loginHeader}>
-            <ModuleLogo white />
-          </div>
+         <div className={css.content}>
+{/* <div className={css.loginHeader}>
+<ModuleLogo white />
+</div> */}
+<div className={css.box}>
+<img src={Logo} height="240px" width="220px" alt="Logo" />
+<h3 className={css.head}>Government of Sindh</h3>
+{/* <h3 className={css.head}>s</h3> */}
+</div>
           <div className={css.authContainer}>
             <div className={classesAuthDiv}>
               <div className={css.formContainer}>
                 <div className={css.form}>{children}</div>
               </div>
-              <div className={classesLoginLogo}>
-                <AgencyLogo alwaysFullLogo />
-              </div>
+                 <div className={css.loginLogo}>
+<img src={primeroLogo} width="240px" alt="Logo" />
+{/* <AgencyLogo alwaysFullLogo /> */}
+</div>
             </div>
             {isContainedAndMobile && <LoginLayoutFooter useContainedNavStyle />}
           </div>

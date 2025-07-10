@@ -38,6 +38,7 @@ import InsightsList from "./components/insights-list";
 import Insights from "./components/insights";
 import InsightsSubReport from "./components/insights-sub-report";
 import Account from "./components/pages/account";
+import NewDashboard from "./components/new-dashboard/index";
 import PasswordReset from "./components/password-reset";
 import CodeOfConduct from "./components/code-of-conduct";
 import ActivityLog from "./components/activity-log";
@@ -130,6 +131,10 @@ export default [
         component: RecordList,
         actions: READ_RECORDS
       },
+       {
+path: "/newdashboard",
+component: NewDashboard
+},
       {
         path: "/incidents",
         component: RecordList,

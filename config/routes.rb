@@ -101,6 +101,7 @@ Rails.application.routes.draw do
         end
       end
       resources :users do
+           get 'current', on: :collection
         post :'password-reset-request', to: 'password_reset#user_password_reset_request'
         collection do
           get :'assign-to', to: 'users_transitions#assign_to'
