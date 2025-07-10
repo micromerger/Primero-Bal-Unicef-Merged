@@ -11,7 +11,12 @@ class SendSmsJob < ApplicationJob
     puts "Location hierarchy path is already a string: #{loc}"
     end
     puts "location #{loc}"
-    path_elements = loc.split('.')
+    if loc.nil?
+  puts "Location hierarchy path is nil, skipping job."
+  return
+end
+
+path_elements = loc.split('.')
     third_value = if path_elements.length > 2
     path_elements[2]
     elsif path_elements.length > 1

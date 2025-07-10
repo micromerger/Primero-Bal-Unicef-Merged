@@ -46,7 +46,7 @@ module Api::V2::Concerns::Record
     Rails.logger.error("Invalid record or user: #{@record.inspect}, #{current_user.inspect}")
   end
 
-  render 'api/v2/records/create', status: status_code
+   render 'api/v2/records/create', status:
   end
 
   def update
