@@ -46,41 +46,5 @@ path_elements = loc.split('.')
     puts "Filtered Users Emails: #{filtered_users_email}"
     puts "Filtered Users Phones: #{filtered_users_phone}"
     UserMailer.notify_admin(filtered_users_email, record_id).deliver_now
-        # Send SMS to filtered users
-        message = "New case with id #{record_id} is added in your district. Please attend to it. Thanks. Primero-CPIMS"
-    #    send_sms(filtered_users_phone, message)
     end
-    private
-    
-      def send_sms(phone_numbers, message)
-        email = "engineerusmanjutt@gmail.com"
-        key = "02486a8884addd72fd0a3a94d454f7bc28"
-        mask = "Digi SMS"
-    
-        phone_numbers.each do |phone|
-          data = {
-            email: email,
-            key: key,
-            mask: mask,
-            to: phone,
-            message: message
-          }
-    
-          response = send_sms_request(data)
-          puts "SMS Response for #{phone}: #{response}"
-        end
-      end
-    
-      def send_sms_request(data)
-        uri = URI('https://secure.h3techs.com/sms/api/send')
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = true
-    
-        request = Net::HTTP::Post.new(uri.path)
-        request.set_form_data(data)
-    
-        response = http.request(request)
-        response.body
-      end
-    end
-    
+  end
