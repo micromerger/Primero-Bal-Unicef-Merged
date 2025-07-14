@@ -42,6 +42,7 @@ import NewDashboard from "./components/new-dashboard/index";
 import PasswordReset from "./components/password-reset";
 import CodeOfConduct from "./components/code-of-conduct";
 import ActivityLog from "./components/activity-log";
+import helpline from "./components/helpline";
 import { AppLayout, LoginLayout, EmptyLayout } from "./components/layouts";
 import {
   CREATE_RECORDS,
@@ -134,6 +135,10 @@ export default [
        {
 path: "/newdashboard",
 component: NewDashboard
+},
+   {
+path: "/helpline",
+component: helpline
 },
       {
         path: "/incidents",

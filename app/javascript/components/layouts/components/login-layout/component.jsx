@@ -3,7 +3,7 @@
 import PropTypes from "prop-types";
 import { cx } from "@emotion/css";
 import { useMediaQuery } from "@mui/material";
-import Logo from "../../../../images/bal-logo.png";
+import Logo from "../../../../images/logo.png";
 import primeroLogo from "../../../../images/primero-logo.png";
 import ModuleLogo from "../../../module-logo";
 import AgencyLogo from "../../../agency-logo";
@@ -41,8 +41,8 @@ function Component({ children }) {
 <ModuleLogo white />
 </div> */}
 <div className={css.box}>
-<img src={Logo} height="200px" width="240px" alt="Logo" />
-<h3 className={css.head}>Government of Balochistan</h3>
+<img src={Logo} height="220px" width="240px" alt="Logo" />
+<h3 className={css.head}>KP Child Protection & Welfare Commission</h3>
 {/* <h3 className={css.head}>s</h3> */}
 </div>
           <div className={css.authContainer}>

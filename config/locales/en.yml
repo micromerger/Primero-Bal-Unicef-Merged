@@ -2628,6 +2628,7 @@ en:
   navigation:
     bulk_exports: Exports
     newdashboard: Dashboard
+    helpline: Helpline
     cases: Cases
     home: Home
     key_performance_indicators: Pulse/KPIs

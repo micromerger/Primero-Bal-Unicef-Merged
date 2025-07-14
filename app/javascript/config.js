@@ -219,6 +219,7 @@ const ROUTES = {
   registry_records: "/registry_records",
   subscriptions: "/webpush/subscriptions",
   newdashboard: "/newdashboard",
+  helpline: "/helpline",
   subscriptions_current: "/webpush/subscriptions/current",
   usage_reports: "/admin/usage_reports"
 };
@@ -238,6 +239,7 @@ const PERMITTED_URL = [
   ROUTES.incidents,
   ROUTES.newdashboard,
   ROUTES.registry_records,
+  ROUTES.helpline,
   ROUTES.families,
   ROUTES.code_of_conduct,
   ROUTES.password_reset_request
@@ -384,6 +386,11 @@ const APPLICATION_NAV = (permissions, userId) => {
 name: "navigation.newdashboard",
 to: ROUTES.newdashboard,
 icon: "insights"
+},
+    {
+name: "navigation.helpline",
+to: ROUTES.helpline,
+icon: "registry_records"
 },
     {
       name: "navigation.activity_log",
