@@ -104,7 +104,7 @@ en:
   approvals:
     no_requests: There are no approval requests for this Case
     approved_by: Approved By
-    case_plan_type_label: Case plan type
+    case_plan_type_label: Individual Rehabilitation Program type
     manager_comments_label: Manager Comments
     rejected_by: Rejected By
     requested_by: Requested By
@@ -146,7 +146,7 @@ en:
     approvals: Approvals
     approve_action_plan: Approve Action Plan
     approve_bia: Approve BIA
-    approve_case_plan: Approve Case Plan
+    approve_case_plan: Approve Individual Rehabilitation Program
     approve_closure: Approve Closure
     approve_gbv_closure: Approve GBV Closure
     back: Back
@@ -282,7 +282,7 @@ en:
       remove this family member from the family record, or unlink the family member's case from the Family Record.
     workflow:
       assessment: Assessment
-      case_plan: Case Plan
+      case_plan: Individual Rehabilitation Program
       closed: Closed
       created_on: created on
       in_progress: in progress
@@ -317,7 +317,7 @@ en:
     approved_success_gbv_closure: '%{approval_label} - Approved'
     assessment: Assessment
     case_opening_date: Case Open Date
-    case_plan: Case Plan
+    case_plan: Individual Rehabilitation Program
     case_worker_code: Case Worker Code
     child_functioning:
       date: "Date"
@@ -402,7 +402,7 @@ en:
       bia: BIA
       by_date: By Date
       case_open_date: Case Open Date
-      case_plan: Case Plan
+      case_plan: Individual Rehabilitation Program
       closed: Closed
       closure: Closure
       current_location: Current Location
@@ -515,10 +515,10 @@ en:
     request_approval_success_closure: Approval requested for %{approval_label} form.
     request_approval_success_gbv_closure: Approval requested for %{approval_label}
       form.
-    request_approval_type_of_case_plan: Type of Case Plan Approval
+    request_approval_type_of_case_plan: Type of Individual Rehabilitation Program Approval
     request_approve_action_plan: Approve Action Plan?
     request_approve_bia: Approve Assessment?
-    request_approve_case_plan: Approve Case Plan?
+    request_approve_case_plan: Approve Individual Rehabilitation Program?
     request_approve_closure: Approve Closure?
     request_approve_gbv_closure: Approve GBV Closure?
     revoke_failure: An error occurred while revoking the %{transition_type}, please
@@ -600,7 +600,7 @@ en:
       assessment_requested_on: Date of Assessment
       closure_approved_date: 'Date of Case Closure '
       created_at: Case Open Date
-      date_case_plan_initiated: Date of Case Plan
+      date_case_plan_initiated: Date of Individual Rehabilitation Program
       date_of_creation: Date of Creation
       registration_date: Date of Registration
       followup_date: Date of Follow Up
@@ -689,7 +689,7 @@ en:
     approval_assessment_rejected: Rejected
     approval_case_plan_approved: Approved
     approval_case_plan_pending: Pending
-    approval_case_plan_pending_group: Case Plan
+    approval_case_plan_pending_group: Individual Rehabilitation Program
     approval_case_plan_rejected: Rejected
     approval_closure_approved: Approved
     approval_closure_pending: Pending
@@ -702,7 +702,7 @@ en:
     approvals: Approvals
     approvals_action_plan: Action Plan
     approvals_assessment: Assessment
-    approvals_case_plan: Case Plan
+    approvals_case_plan: Individual Rehabilitation Program
     approvals_closure: Closure
     approvals_gbv_closure: GBV Closure
     approved: Approved
@@ -713,7 +713,7 @@ en:
     case_id: 'Case #ID'
     case_management_service: Case Management Service
     case_overview: My Cases
-    case_plan: Case Plan
+    case_plan: Individual Rehabilitation Program
     case_risk: Cases by Assessment Level
     case_stat_by_approval_type: Approvals
     case_stat_by_assessment_level: Cases by Assessment Level
@@ -1778,9 +1778,9 @@ en:
       helptext: |
         This indicator calculates the proportion of active cases for which a Case Action Plan was
         completed and approved by a supervisor. A case action plan is considered completed when a
-        set of mandatory fields within the Action Plan form are completed. A case plan is considered
-        approved when the caseworker requests approval for the case plan and the supervisor
-        approves the case plan on the platform.
+        set of mandatory fields within the Action Plan form are completed. A Individual Rehabilitation Program is considered
+        approved when the caseworker requests approval for the Individual Rehabilitation Program and the supervisor
+        approves the Individual Rehabilitation Program on the platform.
     services_provided:
       title: "8. Services Provided"
       service: "Service"
@@ -1935,7 +1935,7 @@ en:
       approve_form:
         action_plan: Action Plan form
         bia: BIA form
-        case_plan: Case Plan form
+        case_plan: Individual Rehabilitation Program form
         closure: Closure form
         'false': Rejecting
         gbv_closure: GBV Closure form
@@ -2035,7 +2035,7 @@ en:
     approve_form:
       action_plan: Action Plan form
       bia: BIA form
-      case_plan: Case Plan form
+      case_plan: Individual Rehabilitation Program form
       closure: Closure form
       'false': Rejecting
       gbv_closure: GBV Closure form
@@ -2053,7 +2053,7 @@ en:
     by_user: by user
     case_plan_approved: "%{approval_label} approved for"
     case_plan_requested: "%{approval_label} requested for"
-    case_plan_rejected: Reject Case Plan approval
+    case_plan_rejected: Reject Individual Rehabilitation Program approval
     close: Close
     closure_approved: "%{approval_label} approved for"
     closure_rejected: Reject Closure approval
@@ -2135,7 +2135,7 @@ en:
     request_approval:
       action_plan: Request Approval for the Action Plan form
       bia: Request Approval for the BIA form
-      case_plan: Request Approval for the Case Plan form
+      case_plan: Request Approval for the Individual Rehabilitation Program form
       closure: Request Approval for the Closure form
       gbv_closure: Request Approval for the GBV Closure form
     request_transfer: Sending Transfer Request
@@ -2692,7 +2692,7 @@ en:
       case_overview: My Cases
       case_risk: Cases by Assessment Level
       cases_by_task_overdue_assessment: View Cases By Task Overdue Assessment
-      cases_by_task_overdue_case_plan: View Cases By Task Overdue Case Plan
+      cases_by_task_overdue_case_plan: View Cases By Task Overdue Individual Rehabilitation Program
       cases_by_task_overdue_followups: View Cases By Task Overdue Services
       cases_by_task_overdue_services: View Cases By Task Overdue Services
       cases_managed_other_users: Cases managed by other users
@@ -3364,12 +3364,12 @@ en:
               Assessment approval requests.
             label: Manager %{approval_label} approvals
           approvals_case_plan:
-            explanation: Shows the number of the current user's cases with Case Plan
+            explanation: Shows the number of the current user's cases with Individual Rehabilitation Program
               approval requests which are Pending, Approved, or Rejected.
             label: Case worker %{approval_label} approvals
           approvals_case_plan_pending:
             explanation: Shows the number of cases in a manager's team with pending
-              Case Plan approval requests.
+              Individual Rehabilitation Program approval requests.
             label: Manager %{approval_label} approvals
           approvals_closure:
             explanation: Shows the number of the current user's cases with Closure
@@ -3401,7 +3401,7 @@ en:
           cases_by_task_overdue_case_plan:
             explanation: Allows a manager to see how many cases have overdue Case
               Plan tasks for each one of their case workers.
-            label: Overdue Case Plan tasks
+            label: Overdue Individual Rehabilitation Program tasks
           cases_by_task_overdue_followups:
             explanation: Allows a manager to see how many cases have overdue Follow
               Up tasks for each one of their case workers.
@@ -4560,7 +4560,7 @@ en:
     type: Type of Action
     types:
       assessment: Assessment
-      case_plan: Case Plan
+      case_plan: Individual Rehabilitation Program
       follow_up: Follow Up - %{subtype}
       service: Service - %{subtype}
   tracing_request:
