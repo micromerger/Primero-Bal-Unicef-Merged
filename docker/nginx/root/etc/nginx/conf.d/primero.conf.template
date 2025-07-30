@@ -29,7 +29,46 @@ server {
         return 301 https://$host:${NGINX_HTTPS_PORT}$1;
     }
 }
-
+# Redirect HTTP non-www to www
+server {
+    listen 80;
+    server_name punjab.cpims.org.pk;
+ 
+    location ~ ^/\.well-known/acme-challenge/ {
+        default_type "text/plain";
+        root /usr/share/nginx/html;
+    }
+ 
+    location / {
+        return 301 https://www.punjab.cpims.org.pk$request_uri;
+    }
+}
+ 
+# Redirect HTTPS non-www to www
+server {
+    listen ${NGINX_HTTPS_PORT} ssl;
+    server_name punjab.cpims.org.pk;
+ 
+    ssl_certificate           ${NGINX_SSL_CERT_PATH};
+    ssl_certificate_key       ${NGINX_SSL_KEY_PATH};
+    ssl_dhparam               ${NGINX_DH_PARAM};
+ 
+    ssl_protocols             TLSv1.3 TLSv1.2;
+    ssl_ciphers               'EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH';
+    ssl_prefer_server_ciphers on;
+    ssl_ecdh_curve            secp384r1;
+    ssl_session_tickets       off;
+    ssl_stapling              on;
+    ssl_stapling_verify       on;
+ 
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+ 
+    location / {
+        return 301 https://www.punjab.cpims.org.pk$request_uri;
+    }
+}
 server {
     listen ${NGINX_HTTPS_PORT} ssl;
     server_name ${NGINX_SERVER_NAME};
