@@ -117,7 +117,7 @@ function Nav() {
     <>
  {/* <ModuleLogo username={username} /> */}
  <div className={css.box}>
- <img src={Logo} height="80px" width="100px" alt="Logo" />
+ <img src={Logo} height="100px" width="100px" alt="Logo" />
  {/* <p className={css.head}>Government of Sindh</p>*/ }
  {/* <p className={css.head}>Information Management System</p> */}
  {/* <p className={css.head}>Ministry of Human Rights</p> */}

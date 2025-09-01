@@ -41,8 +41,8 @@ function Component({ children }) {
 <ModuleLogo white />
 </div> */}
 <div className={css.box}>
-<img src={Logo} height="200px" width="240px" alt="Logo" />
-<h3 className={css.head}>Government of Balochistan</h3>
+<img src={Logo} height="220px" width="240px" alt="Logo" />
+<h3 className={css.head}>Child Protection - Information Management System</h3>
 {/* <h3 className={css.head}>s</h3> */}
 </div>
           <div className={css.authContainer}>
