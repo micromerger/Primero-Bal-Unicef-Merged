@@ -368,12 +368,12 @@ const ADMIN_NAV = [
   }
 ];
 
-const APPLICATION_NAV = (permissions, userId) => {
-  const adminResources = getAdminResources(permissions);
+const APPLICATION_NAV = (permissions, userId, userRole) => {
+ const adminResources = getAdminResources(permissions);
   const adminForm = adminResources[0] || ADMIN_RESOURCES.contact_information;
   const adminSettingsOption = `/admin/${adminForm === RESOURCES.metadata ? RESOURCES.forms : adminForm}`;
 
-  return [
+  const menu = [
     {
       name: "navigation.home",
       to: ROUTES.dashboard,
@@ -381,10 +381,10 @@ const APPLICATION_NAV = (permissions, userId) => {
       validateWithUserPermissions: true
     },
      {
-name: "navigation.newdashboard",
-to: ROUTES.newdashboard,
-icon: "insights"
-},
+     name: "navigation.newdashboard",
+     to: ROUTES.newdashboard,
+     icon: "insights"
+    },
     {
       name: "navigation.activity_log",
       to: ROUTES.activity_log,
@@ -499,6 +499,13 @@ icon: "insights"
     },
     { name: "navigation.logout", to: ROUTES.logout, icon: "logout" }
   ];
+  if (userRole === "Referral") {
+    return menu.filter(
+      item => item.to !== ROUTES.dashboard && item.to !== ROUTES.newdashboard
+    );
+  }
+
+  return menu;
 };
 
 const LOCATION_PATH = "/locations";
