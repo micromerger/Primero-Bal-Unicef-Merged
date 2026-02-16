@@ -25,7 +25,7 @@ function Component({ closeDrawer, menuEntry, mobileDisplay, jewelCount, username
   const dispatch = useDispatch();
   const { label } = useSystemStrings(NAVIGATION);
 
-  const { to, divider, icon, name, disableOffline, disabled, validateWithUserPermissions, resources } = menuEntry;
+  const { to, divider, icon, name, disableOffline, disabled, validateWithUserPermissions,validateWithUserPermissionscustom, resources } = menuEntry;
 
   const jewel = jewelCount ? (
     <Jewel
@@ -83,7 +83,12 @@ function Component({ closeDrawer, menuEntry, mobileDisplay, jewelCount, username
       ? renderNavAction
       : null;
   }
-
+  if (validateWithUserPermissionscustom) {
+  const resourceKey = resources || to.replace("/", "");
+  const actions = userPermissions.get(resourceKey) || [];
+  const hasAccess = actions.includes(menuEntry.actions);
+  return hasAccess ? renderNavAction : null;
+}
   return renderNavAction;
 }
 

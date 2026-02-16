@@ -55,7 +55,8 @@ export {
   REMOVE_ALERT,
   SHOW_USAGE_REPORTS,
   VIEW_CASE_RELATIONSHIPS,
-  UPDATE_CASE_RELATIONSHIPS
+  UPDATE_CASE_RELATIONSHIPS,
+  VIEW_DASHBOARD
 } from "./constants";
 
 export { checkPermissions } from "./utils";
