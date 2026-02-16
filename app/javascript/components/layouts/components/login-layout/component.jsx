@@ -3,7 +3,7 @@
 import PropTypes from "prop-types";
 import { cx } from "@emotion/css";
 import { useMediaQuery } from "@mui/material";
-import Logo from "../../../../images/bal-logo.png";
+import Logo from "../../../../images/logo.png";
 import primeroLogo from "../../../../images/primero-logo.png";
 import ModuleLogo from "../../../module-logo";
 import AgencyLogo from "../../../agency-logo";

@@ -11,7 +11,7 @@ import { cx } from "@emotion/css";
 import { ROUTES, PERMITTED_URL, APPLICATION_NAV } from "../../config";
 import AgencyLogo from "../agency-logo";
 import ModuleLogo from "../module-logo";
-import Logo from "../../images/bal-logo.png";
+import Logo from "../../images/logo.png";
 import useMemoizedSelector from "../../libs/use-memoized-selector";
 import MobileToolbar from "../mobile-toolbar";
 import { useApp } from "../application";
