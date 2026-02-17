@@ -3334,8 +3334,8 @@ en:
       dashboard:
         actions:
           view_dashboard:
-          explanation: 'Displays the new Dashboard to user.' 
-          label: 'View Graphical Dashboard'
+            explanation: 'Displays the new Dashboard to user.' 
+            label: 'View Graphical Dashboard'
           action_needed_new_updated:
             explanation: Displays the 'New and Updated' indicator in the 'Action Needed' dashboard.
               This includes Cases which are newly assigned to the current user, or which another

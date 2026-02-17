@@ -129,7 +129,7 @@ lookups = {}
       full_name = row['district_full_name'] || ''
       district_name = full_name.split(':')[2] || 'N/A'
       district_name = 'N/A' if district_name.strip.empty?
-      
+
       age_groups = {
          '0-5' => 0,
          '6-10' => 0,
@@ -426,15 +426,25 @@ end
 }
   end
        
-private
+ private
 
-def authenticate_with_token!
-  token_from_request = request.headers['token'] || params[:token]
-  expected_token = ENV['API_TOKEN'] # Read from environment
+ def authenticate_with_token!
+   token_from_request = request.headers['token'] || params[:token]
+   expected_token = ENV['API_TOKEN']
 
-  unless token_from_request.present? && token_from_request == expected_token
-    render json: { error: 'Unauthorized' }, status: :unauthorized
-  end
-end
-end
+   unless token_from_request.present? && token_from_request == expected_token
+     render json: { error: 'Unauthorized' }, status: :unauthorized
+   end
+ end
+ end
 
+  # private
+
+  #  def authenticate_with_token!
+  #    token = request.headers['token'] || params[:token]
+  #    unless token.present? && token == 'abbas_mm'
+  #      render json: { error: 'Unauthorized' }, status: :unauthorized
+  #    end
+  #  end
+
+  # end
