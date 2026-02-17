@@ -128,7 +128,9 @@ export const ACTIONS = {
   REMOVE_ALERT: "remove_alert",
   PROTECTION_OUTCOMES: "protection_outcomes",
   UPDATE_CASE_RELATIONSHIPS: "update_case_relationships",
-  VIEW_CASE_RELATIONSHIPS: "view_case_relationships"
+  VIEW_CASE_RELATIONSHIPS: "view_case_relationships",
+  VIEW_DASHBOARD: "view_dashboard",
+  VISIT_HELPLINE: "visit_helpline"
 };
 
 export const MANAGE = [ACTIONS.MANAGE];
@@ -182,6 +184,10 @@ export const ADMIN_RESOURCES = [
 export const SEARCH_OTHERS = [...MANAGE, ACTIONS.SEARCH_OWNED_BY_OTHERS];
 
 export const WRITE_REGISTRY_RECORD = [...MANAGE, ACTIONS.ADD_REGISTRY_RECORD];
+
+export const VIEW_DASHBOARD = "view_dashboard";
+
+export const VISIT_HELPLINE = "visit_helpline";
 
 export const READ_REGISTRY_RECORD = [...MANAGE, ACTIONS.VIEW_REGISTRY_RECORD];
 

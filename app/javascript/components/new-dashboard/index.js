@@ -17,7 +17,7 @@ export default function NewDashboard() {
             <iframe
                 key={refreshKey}
                 title="new-dashboard"
-                src="https://cpims.kpcpwc.gov.pk:8443/insights/public/dashboard/9e0f5baebf8909968b951c685cb9f4adb8d45054d1760013d8b42ac4"
+                src="https://insights.kpcpwc.gov.pk/insights/public/dashboard/9e0f5baebf8909968b951c685cb9f4adb8d45054d1760013d8b42ac4"
                 width="100%"
                 height="740px"
                 frameBorder="0"

@@ -24,7 +24,7 @@ style_sources = self_sources + %i[unsafe_inline] + [-> { "'nonce-
 #{request.content_security_policy_nonce}'" }]
 child_sources = self_sources + %i[blob]
 script_sources = self_sources + %i[strict_dynamic]
-feed_url = ["https://cpims.kpcpwc.gov.pk:8443"]
+feed_url = ["https://insights.kpcpwc.gov.pk/"]
 defaults = %i[self https]
 
 Rails.application.config.content_security_policy do |policy|

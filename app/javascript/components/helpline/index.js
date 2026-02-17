@@ -3,7 +3,7 @@ import { useHistory } from 'react-router-dom';
 
 export default function Helpline() {
     const history = useHistory();
-    const helplineUrl = "https://cpims.kpcpwc.gov.pk/helpline/";
+    const helplineUrl = "https://helpline.kpcpwc.gov.pk/";
 
     useEffect(() => {
         if (helplineUrl) {

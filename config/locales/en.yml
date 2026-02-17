@@ -3421,6 +3421,12 @@ en:
               groups. Each row is a user in the current user's user groups, while
               "Total" and "New" are the two columns.
             label: View Cases By Social Worker
+          view_dashboard:
+            explanation: 'Displays the new Graphical Dashboard to the user.'
+            label: View Graphical Dashboard
+          visit_helpline:
+            explanation: 'Allow user to visit Helpline through Navbar.'
+            label: View Helpline     
           dash_cases_to_assign:
             explanation: 'IMPORTANT: Only for managers. Displays the number of cases
               owned directly by the current user (should be a manager). This dashboard

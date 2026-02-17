@@ -20,7 +20,9 @@ import {
   READ_MANAGED_REPORTS,
   READ_REGISTRY_RECORD,
   READ_FAMILY_RECORD,
-  SHOW_USAGE_REPORTS
+  SHOW_USAGE_REPORTS,
+  VIEW_DASHBOARD,
+  VISIT_HELPLINE
 } from "./components/permissions/constants";
 import getAdminResources from "./components/pages/admin/utils/get-admin-resources";
 
@@ -382,15 +384,21 @@ const APPLICATION_NAV = (permissions, userId) => {
       icon: "home",
       validateWithUserPermissions: true
     },
-     {
+    {
 name: "navigation.newdashboard",
 to: ROUTES.newdashboard,
-icon: "insights"
+icon: "insights",
+resources: RESOURCES.dashboards,
+actions: VIEW_DASHBOARD,
+validateWithUserPermissionscustom: true
 },
-    {
+{
 name: "navigation.helpline",
 to: ROUTES.helpline,
-icon: "registry_records"
+icon: "registry_records",
+resources: RESOURCES.dashboards,
+actions: VISIT_HELPLINE,
+validateWithUserPermissionscustom: true
 },
     {
       name: "navigation.activity_log",
