@@ -21,3 +21,4 @@ Delayed::Worker.raise_signal_exceptions = :term
 # to run if other jobs are running.
 Delayed::Worker.queue_attributes = { logger: { priority: 6 } }
 Delayed::Worker.logger = Logger.new(logfile, 5, 50.megabytes).tap { |l| l.level = Logger::INFO }
+Delayed::Backend::ActiveRecord::Job.primary_key = 'id'

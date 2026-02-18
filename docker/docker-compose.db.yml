@@ -8,7 +8,7 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - database:/var/lib/postgresql/data
+      - database:/var/lib/postgresql/15/data
     env_file:
       - docker/defaults.env
       - docker/local.env
