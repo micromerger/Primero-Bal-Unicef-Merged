@@ -40,6 +40,9 @@ Rails.application.routes.draw do
       resources :primero, only: %i[index]
 
       resources :children, as: :cases, path: :cases do
+        collection do
+          get :ncrc_sindh, to: 'ncrc_api#index'
+        end   
         resources :children_incidents, as: :incidents, path: :incidents, only: %i[index new] do
           post '/', to: 'children_incidents#update_bulk', on: :collection
         end

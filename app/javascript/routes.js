@@ -57,7 +57,8 @@ import {
   ADMIN_ACTIONS,
   VIEW_KPIS,
   ACTIVITY_LOGS,
-  READ_MANAGED_REPORTS
+  READ_MANAGED_REPORTS,
+  VIEW_DASHBOARD
 } from "./components/permissions";
 import Login, { IdpLogin } from "./components/login";
 import Logout from "./components/logout";
@@ -133,8 +134,11 @@ export default [
       },
        {
 path: "/newdashboard",
-component: NewDashboard
+component: NewDashboard,
+resources: RESOURCES.dashboards,
+actions: VIEW_DASHBOARD
 },
+
       {
         path: "/incidents",
         component: RecordList,
