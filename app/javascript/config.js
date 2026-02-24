@@ -20,7 +20,8 @@ import {
   READ_MANAGED_REPORTS,
   READ_REGISTRY_RECORD,
   READ_FAMILY_RECORD,
-  SHOW_USAGE_REPORTS
+  SHOW_USAGE_REPORTS,
+  VIEW_DASHBOARD
 } from "./components/permissions/constants";
 import getAdminResources from "./components/pages/admin/utils/get-admin-resources";
 
@@ -368,23 +369,26 @@ const ADMIN_NAV = [
   }
 ];
 
-const APPLICATION_NAV = (permissions, userId, userRole) => {
- const adminResources = getAdminResources(permissions);
+const APPLICATION_NAV = (permissions, userId) => {
+  const adminResources = getAdminResources(permissions);
   const adminForm = adminResources[0] || ADMIN_RESOURCES.contact_information;
   const adminSettingsOption = `/admin/${adminForm === RESOURCES.metadata ? RESOURCES.forms : adminForm}`;
 
-  const menu = [
+  return [
     {
       name: "navigation.home",
       to: ROUTES.dashboard,
       icon: "home",
       validateWithUserPermissions: true
     },
-     {
-     name: "navigation.newdashboard",
-     to: ROUTES.newdashboard,
-     icon: "insights"
-    },
+    {
+name:"navigation.newdashboard", 
+to: ROUTES.newdashboard,
+icon:"insights", 
+resources: RESOURCES.dashboards, 
+actions: VIEW_DASHBOARD, 
+validateWithUserPermissionscustom:true
+},
     {
       name: "navigation.activity_log",
       to: ROUTES.activity_log,
@@ -499,13 +503,6 @@ const APPLICATION_NAV = (permissions, userId, userRole) => {
     },
     { name: "navigation.logout", to: ROUTES.logout, icon: "logout" }
   ];
-  if (userRole === "Referral") {
-    return menu.filter(
-      item => item.to !== ROUTES.dashboard && item.to !== ROUTES.newdashboard
-    );
-  }
-
-  return menu;
 };
 
 const LOCATION_PATH = "/locations";

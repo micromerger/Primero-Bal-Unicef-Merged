@@ -49,7 +49,6 @@ class Api::V2::UsersController < ApplicationApiController
     id: current_user.id,
     full_name: current_user.full_name,
     email: current_user.email,
-    role_name: current_user.role&.name,
     location: user_location_code,
     parent_location_code: parent_location_code
   }

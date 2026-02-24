@@ -1,4 +1,3 @@
-// app/javascript/components/nav/component.jsx
 // Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
 
 import { Drawer, List, useMediaQuery, Divider, IconButton, Box } from "@mui/material";
@@ -41,24 +40,8 @@ function Nav() {
 
   const { dialogOpen, dialogClose } = useDialog(LOGOUT_DIALOG);
 
-  const [userRole, setUserRole] = useState(null); // 👈 add this state
-
   useEffect(() => {
     dispatch(fetchAlerts());
-  }, []);
-
-  // 👇 Fetch current user info (including role_name)
-  useEffect(() => {
-    async function fetchUser() {
-      try {
-        const res = await fetch("/api/v2/users/current");
-        const data = await res.json();
-        setUserRole(data.role_name || null);
-      } catch (err) {
-        console.error("Error fetching user info:", err);
-      }
-    }
-    fetchUser();
   }, []);
 
   const { demo, useContainedNavStyle } = useApp();
@@ -152,14 +135,7 @@ function Nav() {
       <div className={css.navNetworkIndicator}>
         <NetworkIndicator />
       </div>
-
-      {/* 👇 Only render menu after userRole is loaded */}
-      {userRole && (
-        <List className={navListClasses}>
-          {permittedMenuEntries(APPLICATION_NAV(permissions, userId, userRole))}
-        </List>
-      )}
-
+      <List className={navListClasses}>{permittedMenuEntries(APPLICATION_NAV(permissions, userId))}</List>
       <div className={css.navAgencies}>
         <AgencyLogo />
       </div>
