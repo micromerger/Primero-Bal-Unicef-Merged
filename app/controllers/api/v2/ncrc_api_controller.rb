@@ -1,6 +1,6 @@
 require 'set'
 class Api::V2::NcrcApiController < ActionController::API
-  before_action :authenticate_with_token!
+   before_action :authenticate_with_token!
 
   INCIDENTS_MAP = {
   "physical_violence_or_abuse_against_the_child" => "Physical violence",
@@ -144,13 +144,24 @@ district_rows = ActiveRecord::Base.connection.execute(district_sql)
 
       district = districts[district_name]
 
-      district[:total_cases] += 1
-      district[:open_cases] += 1 if row['status'] == 'open'
-      district[:closed_cases] += 1 if row['status'] == 'closed'
-      if row['case_status_reopened'].to_s == 'true'
-         district[:reopened_cases] += 1
-      end
-      district[:open_cases] = [district[:open_cases] - district[:reopened_cases], 0].max
+    #  district[:total_cases] += 1
+    #  district[:open_cases] += 1 if row['status'] == 'open'
+   #   district[:closed_cases] += 1 if row['status'] == 'closed'
+  #    district[:reopened_cases] += 1 if row['case_status_reopened'] == 'true' && row['status'] == 'open'
+ #     district[:open_cases] = [district[:open_cases] - district[:reopened_cases], 0].max
+#
+ 
+district[:total_cases] += 1
+
+if row['status'] == 'open'
+  if row['case_status_reopened'] == 'true'
+    district[:reopened_cases] += 1
+  else
+    district[:open_cases] += 1
+  end
+end
+
+district[:closed_cases] += 1 if row['status'] == 'closed'
 
       raw_gender = row['gender']
 
@@ -411,28 +422,14 @@ end
   }
 }
   end
-     
- private
+     private
 
- def authenticate_with_token!
-   token_from_request = request.headers['token'] || params[:token]
-   expected_token = ENV['API_TOKEN']
+def authenticate_with_token!
+  token_from_request = request.headers['token'] || params[:token]
+  expected_token = ENV['API_TOKEN'] # Read from environment
 
-   unless token_from_request.present? && token_from_request == expected_token
-     render json: { error: 'Unauthorized' }, status: :unauthorized
-   end
- end
- end
-
-
-
-# private
-
-#  def authenticate_with_token!
-#    token = request.headers['token'] || params[:token]
- #   unless token.present? && token == 'abbas_mm'
-  #    render json: { error: 'Unauthorized' }, status: :unauthorized
-  #  end
-#  end
-
-# end
+  unless token_from_request.present? && token_from_request == expected_token
+    render json: { error: 'Unauthorized' }, status: :unauthorized
+  end
+end
+end

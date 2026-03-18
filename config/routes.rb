@@ -43,6 +43,7 @@ Rails.application.routes.draw do
         collection do
               get :dashboard, to: 'dashboard_api#index'
               get :ncrc_kpk, to: 'ncrc_api#index'
+              get :recent_cases, to: 'recentcases_api#index'
         end      
         resources :children_incidents, as: :incidents, path: :incidents, only: %i[index new] do
           post '/', to: 'children_incidents#update_bulk', on: :collection
