@@ -2628,7 +2628,7 @@ en:
   navigation:
     bulk_exports: Exports
     newdashboard: Dashboard
-    helpline: Helpline
+    helpline: Integrated Dashboard
     cases: Cases
     home: Home
     key_performance_indicators: Pulse/KPIs
@@ -3425,8 +3425,8 @@ en:
             explanation: 'Displays the new Graphical Dashboard to the user.'
             label: View Graphical Dashboard
           visit_helpline:
-            explanation: 'Allow user to visit Helpline through Navbar.'
-            label: View Helpline     
+            explanation: 'Allow user to visit Integrated Dashboard through Navbar.'
+            label: View Integrated Dashboard     
           dash_cases_to_assign:
             explanation: 'IMPORTANT: Only for managers. Displays the number of cases
               owned directly by the current user (should be a manager). This dashboard
