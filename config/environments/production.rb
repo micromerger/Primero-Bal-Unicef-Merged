@@ -21,7 +21,7 @@ config.action_dispatch.default_headers['X-Frame-Options'] = "ALLOW-FROM https://
 
   # Send deprecation notices to registered listeners
   config.active_support.deprecation = :notify
-
+  config.hosts << "islprimero.mmis.space" 
   config.eager_load = true
 
   config.filter_parameters += %i[child incident tracing_request]

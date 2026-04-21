@@ -49,9 +49,8 @@ class Primero::Application < Rails::Application
   ]
   config.autoload_paths += load_paths
   config.eager_load_paths += load_paths
-
   config.middleware.use Rack::Deflater
-
+  config.hosts << "islprimero.mmis.space"
   config.cache_store = :memory_store
 
   # I18n deprecation
