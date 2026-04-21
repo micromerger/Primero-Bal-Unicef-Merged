@@ -14,7 +14,8 @@ const rules = require("./rules");
 const plugins = require("./plugins");
 
 const resolve = {
-  extensions: ["*", ".jsx", ".js"],
+  fullySpecified: false,
+  extensions: ["*", ".jsx", ".js", ".json"],
   alias: {
     "@mui/material/styles": path.resolve("node_modules", "@mui/material/styles"),
     "@mui/cache": path.resolve("node_modules", "@mui/styled-engine/node_modules/@emotion/cache"),
