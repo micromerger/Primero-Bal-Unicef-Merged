@@ -148,12 +148,24 @@ lookups = {}
 
       district = districts[district_name]
 
-      district[:total_cases] += 1
-      district[:open_cases] += 1 if row['status'] == 'open'
-      district[:closed_cases] += 1 if row['status'] == 'closed'
-      district[:reopened_cases] += 1 if row['case_status_reopened'] == 'true'
-      district[:open_cases] = [district[:open_cases] - district[:reopened_cases], 0].max
-      
+#      district[:total_cases] += 1
+#      district[:open_cases] += 1 if row['status'] == 'open'
+#      district[:closed_cases] += 1 if row['status'] == 'closed'
+#      district[:reopened_cases] += 1 if row['case_status_reopened'] == 'true'
+#      district[:open_cases] = [district[:open_cases] - district[:reopened_cases], 0].max
+
+district[:total_cases] += 1
+
+if row['status'] == 'open'
+  if row['case_status_reopened'] == 'true'
+    district[:reopened_cases] += 1
+  else
+    district[:open_cases] += 1
+  end
+end
+
+district[:closed_cases] += 1 if row['status'] == 'closed' 
+     
       raw_gender = row['gender']
 
       display =
@@ -282,71 +294,60 @@ end
 #  end
 # end
 vulnerability_labels = []
+
 if row['exploitation'].present?
   exploitation_values = JSON.parse(row['exploitation'])
-
+  allowed_for_child_labour = [
+    "child_trafficking__within_and_between_countries__c680681",
+    "child_labour___domestic_cee1f48"
+  ]
+  # --- Increment incidents ---
   if exploitation_values.include?("child_trafficking__within_and_between_countries__c680681")
     district[:incidents]["Trafficking"] ||= 0
     district[:incidents]["Trafficking"] += 1
     district[:incident_age_group][age_group] += 1
   end
-
+  # --- Increment vulnerabilities ---
   if exploitation_values.include?("child_labour___domestic_cee1f48")
     district[:vulnerability]["Child domestic worker"] ||= 0
     district[:vulnerability]["Child domestic worker"] += 1
     case_vulns.add("Child domestic worker")
     vulnerability_labels << "Child domestic worker"
   end
-  
-  if exploitation_values == ["child_trafficking__within_and_between_countries__c680681"]
+  # --- Decrement Child labour ONLY if all values are in allowed list ---
+  if exploitation_values.all? { |v| allowed_for_child_labour.include?(v) }
     if district[:incidents]["Child labour"].to_i > 0
       district[:incidents]["Child labour"] -= 1
       district[:incident_age_group][age_group] -= 1
       district[:incidents].delete("Child labour") if district[:incidents]["Child labour"] == 0
     end
   end
-
-  if exploitation_values == ["child_labour___domestic_cee1f48"]
-    if district[:incidents]["Child labour"].to_i > 0
-      district[:incidents]["Child labour"] -= 1
-      district[:incident_age_group][age_group] -= 1
-      district[:incidents].delete("Child labour") if district[:incidents]["Child labour"] == 0
-    end
-  end
-  
-    if exploitation_values.sort == ["child_trafficking__within_and_between_countries__c680681", "child_labour___domestic_cee1f48"].sort
-    if district[:incidents]["Child labour"].to_i > 0
-      district[:incidents]["Child labour"] -= 1
-      district[:incident_age_group][age_group] -= 1
-      district[:incidents].delete("Child labour") if district[:incidents]["Child labour"] == 0
-    end
-  end
-
-
 end
 
 if row['mental'].present?
   mental_values = JSON.parse(row['mental'])
-
+  allowed_for_psych_abuse = ["cybercrime_9651572"]
+  # --- Increment incidents ---
   if mental_values.include?("cybercrime_9651572")
     district[:incidents]["Online abuse"] ||= 0
     district[:incidents]["Online abuse"] += 1
     district[:incident_age_group][age_group] += 1
   end
-
-  if mental_values == ["cybercrime_9651572"]
+  # --- Decrement Psychological abuse ONLY if values are EXACTLY allowed ---
+  if mental_values.all? { |v| allowed_for_psych_abuse.include?(v) }
     if district[:incidents]["Psychological abuse"].to_i > 0
       district[:incidents]["Psychological abuse"] -= 1
       district[:incident_age_group][age_group] -= 1
       district[:incidents].delete("Psychological abuse") if district[:incidents]["Psychological abuse"] == 0
     end
   end
-
 end
+
 
 if row['neglect'].present?
   neglect_values = JSON.parse(row['neglect'])
-
+  allowed_for_neglect = ["exposure_to_drug_or_alcohol_abuse_d250c07"]
+  # --- Increment incidents & vulnerabilities ---
   if neglect_values.include?("exposure_to_drug_or_alcohol_abuse_d250c07")
     district[:incidents]["Substance use"] ||= 0
     district[:incidents]["Substance use"] += 1
@@ -357,36 +358,35 @@ if row['neglect'].present?
     case_vulns.add("Substance exposure")
     vulnerability_labels << "Substance exposure"
   end
-  
-  if neglect_values == ["exposure_to_drug_or_alcohol_abuse_d250c07"]
+  # --- Decrement Neglect ONLY if values are EXACTLY allowed ---
+  if neglect_values.all? { |v| allowed_for_neglect.include?(v) }
     if district[:incidents]["Neglect"].to_i > 0
       district[:incidents]["Neglect"] -= 1
       district[:incident_age_group][age_group] -= 1
       district[:incidents].delete("Neglect") if district[:incidents]["Neglect"] == 0
     end
   end
-
 end
+
 
 if row['sexual_abuse'].present?
   sexual_abuse_values = JSON.parse(row['sexual_abuse'])
-
+  allowed_for_sexual_abuse = ["child_and_forced_marriage_1c99ee2"]
+  # --- Increment incidents ---
   if sexual_abuse_values.include?("child_and_forced_marriage_1c99ee2")
     district[:incidents]["Child marriage"] ||= 0
     district[:incidents]["Child marriage"] += 1
     district[:incident_age_group][age_group] += 1
   end
-  
-    if sexual_abuse_values == ["child_and_forced_marriage_1c99ee2"]
+  # --- Decrement Sexual abuse ONLY if array contains ONLY allowed values ---
+  if sexual_abuse_values.all? { |v| allowed_for_sexual_abuse.include?(v) }
     if district[:incidents]["Sexual abuse"].to_i > 0
       district[:incidents]["Sexual abuse"] -= 1
       district[:incident_age_group][age_group] -= 1
       district[:incidents].delete("Sexual abuse") if district[:incidents]["Sexual abuse"] == 0
     end
   end
-
 end
-
 
 
 status_child = row['status_child']
