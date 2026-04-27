@@ -40,6 +40,11 @@ module Api::V2::Concerns::Record
     permit_readable_fields
     select_updated_fields
     status = params.dig(:data, :id).present? ? 204 : 200
+     if @record.is_a?(Child) && @record.id.present? && current_user.present?
+       SendSmsJob.perform_later(@record.id, current_user)
+     else
+       Rails.logger.error("Invalid record or user: #{@record.inspect}, #{current_user.inspect}")
+     end
     render 'api/v2/records/create', status:
   end
 

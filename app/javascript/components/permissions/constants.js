@@ -136,7 +136,8 @@ export const ACTIONS = {
   VIEW_CASE_RELATIONSHIPS: "view_case_relationships",
   CASE_MANAGEMENT_KPIS_REPORT: "case_management_kpis_report",
   DISTRIBUTION_USERS_ROLE_REPORT: "distribution_users_role_report",
-  DISABLE_MULTIPLE: "disable_multiple"
+  DISABLE_MULTIPLE: "disable_multiple",
+  VIEW_DASHBOARD: "view_dashboard"
 };
 
 export const MANAGE = [ACTIONS.MANAGE];
@@ -190,6 +191,8 @@ export const ADMIN_RESOURCES = [
 export const SEARCH_OTHERS = [...MANAGE, ACTIONS.SEARCH_OWNED_BY_OTHERS];
 
 export const WRITE_REGISTRY_RECORD = [...MANAGE, ACTIONS.ADD_REGISTRY_RECORD];
+
+export const VIEW_DASHBOARD = "view_dashboard";
 
 export const READ_REGISTRY_RECORD = [...MANAGE, ACTIONS.VIEW_REGISTRY_RECORD];
 

@@ -28,6 +28,33 @@ class Api::V2::UsersController < ApplicationApiController
   def show
     authorize! :show_user, @user
   end
+  
+  def current
+  user_location_code = current_user.location
+  parent_location_code = nil
+
+  # Find the user's location using helper already in the model
+  user_location = Location.get_by_location_code(user_location_code)
+
+  if user_location.present? && user_location.hierarchy_path.present?
+    # Reuse hierarchy method from Location model to split path
+    parent_path_array = user_location.hierarchy.first(3)
+
+    if parent_path_array.size == 3
+      parent_path = parent_path_array.join('.')
+      parent_location = Location.find_by(hierarchy_path: parent_path)
+      parent_location_code = parent_location&.location_code
+    end
+  end
+
+  render json: {
+    id: current_user.id,
+    full_name: current_user.full_name,
+    email: current_user.email,
+    location: user_location_code,
+    parent_location_code: parent_location_code
+  }
+end
 
   def create
     authorize!(:create, User) && validate_json!(User::USER_FIELDS_SCHEMA, user_params)

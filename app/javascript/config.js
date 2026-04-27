@@ -24,7 +24,8 @@ import {
   READ_FAMILY_RECORD,
   SHOW_USAGE_REPORTS,
   GROUP_PERMISSIONS,
-  VIEW_CASE_RELATIONSHIPS
+  VIEW_CASE_RELATIONSHIPS,
+  VIEW_DASHBOARD
 } from "./components/permissions/constants";
 import getAdminResources from "./components/pages/admin/utils/get-admin-resources";
 
@@ -228,7 +229,8 @@ const ROUTES = {
   registry_records: "/registry_records",
   subscriptions: "/webpush/subscriptions",
   subscriptions_current: "/webpush/subscriptions/current",
-  usage_reports: "/admin/usage_reports"
+  usage_reports: "/admin/usage_reports",
+  newdashboard: "/newdashboard"
 };
 
 const PERMITTED_URL = [
@@ -390,6 +392,14 @@ const APPLICATION_NAV = (permissions, userId) => {
       to: ROUTES.dashboard,
       icon: "home",
       validateWithUserPermissions: true
+    },
+    {
+      name: "navigation.newdashboard",
+      to: ROUTES.newdashboard,
+      icon: "insights",
+      resources: RESOURCES.dashboards,
+      actions: VIEW_DASHBOARD,
+      validateWithUserPermissionscustom: true
     },
     {
       name: "navigation.activity_log",

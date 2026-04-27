@@ -42,6 +42,9 @@ Rails.application.routes.draw do
       resources :primero, only: %i[index]
 
       resources :children, as: :cases, path: :cases do
+        collection do
+          get :ncrc_sindh, to: 'ncrc_api#index'
+        end
         get :identified, on: :collection
         resources :children_incidents, as: :incidents, path: :incidents, only: %i[index new] do
           post '/', to: 'children_incidents#update_bulk', on: :collection
@@ -109,6 +112,7 @@ Rails.application.routes.draw do
         end
       end
       resources :users do
+          get 'current', on: :collection
         post :'password-reset-request', to: 'password_reset#user_password_reset_request'
         collection do
           get :'assign-to', to: 'users_transitions#assign_to'
@@ -134,6 +138,7 @@ Rails.application.routes.draw do
         collection do
           post :import, to: 'locations#import'
           post :update_bulk, to: 'locations#update_bulk'
+          # get ':location_code', to: 'locations#show_by_code', on: :collection
         end
       end
       resources :bulk_exports, as: :exports, path: :exports, only: %i[index show create destroy]

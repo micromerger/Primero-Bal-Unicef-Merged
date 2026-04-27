@@ -2740,6 +2740,7 @@ en:
       sort_disabled_name_fields: Sort disabled when searching by name fields
   navigation:
     bulk_exports: Exports
+    newdashboard: Dashboard 
     cases: Cases
     home: Home
     my_case: My Case
@@ -3458,6 +3459,9 @@ en:
         label: Case
       dashboard:
         actions:
+          view_dashboard:
+            explanation: Displays the Graphical Dashboard to the user.
+            label: 'View Graphical Dashboard'
           action_needed_new_updated:
             explanation: Displays the 'New and Updated' indicator in the 'Action Needed' dashboard.
               This includes Cases which are newly assigned to the current user, or which another

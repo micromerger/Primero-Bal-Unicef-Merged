@@ -33,6 +33,7 @@ function Component({ closeDrawer, menuEntry, mobileDisplay, jewelCount, username
     disableOffline,
     disabled,
     validateWithUserPermissions,
+    validateWithUserPermissionscustom,
     resources,
     groupPermissions
   } = menuEntry;
@@ -98,6 +99,13 @@ function Component({ closeDrawer, menuEntry, mobileDisplay, jewelCount, username
 
   if (Array.isArray(groupPermissions) && !groupPermissions.includes(userGroupPermission)) {
     return null;
+  }
+
+  if (validateWithUserPermissionscustom) {
+    const resourceKey = resources || to.replace("/", "");
+    const actions = userPermissions.get(resourceKey) || [];
+    const hasAccess = actions.includes(menuEntry.actions);
+    return hasAccess ? renderNavAction : null;
   }
 
   return renderNavAction;

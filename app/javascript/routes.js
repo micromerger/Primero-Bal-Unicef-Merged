@@ -42,6 +42,7 @@ import Account from "./components/pages/account";
 import PasswordReset from "./components/password-reset";
 import CodeOfConduct from "./components/code-of-conduct";
 import ActivityLog from "./components/activity-log";
+import NewDashboard from "./components/new-dashboard/index";
 import { AppLayout, LoginLayout, EmptyLayout } from "./components/layouts";
 import {
   CREATE_RECORDS,
@@ -57,7 +58,8 @@ import {
   ADMIN_ACTIONS,
   VIEW_KPIS,
   ACTIVITY_LOGS,
-  READ_MANAGED_REPORTS
+  READ_MANAGED_REPORTS,
+  VIEW_DASHBOARD
 } from "./components/permissions";
 import Login, { IdpLogin } from "./components/login";
 import Logout from "./components/logout";
@@ -128,6 +130,12 @@ export default [
       {
         path: ROUTES.dashboard,
         component: Dashboard
+      },
+      {
+        path: "/newdashboard",
+        component: NewDashboard,
+        resources: RESOURCES.dashboards,
+        actions: VIEW_DASHBOARD
       },
       {
         path: ROUTES.activity_log,

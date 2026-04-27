@@ -5,7 +5,7 @@ class ThemesController < ApplicationController
   # NOTE: Primero front-end dynamically loads /themes.js using es6 dynamic imports. Rails is throwing
   # ActionController::InvalidCrossOriginRequest error if we do not skip verify_same_origin_request
   skip_after_action :verify_same_origin_request, unless: -> { request_not_from_app_host? }
-
+  protect_from_forgery except: [:index, :manifest]
   before_action :theme
 
   def index; end
