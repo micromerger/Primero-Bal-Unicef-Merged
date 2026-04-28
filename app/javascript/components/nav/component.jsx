@@ -11,7 +11,7 @@ import { cx } from "@emotion/css";
 import { ROUTES, PERMITTED_URL, APPLICATION_NAV } from "../../config";
 import AgencyLogo from "../agency-logo";
 import ModuleLogo from "../module-logo";
-import Logo from "../../images/logo.jpg";
+import Logo from "../../images/bal-logo.png";
 import useMemoizedSelector from "../../libs/use-memoized-selector";
 import MobileToolbar from "../mobile-toolbar";
 import { useApp } from "../application";
@@ -117,7 +117,7 @@ function Nav() {
     <>
 {/* <ModuleLogo username={username} /> */}
 <div className={css.box}>
-<img src={Logo} height="120px" width="100px" alt="Logo" />
+<img src={Logo} height="80px" width="100px" alt="Logo" />
 </div>
       <Box sx={{ display: { xs: "none", md: "block" } }}>
         {/* <ModuleLogo username={username} /> */}

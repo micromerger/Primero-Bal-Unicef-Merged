@@ -11,7 +11,7 @@ Rails.application.configure do
   config.eager_load = ENV['PROFILE'] == 'true'
   config.action_mailer.raise_delivery_errors = false
   config.action_mailer.delivery_method = :letter_opener
-  config.action_dispatch.default_headers['X-Frame-Options'] = "ALLOW-FROM https://sindh.cpims.org.pk:8443"
+  config.action_dispatch.default_headers['X-Frame-Options'] = "ALLOW-FROM https://bal.cpims.org.pk:8443"
 
   $stdout.sync = true
   logger = ActiveSupport::Logger.new($stdout)
