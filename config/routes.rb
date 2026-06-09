@@ -43,7 +43,13 @@ Rails.application.routes.draw do
 
       resources :children, as: :cases, path: :cases do
         collection do
-          get :ncrc_bal, to: 'ncrc_api#index'
+              get :dashboard, to: 'dashboard_api#index'
+              get :indicator, to: 'indicator_api#index'
+              get :ncrc_kpk, to: 'ncrc_api#index'
+              get :recent_cases, to: 'recentcases_api#index'
+              get :caseid, to: 'caseid_api#index'
+             get :checklist, to: 'checklist_api#index'
+             get :client_satisfaction, to: 'client_api#index'
         end
         get :identified, on: :collection
         resources :children_incidents, as: :incidents, path: :incidents, only: %i[index new] do

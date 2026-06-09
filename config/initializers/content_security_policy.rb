@@ -24,7 +24,7 @@ style_sources = self_sources + %i[unsafe_inline] + [-> { "'nonce-
 #{request.content_security_policy_nonce}'" }]
 child_sources = self_sources + %i[blob]
 script_sources = %i[strict_dynamic] + ["'wasm-unsafe-eval'"]
-feed_url = ["https://bal.cpims.org.pk:8443"]
+feed_url = ["https://insights.kpcpwc.gov.pk/"]
 defaults = %i[self https]
 
 Rails.application.config.content_security_policy do |policy|

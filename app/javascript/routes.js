@@ -43,6 +43,7 @@ import PasswordReset from "./components/password-reset";
 import CodeOfConduct from "./components/code-of-conduct";
 import ActivityLog from "./components/activity-log";
 import NewDashboard from "./components/new-dashboard/index";
+import helpline from "./components/helpline";
 import { AppLayout, LoginLayout, EmptyLayout } from "./components/layouts";
 import {
   CREATE_RECORDS,
@@ -59,7 +60,8 @@ import {
   VIEW_KPIS,
   ACTIVITY_LOGS,
   READ_MANAGED_REPORTS,
-  VIEW_DASHBOARD
+  VIEW_DASHBOARD,
+  VISIT_HELPLINE
 } from "./components/permissions";
 import Login, { IdpLogin } from "./components/login";
 import Logout from "./components/logout";
@@ -137,6 +139,12 @@ export default [
         resources: RESOURCES.dashboards,
         actions: VIEW_DASHBOARD
       },
+    {
+path: "/helpline",
+component: helpline,
+resources: RESOURCES.dashboards,
+actions: VISIT_HELPLINE
+},
       {
         path: ROUTES.activity_log,
         component: ActivityLog,
