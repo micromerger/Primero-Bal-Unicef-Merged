@@ -26,7 +26,7 @@ import {
   GROUP_PERMISSIONS,
   VIEW_CASE_RELATIONSHIPS,
   VIEW_DASHBOARD,
-  VISIT_HELPLINE
+  VISIT_INTEGRATEDDASHBOARD
 } from "./components/permissions/constants";
 import getAdminResources from "./components/pages/admin/utils/get-admin-resources";
 
@@ -232,7 +232,7 @@ const ROUTES = {
   subscriptions_current: "/webpush/subscriptions/current",
   usage_reports: "/admin/usage_reports",
   newdashboard: "/newdashboard",
-  helpline: "/helpline"
+  integrateddashboard: "/integrateddashboard"
 };
 
 const PERMITTED_URL = [
@@ -253,7 +253,7 @@ const PERMITTED_URL = [
   ROUTES.registry_records,
   ROUTES.families,
   ROUTES.newdashboard,
-  ROUTES.helpline,
+  ROUTES.integrateddashboard,
   ROUTES.code_of_conduct,
   ROUTES.password_reset_request
 ];
@@ -406,11 +406,11 @@ const APPLICATION_NAV = (permissions, userId) => {
       validateWithUserPermissionscustom: true
     },
   {
-name: "navigation.helpline",
-to: ROUTES.helpline,
+name: "navigation.integrateddashboard",
+to: ROUTES.integrateddashboard,
 icon: "registry_records",
 resources: RESOURCES.dashboards,
-actions: VISIT_HELPLINE,
+actions: VISIT_INTEGRATEDDASHBOARD,
 validateWithUserPermissionscustom: true
 },
     {

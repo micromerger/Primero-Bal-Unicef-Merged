@@ -58,7 +58,7 @@ export {
   VIEW_CASE_RELATIONSHIPS,
   UPDATE_CASE_RELATIONSHIPS,
   VIEW_DASHBOARD,
-  VISIT_HELPLINE
+  VISIT_INTEGRATEDDASHBOARD
 } from "./constants";
 
 export { checkPermissions } from "./utils";

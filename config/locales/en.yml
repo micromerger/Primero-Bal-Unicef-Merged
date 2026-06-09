@@ -2741,7 +2741,7 @@ en:
   navigation:
     bulk_exports: Exports
     newdashboard: Dashboard
-    helpline: Integrated Dashboard 
+    integrateddashboard: Integrated Dashboard 
     cases: Cases
     home: Home
     my_case: My Case
@@ -3463,7 +3463,7 @@ en:
           view_dashboard:
             explanation: Displays the Graphical Dashboard to the user.
             label: 'View Graphical Dashboard'
-          visit_helpline:
+          visit_integrateddashboard:
             explanation: Displays the Helpline URL to user.
             label: 'View Integrated Dashboard'  
           action_needed_new_updated:

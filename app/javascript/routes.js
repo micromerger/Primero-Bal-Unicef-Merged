@@ -43,7 +43,7 @@ import PasswordReset from "./components/password-reset";
 import CodeOfConduct from "./components/code-of-conduct";
 import ActivityLog from "./components/activity-log";
 import NewDashboard from "./components/new-dashboard/index";
-import helpline from "./components/helpline";
+import integrateddashboard from "./components/integrateddashboard";
 import { AppLayout, LoginLayout, EmptyLayout } from "./components/layouts";
 import {
   CREATE_RECORDS,
@@ -61,7 +61,7 @@ import {
   ACTIVITY_LOGS,
   READ_MANAGED_REPORTS,
   VIEW_DASHBOARD,
-  VISIT_HELPLINE
+  VISIT_INTEGRATEDDASHBOARD
 } from "./components/permissions";
 import Login, { IdpLogin } from "./components/login";
 import Logout from "./components/logout";
@@ -140,10 +140,10 @@ export default [
         actions: VIEW_DASHBOARD
       },
     {
-path: "/helpline",
-component: helpline,
+path: "/integrateddashboard",
+component: integrateddashboard,
 resources: RESOURCES.dashboards,
-actions: VISIT_HELPLINE
+actions: VISIT_INTEGRATEDDASHBOARD
 },
       {
         path: ROUTES.activity_log,

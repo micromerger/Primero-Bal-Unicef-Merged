@@ -138,7 +138,7 @@ export const ACTIONS = {
   DISTRIBUTION_USERS_ROLE_REPORT: "distribution_users_role_report",
   DISABLE_MULTIPLE: "disable_multiple",
   VIEW_DASHBOARD: "view_dashboard",
-  VISIT_HELPLINE: "visit_helpline"
+  VISIT_INTEGRATEDDASHBOARD: "visit_integrateddashboard"
 };
 
 export const MANAGE = [ACTIONS.MANAGE];
@@ -195,7 +195,7 @@ export const WRITE_REGISTRY_RECORD = [...MANAGE, ACTIONS.ADD_REGISTRY_RECORD];
 
 export const VIEW_DASHBOARD = "view_dashboard";
 
-export const VISIT_HELPLINE = "visit_helpline";
+export const VISIT_INTEGRATEDDASHBOARD = "visit_integrateddashboard";
 
 export const READ_REGISTRY_RECORD = [...MANAGE, ACTIONS.VIEW_REGISTRY_RECORD];
 
