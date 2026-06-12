@@ -14,6 +14,18 @@ class Api::V2::IndicatorApiController < Api::V2::ChildrenController
   )
 end  
 
+if params[:last_updated_at].present?
+  begin
+    update_date = Date.parse(params[:last_updated_at])
+
+    base_records = base_records.where(
+      "(data->>'last_updated_at')::timestamp >= ?",
+      update_date.beginning_of_day
+    )
+  rescue ArgumentError
+    return render json: { error: 'Invalid last_updated_at' }, status: :bad_request
+  end
+end
 
 if params[:'registration_date'].present?
   reg_date = params[:'registration_date']
@@ -175,6 +187,8 @@ end
       map_owned_by_groups!(data)
       map_owner!(data)
       map_location!(data)
+      data['last_updated_at'] =
+      data['last_updated_at']&.strftime('%Y-%m-%d')
       map_case_plan_achieved!(data, record)
       { 'id' => record.id }.merge(data)
     end
@@ -205,6 +219,7 @@ end
       case_plan_due_date
       case_plan_approved_date
       date_closure
+      last_updated_at
     ]
   end
   def map_lookups!(data)
