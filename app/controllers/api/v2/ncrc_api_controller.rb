@@ -2,13 +2,50 @@ require 'set'
 class Api::V2::NcrcApiController < ActionController::API
   before_action :authenticate_with_token!
 
-INCIDENTS_MAP = {
-  "gbv_survivor" => "Child labour",
-  "statelessness" => "Psychological abuse",
-  "trafficked_smuggled" => "Neglect",
-  "other" => "Other",
+  NATIONALITY_MAP = {
+  "afghan_national_e97b3dd" => "Afghanistan",
+  "national_0ea5a20" => "Pakistan",
+  "stateless_6498790" => "Stateless",
+  "unknown_90825cf" => "Unknown",
+  "other_abec6a9" => "Other"
+}.freeze
+
+  INCIDENTS_MAP = {
   "arrested_detained" => "Physical violence",
-  "sexually_exploited" => "Sexual abuse"
+  "psychological_violence_30bd37a" => "Psychological abuse",
+  "statelessness" => "Neglect",
+  "sexual_exploitation_c6951a2" => "Sexual abuse",
+  "trafficked_smuggled" => "Child in conflict with the law",
+  "other" => "Child labour",
+  "abuse_ce5ab7f" => "Other"
+}.freeze
+
+  VULNERBILITY_MAP = {
+  "psychological_distress__moderate_to_severe__890a3e9" => "Psychological distress",
+  "child_marriage_7341353" => "Child marriage",
+  "separated_child_4b5f58a" => "Separated child",
+  "unaccompanied_child_7b895fa" => "Unaccompanied child",
+  "other_e0fe579" => "Other"
+}.freeze
+
+  DISABILITY_MAP = {
+  "intellectual_impairment_fe32ad9" => "Intellectual impairments",
+  "mental_impairment_c0ce00a" => "Mental impairments",
+  "physical_impairment_c13807c" => "Physical impairments",
+  "sensory_impairment_668182a" => "Sensory impairments",
+  "visual_2aa6e3d" => "Invisible impairments",
+  "hearing_3fe7ad1" => "Hearing impairments"
+}.freeze
+
+  UN_DISABILITY_MAP = {
+  "visual__829b11d" => "Invisible impairments",
+  "hearing_b5fdc7a" => "Hearing impairments",
+  "mobility_dbee5df" => "Physical impairments",
+  "communication_bd51f9f" => "Communication impairments",
+  "comprehension_89a5d44" => "Comprehension impairments",
+  "behaviour_and_learning_19a6438" => "Developmental or Learning",
+  "dexterity_and_playing__2_4_years__dbd9a74" => "Dexterity and playing (2-4 years)",
+  "self_care__remembering__focusing_attention__coping_with_change__relationships_and_emotions__5_17_years__a078f43" => "Self-care, remembering, focusing attention, coping with change, relationships and emotions (5-17 years)"
 }.freeze
 
 RISK_MAP = {
@@ -16,19 +53,6 @@ RISK_MAP = {
   "medium" => "Medium",
   "low" => "Low"
 }.freeze
-
-NATIONALITY_MAP = {
-  "afghani_797430" => "Afghanistan",
-  "iran" => "Iran",
-  "india" => "India",
-  "china" => "China",
-  "iraq" => "Iraq",
-  "pakistani_883606" => "Pakistan",
-  "usa" => "USA (United States of America)",
-  "uk" => "UK (United Kingdom)",
-  "palestine" => "Palestine"
-}.freeze
-
 
   def index
 
@@ -41,7 +65,6 @@ NATIONALITY_MAP = {
       error: "Invalid month or year"
     }, status: :unprocessable_entity
     end
-
 
   filters = ["c.data->>'record_state' = 'true'"]
 
@@ -70,16 +93,15 @@ district_sql = <<~SQL
     c.data->>'sex' AS gender,
     c.data->>'age' AS age,
     c.data->>'status' AS status,
+    c.data->>'religion' AS religion,
+    c.data->>'does_the_child_have_a_disability__f451011' AS disability_status,
     c.data->'nationality' AS nationality,
-    c.data->'does_the_child_have_any_disability__e9b4262' AS disabilities,
-    c.data->'does_the_child_belong_to_a_religious_minority__86d8304' AS minority_status,
-    c.data->'child_is_a_refugee_03fc8c3' AS legal_id,
-    c.data->'protection_concerns' AS incidents,
-    c.data->'exploitation_cc3a73c' AS exploitation,
-    c.data->'mental_violence_88f8d94' AS mental,
-    c.data->'neglect_14bd24f' AS neglect,
-    c.data->>'sexual_abuse_518f95a' AS sexual_abuse,
-    c.data->>'status_of_child_when_found_2329f7b' AS status_child,
+    c.data->'protection_concerns' AS protection_concerns,
+    c.data->'vulnerabilities_aba2a7a' AS vulnerabilities,
+    c.data->>'is_the_child_s_family_displaced__6950113' AS displaced,
+    c.data->>'current_care_arrangements_type' AS care_arrangement,
+    c.data->'does_the_child_have_any_of_the_following_disabilities__2a1788b' AS disability_type,
+    c.data->'undiagnosed_disability_b164b9c' AS un_disability_type,
     c.data->>'risk_level' AS risk_level
   FROM cases c
   LEFT JOIN locations l
@@ -91,7 +113,7 @@ district_rows = ActiveRecord::Base.connection.execute(district_sql)
 
 lookups = {}
     %w[
-      lookup-disability-type
+      lookup-religion
     ].each do |uid|
       lookup = Lookup.find_by(unique_id: uid)
       next unless lookup
@@ -109,13 +131,13 @@ lookups = {}
       district_name = 'N/A' if district_name.strip.empty?
 
       age_groups = {
-       '0-5' => 0,
-       '6-10' => 0,
-       '11-15' => 0,
-       '16-18' => 0,
-       '18+' => 0,
-       'N/A' => 0
-      }
+         '0-5' => 0,
+         '6-10' => 0,
+         '11-15' => 0,
+         '16-18' => 0,
+         '18+' => 0,
+        'N/A' => 0
+       }
 
       districts[district_name] ||= {
         total_cases: 0,
@@ -132,27 +154,21 @@ lookups = {}
         disability_type: {},
         vulnerability_per_disability: {},
         minority_status: { 'Yes' => 0, 'No' => 0, 'N/A' => 0 },
-        legal_status: {},
+        minority_type: {},
         nationality: {},
         incidents: {},
         incident_age_group: age_groups.dup,
         vulnerability: {},
         vulnerability_clustering: {
-  "single_vulnerability" => 0,
-  "two_vulnerability" => 0,
-  "three_vulnerability" => 0,
-  "three_plus_vulnerability" => 0
-},
+        "single_vulnerability" => 0,
+        "two_vulnerability" => 0,
+        "three_vulnerability" => 0,
+        "three_plus_vulnerability" => 0
+        },
         risk_level: {}
       }
 
       district = districts[district_name]
-
-#      district[:total_cases] += 1
-#      district[:open_cases] += 1 if row['status'] == 'open'
-#      district[:closed_cases] += 1 if row['status'] == 'closed'
-#      district[:reopened_cases] += 1 if row['case_status_reopened'] == 'true'
-#      district[:open_cases] = [district[:open_cases] - district[:reopened_cases], 0].max
 
 district[:total_cases] += 1
 
@@ -193,8 +209,7 @@ if row['status'] == 'closed'
   district[:closed_cases_gender][display] += 1
 end
 
-
-      age =
+age =
   begin
     Integer(row['age'])
   rescue
@@ -223,197 +238,130 @@ end
 if row['status'] == 'closed'
   district[:closed_cases_age_group][age_group] += 1
 end
+
 case_vulns = Set.new
-case_disability_types = []
+
 district[:vulnerability] ||= {}
 district[:vulnerability]["Child with disability"] ||= 0
-
-
- if row['disabilities'].present?
-   disabilities = JSON.parse(row['disabilities'])
-   valid_disabilities = disabilities.select { |dis_id| dis_id.present? && dis_id.to_s.strip != "" }
-   if valid_disabilities.any?
-     valid_disabilities.each do |dis_id|
-       display = lookups['lookup-disability-type']&.dig(dis_id) || dis_id
-       district[:disability_type][display] ||= 0
-       district[:disability_type][display] += 1
-       case_disability_types << display
-     end
-     district[:disability_status]['Yes'] += 1
-     district[:vulnerability]["Child with disability"] += 1
-     case_vulns.add("Child with disability")
-   else
-     district[:disability_status]['No'] += 1
-   end
- else
-   district[:disability_status]['No'] += 1
- end
-
-minority_value = row['minority_status']
-case minority_value
-when 'true'
-  district[:minority_status]['Yes'] += 1
-when 'false'
-  district[:minority_status]['No'] += 1
+# Initialize counters if not already
+district[:disability_status] ||= { 'Yes' => 0, 'No' => 0 }
+# Get the value from the row
+disability_value = row['disability_status'].to_s.downcase.strip
+# Increment Yes if it matches either of the 'yes' codes
+if ["yes___officially_diagnosed__a17339c", "yes___undiagnosed_disability_f1bcd96"].include?(disability_value)
+  district[:disability_status]['Yes'] += 1
+  district[:vulnerability]["Child with disability"] += 1
+  case_vulns.add("Child with disability")
 else
-  district[:minority_status]['N/A'] += 1
+  district[:disability_status]['No'] += 1
 end
 
-refugee_value = row['legal_id']
-if refugee_value == true || refugee_value.to_s == 'true'
-  district[:legal_status]['Refugee'] ||= 0
-  district[:legal_status]['Refugee'] += 1
+
+if row['religion'].present?
+  religions = JSON.parse(row['religion'])
+  has_minority = false
+  all_islam = true
+
+  religions.each do |religion_id|
+    display = lookups['lookup-religion']&.dig(religion_id) || 'N/A'
+
+    if display != 'Islam' && display != 'N/A'
+      district[:minority_type][display] ||= 0
+      district[:minority_type][display] += 1
+      has_minority = true
+      all_islam = false
+    elsif display == 'Islam'
+      all_islam &&= true
+    end
+  end
+
+  if has_minority
+    district[:minority_status]['Yes'] += 1
+  elsif all_islam
+    district[:minority_status]['No'] += 1
+  else
+    district[:minority_status]['N/A'] += 1
+  end
+else
+  district[:minority_status]['N/A'] += 1
 end
 
 if row['nationality'].present?
   JSON.parse(row['nationality']).each do |concern_id|
    display = NATIONALITY_MAP[concern_id] || "Other"
-district[:nationality][display] ||= 0
-district[:nationality][display] += 1
+   district[:nationality][display] ||= 0
+   district[:nationality][display] += 1
   end
 end
 
-if row['incidents'].present?
-  incidents = JSON.parse(row['incidents'])
-  incidents.each do |concern_id|
+if row['protection_concerns'].present?
+ incidents = JSON.parse(row['protection_concerns'])
+ incidents.each do |concern_id|
     display = INCIDENTS_MAP[concern_id] || concern_id
     district[:incidents][display] ||= 0
     district[:incidents][display] += 1
-
-    # Update per age group
+  end
     district[:incident_age_group][age_group] ||= 0
-    district[:incident_age_group][age_group] += 1
-  end
+  district[:incident_age_group][age_group] += incidents.size
 end
-
-# if row['incidents'].present?
- # JSON.parse(row['incidents']).each do |concern_id|
-   # display = INCIDENTS_MAP[concern_id] || concern_id
-   # district[:incidents][display] ||= 0
-  #  district[:incidents][display] += 1
-#  end
-# end
-vulnerability_labels = []
-
-if row['exploitation'].present?
-  exploitation_values = JSON.parse(row['exploitation'])
-  allowed_for_child_labour = [
-    "child_trafficking__within_and_between_countries__c680681",
-    "child_labour___domestic_cee1f48"
-  ]
-  # --- Increment incidents ---
-  if exploitation_values.include?("child_trafficking__within_and_between_countries__c680681")
-    district[:incidents]["Trafficking"] ||= 0
-    district[:incidents]["Trafficking"] += 1
-    district[:incident_age_group][age_group] += 1
-  end
-  # --- Increment vulnerabilities ---
-  if exploitation_values.include?("child_labour___domestic_cee1f48")
-    district[:vulnerability]["Child domestic worker"] ||= 0
-    district[:vulnerability]["Child domestic worker"] += 1
-    case_vulns.add("Child domestic worker")
-    vulnerability_labels << "Child domestic worker"
-  end
-  # --- Decrement Child labour ONLY if all values are in allowed list ---
-  if exploitation_values.all? { |v| allowed_for_child_labour.include?(v) }
-    if district[:incidents]["Child labour"].to_i > 0
-      district[:incidents]["Child labour"] -= 1
-      district[:incident_age_group][age_group] -= 1
-      district[:incidents].delete("Child labour") if district[:incidents]["Child labour"] == 0
+row_vulnerabilities = Set.new
+if row['vulnerabilities'].present?
+  JSON.parse(row['vulnerabilities']).each do |vuln_id|
+    display = VULNERBILITY_MAP[vuln_id] || vuln_id
+    # Move "Child marriage" to incidents instead of vulnerability
+    if display == "Child marriage"
+      district[:incidents][display] ||= 0
+      district[:incidents][display] += 1
+      district[:incident_age_group][age_group] += 1
+    else
+      district[:vulnerability][display] ||= 0
+      district[:vulnerability][display] += 1
+      case_vulns.add(display)
+      row_vulnerabilities.add(display)
     end
   end
 end
 
-if row['mental'].present?
-  mental_values = JSON.parse(row['mental'])
-  allowed_for_psych_abuse = ["cybercrime_9651572"]
-  # --- Increment incidents ---
-  if mental_values.include?("cybercrime_9651572")
-    district[:incidents]["Online abuse"] ||= 0
-    district[:incidents]["Online abuse"] += 1
-    district[:incident_age_group][age_group] += 1
-  end
-  # --- Decrement Psychological abuse ONLY if values are EXACTLY allowed ---
-  if mental_values.all? { |v| allowed_for_psych_abuse.include?(v) }
-    if district[:incidents]["Psychological abuse"].to_i > 0
-      district[:incidents]["Psychological abuse"] -= 1
-      district[:incident_age_group][age_group] -= 1
-      district[:incidents].delete("Psychological abuse") if district[:incidents]["Psychological abuse"] == 0
-    end
-  end
+if row['displaced'].to_s == 'true'
+  district[:vulnerability]["Displaced child"] ||= 0
+  district[:vulnerability]["Displaced child"] += 1
+  case_vulns.add("Displaced child")
+  row_vulnerabilities.add("Displaced child")
 end
 
+ care_arrangement = row['care_arrangement']
+ case care_arrangement
+ when "foster_care"
+        district[:vulnerability]["Institutional care"] ||= 0
+        district[:vulnerability]["Institutional care"] += 1
+        case_vulns.add("Institutional care")
+        row_vulnerabilities.add("Institutional care")
+ end
 
-if row['neglect'].present?
-  neglect_values = JSON.parse(row['neglect'])
-  allowed_for_neglect = ["exposure_to_drug_or_alcohol_abuse_d250c07"]
-  # --- Increment incidents & vulnerabilities ---
-  if neglect_values.include?("exposure_to_drug_or_alcohol_abuse_d250c07")
-    district[:incidents]["Substance use"] ||= 0
-    district[:incidents]["Substance use"] += 1
-    district[:incident_age_group][age_group] += 1
+district[:disability_type] ||= {}
 
-    district[:vulnerability]["Substance exposure"] ||= 0
-    district[:vulnerability]["Substance exposure"] += 1
-    case_vulns.add("Substance exposure")
-    vulnerability_labels << "Substance exposure"
-  end
-  # --- Decrement Neglect ONLY if values are EXACTLY allowed ---
-  if neglect_values.all? { |v| allowed_for_neglect.include?(v) }
-    if district[:incidents]["Neglect"].to_i > 0
-      district[:incidents]["Neglect"] -= 1
-      district[:incident_age_group][age_group] -= 1
-      district[:incidents].delete("Neglect") if district[:incidents]["Neglect"] == 0
-    end
+# collect disabilities for THIS ROW only
+row_disabilities = Set.new
+# 1️⃣ Diagnosed disabilities
+if row['disability_type'].present?
+  JSON.parse(row['disability_type']).each do |concern_id|
+    display = DISABILITY_MAP[concern_id]
+    row_disabilities.add(display) if display.present?
   end
 end
-
-
-if row['sexual_abuse'].present?
-  sexual_abuse_values = JSON.parse(row['sexual_abuse'])
-  allowed_for_sexual_abuse = ["child_and_forced_marriage_1c99ee2"]
-  # --- Increment incidents ---
-  if sexual_abuse_values.include?("child_and_forced_marriage_1c99ee2")
-    district[:incidents]["Child marriage"] ||= 0
-    district[:incidents]["Child marriage"] += 1
-    district[:incident_age_group][age_group] += 1
-  end
-  # --- Decrement Sexual abuse ONLY if array contains ONLY allowed values ---
-  if sexual_abuse_values.all? { |v| allowed_for_sexual_abuse.include?(v) }
-    if district[:incidents]["Sexual abuse"].to_i > 0
-      district[:incidents]["Sexual abuse"] -= 1
-      district[:incident_age_group][age_group] -= 1
-      district[:incidents].delete("Sexual abuse") if district[:incidents]["Sexual abuse"] == 0
-    end
+# 2️⃣ Undiagnosed disabilities
+if row['un_disability_type'].present?
+  JSON.parse(row['un_disability_type']).each do |concern_id|
+    display = UN_DISABILITY_MAP[concern_id]
+    row_disabilities.add(display) if display.present?
   end
 end
-
-
-status_child = row['status_child']
-
-case status_child
-when "unaccompanied_317039"
-  district[:vulnerability]["Unaccompanied child"] ||= 0
-  district[:vulnerability]["Unaccompanied child"] += 1
-  case_vulns.add("Unaccompanied child")
-  vulnerability_labels << "Unaccompanied child"
-when "separated_980669"
-  district[:vulnerability]["Separated child"] ||= 0
-  district[:vulnerability]["Separated child"] += 1
-  case_vulns.add("Separated child")
-  vulnerability_labels << "Separated child"
+# 3️⃣ Increment ONCE per disability per case
+row_disabilities.each do |display|
+  district[:disability_type][display] ||= 0
+  district[:disability_type][display] += 1
 end
 
-# vulnerability_labels << "Other" if vulnerability_labels.empty? # === ADD ===
-
-      # -------- VULNERABILITY PER DISABILITY --------
-      case_disability_types.each do |disability| # === ADD ===
-        district[:vulnerability_per_disability][disability] ||= {}
-        vulnerability_labels.each do |v|
-          district[:vulnerability_per_disability][disability][v] ||= 0
-          district[:vulnerability_per_disability][disability][v] += 1
-        end
-      end
 
 case case_vulns.size
 when 1
@@ -426,21 +374,27 @@ when 4..Float::INFINITY
   district[:vulnerability_clustering]["three_plus_vulnerability"] += 1
 end
 
-district[:risk_level] ||= {}
+
+district[:vulnerability_per_disability] ||= {}
+row_disabilities.each do |disability|
+  district[:vulnerability_per_disability][disability] ||= {}
+  row_vulnerabilities.each do |vulnerability|
+    district[:vulnerability_per_disability][disability][vulnerability] ||= 0
+    district[:vulnerability_per_disability][disability][vulnerability] += 1
+  end
+end
+
 
 risk_id = row['risk_level']
+if risk_id.present? && risk_id != 'null'
+  risk_id = risk_id.to_s.strip.downcase
+  display = RISK_MAP[risk_id]
 
-
-next if risk_id.blank? || risk_id == 'null'
-
-risk_id = risk_id.to_s.strip.downcase
-
-display = RISK_MAP[risk_id]
-next unless display
-
-district[:risk_level][display] ||= 0
-district[:risk_level][display] += 1
-
+  if display
+    district[:risk_level][display] ||= 0
+    district[:risk_level][display] += 1
+  end
+end
 
     end
 
@@ -464,6 +418,7 @@ district[:risk_level][display] += 1
   else
     "All"
   end
+
    render json: {
   meta: {
     page: page,
@@ -476,22 +431,26 @@ district[:risk_level][display] += 1
   }
 }
   end
+       
+ private
 
-  private
-   def authenticate_with_token!
-     token = request.headers['token'] || params[:token]
-     unless token.present? && token == 'abbas_mm'
-       render json: { error: 'Unauthorized' }, status: :unauthorized
-     end
+ def authenticate_with_token!
+   token_from_request = request.headers['token'] || params[:token]
+   expected_token = ENV['API_TOKEN']
+
+   unless token_from_request.present? && token_from_request == expected_token
+     render json: { error: 'Unauthorized' }, status: :unauthorized
    end
  end
+ end
 
-# private
-#  def authenticate_with_token!
-#    token_from_request = request.headers['token'] || params[:token]
-#    expected_token = ENV['API_TOKEN']
-#    unless token_from_request.present? && token_from_request == expected_token
-#      render json: { error: 'Unauthorized' }, status: :unauthorized
-#    end
-#  end
-#  end
+  # private
+
+  #  def authenticate_with_token!
+  #    token = request.headers['token'] || params[:token]
+  #    unless token.present? && token == 'abbas_mm'
+  #      render json: { error: 'Unauthorized' }, status: :unauthorized
+  #    end
+  #  end
+
+  # end
