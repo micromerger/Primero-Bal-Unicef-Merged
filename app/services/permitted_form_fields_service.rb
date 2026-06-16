@@ -25,7 +25,7 @@ class PermittedFormFieldsService
   UPDATE_FORBIDDEN = %w[id unique_identifier unique_id short_id created_at created_by].freeze
 
   UPDATE_FORBIDDEN_BY_TYPE = {
-    case: %w[case_id case_id_display].freeze,
+    case: %w[case_id].freeze,
     incident: %w[incident_id incident_id_display].freeze,
     tracing_request: %w[tracing_request_id tracing_request_id_display].freeze,
     registry_record: %w[registry_id registry_id_display].freeze,
