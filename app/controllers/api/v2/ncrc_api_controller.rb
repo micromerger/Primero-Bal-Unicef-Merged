@@ -471,24 +471,24 @@ end
 }
   end
 
-      private
+  #     private
+
+  #   def authenticate_with_token!
+  #     token = request.headers['token'] || params[:token]
+  #     unless token.present? && token == 'abbas_mm'
+  #       render json: { error: 'Unauthorized' }, status: :unauthorized
+  #     end
+  #   end
+  #  end
+ 
+  private
 
     def authenticate_with_token!
-      token = request.headers['token'] || params[:token]
-      unless token.present? && token == 'abbas_mm'
+      token_from_request = request.headers['token'] || params[:token]
+      expected_token = ENV['API_TOKEN'] # Read from environment
+
+      unless token_from_request.present? && token_from_request == expected_token
         render json: { error: 'Unauthorized' }, status: :unauthorized
       end
     end
-   end
- 
-#  private
-
-#    def authenticate_with_token!
-#      token_from_request = request.headers['token'] || params[:token]
-#      expected_token = ENV['API_TOKEN'] # Read from environment
-
-#      unless token_from_request.present? && token_from_request == expected_token
-#        render json: { error: 'Unauthorized' }, status: :unauthorized
-#      end
-#    end
-#    end
+    end
