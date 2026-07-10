@@ -46,6 +46,7 @@ Rails.application.routes.draw do
               get :dashboard, to: 'dashboard_api#index'
               get :indicator, to: 'indicator_api#index'
               get :ncrc_kpk, to: 'ncrc_api#index'
+              get :cm_portal, to: 'cm_portal#index'
               get :recent_cases, to: 'recentcases_api#index'
               get :caseid, to: 'caseid_api#index'
              get :checklist, to: 'checklist_api#index'
