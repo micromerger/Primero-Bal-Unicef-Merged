@@ -104,6 +104,7 @@ end
   case_plan_due_date
   case_plan_approved_date
   date_closure
+  tick_this_box_in_case_this_is_a_re_opened_case_which_was_closed_previously_78ff51a
 ].freeze
   FIELD_RENAMES = {
   'union_council_38498c8' => 'union_council',
@@ -111,7 +112,8 @@ end
   'assessment_due_date' => 'date_assessment_due',
   'date_case_plan' => 'date_case_plan_started',
   'case_plan_due_date' => 'date_case_plan_due_date',
-  'date_closure' => 'date_case_closure'
+  'date_closure' => 'date_case_closure',
+  'tick_this_box_in_case_this_is_a_re_opened_case_which_was_closed_previously_78ff51a' => 'case_reopened'
 }.freeze
   EXCLUDED_USER_GROUPS = %w[
   usergroup-primero-cp-families
@@ -152,6 +154,10 @@ end
       lookup-tehsil-vcnc-c056cc8
       lookup-gender
       lookup-case-closure-reason-d457423
+      lookup-child-identified-a191671
+      lookup-country
+      lookup-disability-type
+      lookup-service-type
      ].each do |uid|
       lookup = Lookup.find_by(unique_id: uid)
       next unless lookup
@@ -187,6 +193,7 @@ end
       map_owned_by_groups!(data)
       map_owner!(data)
       map_location!(data)
+      map_services!(data)
       data['last_updated_at'] =
       data['last_updated_at']&.strftime('%Y-%m-%d')
       map_case_plan_achieved!(data, record)
@@ -200,10 +207,13 @@ end
       owned_by_groups
       name
       sex
+      source_of_information
       age
       date_of_birth
       status
       protection_concerns
+      nationality
+      disability_status_d49c179
       vulnerabilities_57efd69
       owned_by
       registration_date
@@ -212,6 +222,8 @@ end
       vc_nc_0e00677
       risk_level
       primary_reason_for_closing_the_case_61b5529
+      how_was_the_child_identified_d17a651
+      services_section
       assessment_requested_on
       assessment_due_date
       assessment_approved_date
@@ -220,6 +232,7 @@ end
       case_plan_approved_date
       date_closure
       last_updated_at
+      tick_this_box_in_case_this_is_a_re_opened_case_which_was_closed_previously_78ff51a
     ]
   end
   def map_lookups!(data)
@@ -228,6 +241,12 @@ end
     data['incidents'] =
       Array(data.delete('protection_concerns'))
         .map { |v| lookup('lookup-protection-concerns', v) }
+    data['nationality'] =
+      Array(data.delete('nationality'))
+        .map { |v| lookup('lookup-country', v) }
+    data['disability'] =
+      Array(data.delete('disability_status_d49c179'))
+        .map { |v| lookup('lookup-disability-type', v) }       
     data['risk_level'] =
       lookup('lookup-risk-level', data.delete('risk_level'))
     data['case_closure_reason'] =
@@ -235,6 +254,13 @@ end
         'lookup-case-closure-reason-d457423',
         data.delete('primary_reason_for_closing_the_case_61b5529')
       )
+
+    data['source_of_information'] =
+      lookup(
+        'lookup-child-identified-a191671',
+        data.delete('how_was_the_child_identified_d17a651')
+      )
+
     data['vulnerabilities'] =
       Array(data.delete('vulnerabilities_57efd69'))
         .map { |v| lookup('lookup-vulnerabilities-4cac6ec', v) }
@@ -275,5 +301,16 @@ end
   def lookup(uid, value)
     return nil if value.blank?
     @lookup_cache.dig(uid, value) || value
+  end
+
+  def map_services!(data)
+  services = Array(data.delete("services_section"))
+
+data["services_provided"] =
+  services.filter_map do |service|
+    next unless service.is_a?(Hash)
+
+    lookup("lookup-service-type", service["service_type"])
+  end.uniq
   end
 end
