@@ -311,6 +311,6 @@ data["services_provided"] =
     next unless service.is_a?(Hash)
 
     lookup("lookup-service-type", service["service_type"])
-  end.uniq
+  end
   end
 end
