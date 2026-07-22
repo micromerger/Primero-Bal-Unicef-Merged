@@ -2,8 +2,10 @@ class Api::V2::IndicatorApiController < Api::V2::ChildrenController
   include Api::V2::Concerns::Pagination
   def index
     authorize! :read, model_class
-    base_records =
-      model_class.where("data->>'record_state' = ?", 'true')
+    # base_records =
+    #   model_class.where("data->>'record_state' = ?", 'true')
+
+       base_records =  model_class.all
 
     if params[:district].present?
   district = params[:district]
