@@ -80,11 +80,11 @@ export const showLoginDialog = () => ({
 });
 
 export const checkUserAuthentication = () => async dispatch => {
-  if (window.idp && !msalApp?.getActiveAccount()) {
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  if (window.idp && !msalApp?.getActiveAccount() && !user) {
     return;
   }
-
-  const user = JSON.parse(localStorage.getItem("user"));
 
   if (user) {
     dispatch(setAuthenticatedUser(user));
