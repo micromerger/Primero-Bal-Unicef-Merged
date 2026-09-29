@@ -5,6 +5,9 @@
 Rails.application.routes.draw do
   root to: 'home#v2'
 
+  post '/sso/login', to: 'sso#login'
+  match '/sso/login', via: :all, to: proc { [405, { 'Content-Type' => 'text/plain' }, ['Method Not Allowed']] }
+
   scope :v2 do
     get '/', to: 'home#v2'
     get '*all', to: 'home#v2'
