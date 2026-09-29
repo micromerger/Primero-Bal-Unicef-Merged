@@ -8,9 +8,22 @@ import { mapObjectPropertiesToRecords, mapListToObject } from "../../libs";
 import Actions from "./actions";
 import { ListHeaderRecord, FilterRecord } from "./records";
 
+const initialUser = (() => {
+  try {
+    return JSON.parse(localStorage.getItem("user"));
+  } catch (e) {
+    return null;
+  }
+})();
+
 const DEFAULT_STATE = Map({
-  isAuthenticated: false,
-  loaded: false
+  isAuthenticated: !!initialUser,
+  loaded: false,
+  ...(initialUser && {
+    id: initialUser.id,
+    username: initialUser.username,
+    roleGroupPermission: initialUser.groupPermission
+  })
 });
 
 export default (state = DEFAULT_STATE, { type, payload }) => {
