@@ -18,7 +18,7 @@ module CsrfProtection
       path: '/',
       secure: Rails.env.production?,
       value: form_authenticity_token,
-      same_site: :strict
+      same_site: :lax
     }
   end
 

@@ -19,7 +19,7 @@ class SsoController < ApplicationController
     store_session_metadata
     log_audit_success(user)
 
-    redirect_target = valid_return_to(params[:return_to]) || '/cases'
+    redirect_target = valid_return_to(params[:return_to]) || '/v2/cases'
 
     respond_to do |format|
       format.html { redirect_to redirect_target }
@@ -65,7 +65,8 @@ class SsoController < ApplicationController
 
   def valid_return_to(path)
     return nil if path.blank?
-    return path if path.start_with?('/') && !path.start_with?('//') && !path.include?(':')
+    return path if path.start_with?('/v2/') || path == '/v2'
+    return "/v2#{path}" if path.start_with?('/') && !path.start_with?('//') && !path.include?(':')
     nil
   end
 

@@ -73,7 +73,7 @@ RSpec.describe SsoController, type: :request do
         token = generate_token
         post '/sso/login', headers: { 'Authorization' => "Bearer #{token}" }
 
-        expect(response).to redirect_to('/cases')
+        expect(response).to redirect_to('/v2/cases')
         expect(controller.current_user).to eq(user)
       end
 
@@ -81,7 +81,7 @@ RSpec.describe SsoController, type: :request do
         token = generate_token
         post '/sso/login', params: { token: token }
 
-        expect(response).to redirect_to('/cases')
+        expect(response).to redirect_to('/v2/cases')
         expect(controller.current_user).to eq(user)
       end
     end
@@ -105,7 +105,7 @@ RSpec.describe SsoController, type: :request do
         token = generate_token
         post '/sso/login', params: { token: token }
 
-        expect(response).to redirect_to('/cases')
+        expect(response).to redirect_to('/v2/cases')
         expect(controller.current_user).to eq(user)
       end
 
@@ -113,7 +113,7 @@ RSpec.describe SsoController, type: :request do
         token = generate_token
         post '/sso/login', params: { token: token, return_to: '/dashboards' }
 
-        expect(response).to redirect_to('/dashboards')
+        expect(response).to redirect_to('/v2/dashboards')
         expect(controller.current_user).to eq(user)
       end
 
@@ -124,7 +124,7 @@ RSpec.describe SsoController, type: :request do
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
         expect(json['success']).to be true
-        expect(json['redirect_url']).to eq('/cases')
+        expect(json['redirect_url']).to eq('/v2/cases')
         expect(json.keys).to match_array(['success', 'redirect_url'])
       end
 
@@ -133,7 +133,7 @@ RSpec.describe SsoController, type: :request do
         token = generate_token(sub: 'email_user@example.com')
 
         post '/sso/login', params: { token: token }
-        expect(response).to redirect_to('/cases')
+        expect(response).to redirect_to('/v2/cases')
         expect(controller.current_user).to eq(email_user)
       end
 
@@ -142,7 +142,7 @@ RSpec.describe SsoController, type: :request do
         token = generate_token(iat: now + 3, exp: now + ttl + 3)
 
         post '/sso/login', params: { token: token }
-        expect(response).to redirect_to('/cases')
+        expect(response).to redirect_to('/v2/cases')
       end
     end
 
@@ -219,7 +219,7 @@ RSpec.describe SsoController, type: :request do
         token2 = generate_token(jti: jti)
 
         post '/sso/login', params: { token: token1 }
-        expect(response).to redirect_to('/cases')
+        expect(response).to redirect_to('/v2/cases')
 
         post '/sso/login', params: { token: token2 }
         expect(response).to have_http_status(:unauthorized)
