@@ -19,7 +19,7 @@ class SsoController < ApplicationController
     store_session_metadata
     log_audit_success(user)
 
-    redirect_target = valid_return_to(params[:return_to]) || root_path
+    redirect_target = valid_return_to(params[:return_to]) || '/cases'
 
     respond_to do |format|
       format.html { redirect_to redirect_target }
