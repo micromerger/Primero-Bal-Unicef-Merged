@@ -128,6 +128,7 @@ Rails.application.routes.draw do
       end
       resources :identity_providers, only: [:index]
       resources :dashboards, only: [:index]
+      resources :new_dashboards, only: [:index]
       resource :contact_information, only: %i[show update], controller: 'contact_information'
       resources :system_settings, only: [:index]
       resources :tasks, only: [:index]

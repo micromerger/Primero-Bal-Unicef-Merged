@@ -1,0 +1,297 @@
+/* Copyright (c) 2014 - 2026 UNICEF. All rights reserved. */
+
+.container {
+  padding: 24px 24px 60px 24px;
+  background-color: #f8fafc;
+  height: 100%;
+  max-height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scroll-behavior: smooth;
+}
+
+.header {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.headerContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
+
+.refreshButton {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.refreshButton:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* Same row grid for all 5 boxes - Total Cases box has reduced width */
+.boxesRow {
+  display: grid;
+  grid-template-columns: minmax(0, 0.65fr) repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 18px 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 20px;
+  box-sizing: border-box;
+}
+
+.totalCard {
+  max-width: 100%;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.cardTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.1px;
+}
+
+.cardPill {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.textBoxGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.textBoxLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.textBoxInput {
+  width: 100%;
+  padding: 9px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  background-color: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  box-sizing: border-box;
+  outline: none;
+  text-align: center;
+  letter-spacing: -0.2px;
+}
+
+.textBoxInput:focus {
+  border-color: #3b82f6;
+  background-color: #ffffff;
+}
+
+.metricSection {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 6px 0;
+}
+
+.singleMetricWrapper {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.singleMetricCount {
+  font-size: 34px;
+  font-weight: 800;
+  color: #0284c7;
+  line-height: 1;
+}
+
+.metricItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.metricCountOpen {
+  font-size: 26px;
+  font-weight: 800;
+  color: #059669;
+  line-height: 1;
+}
+
+.metricCountClosed {
+  font-size: 26px;
+  font-weight: 800;
+  color: #64748b;
+  line-height: 1;
+}
+
+.badgeOpen {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badgeClosed {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.cardFooter {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 500;
+  text-align: center;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 8px;
+  margin: 0;
+}
+
+.errorText {
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.chartsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+  width: 100%;
+}
+
+.chartsGridThree {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+  width: 100%;
+}
+
+.chartCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 22px 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 360px;
+  width: 100%;
+}
+
+.chartTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 16px 0;
+}
+
+.chartCanvasWrapper {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timelineCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 24px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 350px;
+  width: 100%;
+  margin-top: 24px;
+}
+
+@media (max-width: 1100px) {
+  .boxesRow {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .chartsGrid,
+  .chartsGridThree {
+    grid-template-columns: 1fr;
+  }
+}
