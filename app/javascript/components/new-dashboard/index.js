@@ -419,10 +419,17 @@ const inlinePieLabelsPlugin = {
       }
 
       // Clamp vertically to stay inside canvas bounds
-      if (textY < 12) {
-        textY = 12;
+      if (textY < 4) {
+        textY = 4;
       } else if (textY + totalHeight > chart.height - 4) {
-        textY = Math.max(12, chart.height - 4 - totalHeight);
+        textY = Math.max(4, chart.height - 4 - totalHeight);
+      }
+
+      // Safeguard: ensure label text is always placed outside the arrowhead and never overlaps the arrow tip
+      if (sin < -0.3 && textY + totalHeight > endY - 2) {
+        textY = endY - 2 - totalHeight;
+      } else if (sin > 0.3 && textY < endY + 4) {
+        textY = endY + 4;
       }
 
       ctx.textBaseline = "top";
@@ -1860,10 +1867,10 @@ function NewDashboard() {
         animation: { duration: 400 },
         layout: {
           padding: {
-            top: 25,
-            bottom: 25,
-            left: 48,
-            right: 48
+            top: 48,
+            bottom: 48,
+            left: 52,
+            right: 52
           }
         },
         legend: {
@@ -1910,12 +1917,12 @@ function NewDashboard() {
         datasets: [
           {
             label: "Total Cases",
-            borderColor: "#0284c7",
+            borderColor: "#2300FF",
             backgroundColor: "rgba(2, 132, 199, 0.08)",
-            pointBackgroundColor: "#0284c7",
+            pointBackgroundColor: "#2300FF",
             pointBorderColor: "#ffffff",
             pointHoverBackgroundColor: "#ffffff",
-            pointHoverBorderColor: "#0284c7",
+            pointHoverBorderColor: "#2300FF",
             pointRadius: 4,
             pointHoverRadius: 6,
             borderWidth: 2.5,
@@ -2050,10 +2057,10 @@ function NewDashboard() {
         animation: { duration: 400 },
         layout: {
           padding: {
-            top: 25,
-            bottom: 25,
-            left: 48,
-            right: 48
+            top: 48,
+            bottom: 48,
+            left: 52,
+            right: 52
           }
         },
         legend: {
@@ -2406,10 +2413,10 @@ function NewDashboard() {
         animation: { duration: 400 },
         layout: {
           padding: {
-            top: 25,
-            bottom: 25,
-            left: 48,
-            right: 48
+            top: 48,
+            bottom: 48,
+            left: 52,
+            right: 52
           }
         },
         legend: {
@@ -2469,10 +2476,10 @@ function NewDashboard() {
         animation: { duration: 400 },
         layout: {
           padding: {
-            top: 25,
-            bottom: 25,
-            left: 48,
-            right: 48
+            top: 48,
+            bottom: 48,
+            left: 52,
+            right: 52
           }
         },
         legend: {
@@ -2730,10 +2737,10 @@ function NewDashboard() {
         animation: { duration: 400 },
         layout: {
           padding: {
-            top: 25,
-            bottom: 25,
-            left: 48,
-            right: 48
+            top: 48,
+            bottom: 48,
+            left: 52,
+            right: 52
           }
         },
         legend: {
@@ -2793,10 +2800,10 @@ function NewDashboard() {
         animation: { duration: 400 },
         layout: {
           padding: {
-            top: 25,
-            bottom: 25,
-            left: 48,
-            right: 48
+            top: 48,
+            bottom: 48,
+            left: 52,
+            right: 52
           }
         },
         legend: {
@@ -2843,12 +2850,12 @@ function NewDashboard() {
         datasets: [
           {
             label: "Total Cases",
-            borderColor: "#0284c7",
+            borderColor: "#2300FF",
             backgroundColor: "rgba(2, 132, 199, 0.08)",
-            pointBackgroundColor: "#0284c7",
+            pointBackgroundColor: "#2300FF",
             pointBorderColor: "#ffffff",
             pointHoverBackgroundColor: "#ffffff",
-            pointHoverBorderColor: "#0284c7",
+            pointHoverBorderColor: "#2300FF",
             pointRadius: 4,
             pointHoverRadius: 6,
             borderWidth: 2.5,
@@ -2982,10 +2989,10 @@ function NewDashboard() {
         animation: { duration: 400 },
         layout: {
           padding: {
-            top: 25,
-            bottom: 25,
-            left: 48,
-            right: 48
+            top: 48,
+            bottom: 48,
+            left: 52,
+            right: 52
           }
         },
         legend: {
@@ -3045,10 +3052,10 @@ function NewDashboard() {
         animation: { duration: 400 },
         layout: {
           padding: {
-            top: 25,
-            bottom: 25,
-            left: 48,
-            right: 48
+            top: 48,
+            bottom: 48,
+            left: 52,
+            right: 52
           }
         },
         legend: {
@@ -3108,10 +3115,10 @@ function NewDashboard() {
         animation: { duration: 400 },
         layout: {
           padding: {
-            top: 25,
-            bottom: 25,
-            left: 48,
-            right: 48
+            top: 48,
+            bottom: 48,
+            left: 52,
+            right: 52
           }
         },
         legend: {
@@ -3171,10 +3178,10 @@ function NewDashboard() {
         animation: { duration: 400 },
         layout: {
           padding: {
-            top: 25,
-            bottom: 25,
-            left: 48,
-            right: 48
+            top: 48,
+            bottom: 48,
+            left: 52,
+            right: 52
           }
         },
         legend: {
@@ -3234,10 +3241,10 @@ function NewDashboard() {
         animation: { duration: 400 },
         layout: {
           padding: {
-            top: 25,
-            bottom: 25,
-            left: 48,
-            right: 48
+            top: 48,
+            bottom: 48,
+            left: 52,
+            right: 52
           }
         },
         legend: {
@@ -3499,7 +3506,16 @@ function NewDashboard() {
                     title="Date To"
                   />
                 </label>
-                {(dateFrom || dateTo) }
+                {(dateFrom || dateTo) && (
+                  <button
+                    type="button"
+                    className={css.clearDateButton}
+                    onClick={handleClearDate}
+                    title="Clear date filter"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -3618,7 +3634,7 @@ function NewDashboard() {
       {/* Row 1: Cases per Gender & Cases per Age-Groups */}
       <div className={css.chartsGrid}>
         {/* Left: Cases per Gender (Pie Chart with Inline Labels) */}
-        <div className={css.chartCard}>
+        <div className={`${css.chartCard} ${css.pieChartCard}`}>
           <h2 className={css.chartTitle}>Cases per Gender</h2>
           <div className={css.chartCanvasWrapper}>
             <canvas ref={genderCanvasRef} />
@@ -3626,7 +3642,7 @@ function NewDashboard() {
         </div>
 
         {/* Right: Cases per Age-Groups (Row Chart in order: 0-5, 6-9, 10-13, 14-18, 18+, Unknown) */}
-        <div className={css.chartCard}>
+        <div className={`${css.chartCard} ${css.pieChartCard}`}>
           <h2 className={css.chartTitle} title="Cases per Age-Groups">
             Cases per Age-Groups
           </h2>
@@ -3687,7 +3703,7 @@ function NewDashboard() {
       {/* Row 5: Cases per Diagnosed Disability, Nature of Cases & Cases per Un-Diagnosed Disability */}
       <div className={css.chartsGridThree}>
         {/* Left: Cases per Diagnosed Disability (Pie Chart with Inline Labels) */}
-        <div className={css.chartCard}>
+        <div className={`${css.chartCard} ${css.pieChartCard}`}>
           <h2 className={css.chartTitle} title="Cases per Daignosed Disability">
             Cases per Diagnosed Disability
           </h2>
@@ -3697,7 +3713,7 @@ function NewDashboard() {
         </div>
 
         {/* Center: Nature of Cases (Pie Chart with Inline Labels) */}
-        <div className={css.chartCard}>
+        <div className={`${css.chartCard} ${css.pieChartCard}`}>
           <h2 className={css.chartTitle}>Nature of Cases</h2>
           <div className={css.chartCanvasWrapper}>
             <canvas ref={natureCanvasRef} />
@@ -3705,7 +3721,7 @@ function NewDashboard() {
         </div>
 
         {/* Right: Cases per Un-Diagnosed Disability (Pie Chart with Inline Labels) */}
-        <div className={css.chartCard}>
+        <div className={`${css.chartCard} ${css.pieChartCard}`}>
           <h2 className={css.chartTitle} title="Cases per Un-Daignosed Disability">
             Cases per Un-Diagnosed Disability
           </h2>
@@ -3737,7 +3753,7 @@ function NewDashboard() {
       {/* Row 7: Cases per Services Provided & Cases per Care Arrangement */}
       <div className={css.chartsGrid}>
         {/* Left: Cases per Services Provided (Row Chart in Descending Order) */}
-        <div className={css.chartCard}>
+        <div className={`${css.chartCard} ${css.pieChartCard}`}>
           <h2 className={css.chartTitle}>Cases per Services Provided</h2>
           <div className={css.chartCanvasWrapper}>
             <canvas ref={servicesCanvasRef} />
@@ -3745,7 +3761,7 @@ function NewDashboard() {
         </div>
 
         {/* Right: Cases per Care Arrangement (Pie Chart with Inline Labels) */}
-        <div className={css.chartCard}>
+        <div className={`${css.chartCard} ${css.pieChartCard}`}>
           <h2 className={css.chartTitle}>Cases per Care Arrangement</h2>
           <div className={css.chartCanvasWrapper}>
             <canvas ref={careArrangementCanvasRef} />
@@ -3766,7 +3782,7 @@ function NewDashboard() {
       {/* Row 9: Location of Incident, Cases per Maritial Status & Cases per Nationality */}
       <div className={css.chartsGridThree}>
         {/* Left: Location of Incident (Pie Chart with Inline Labels) */}
-        <div className={css.chartCard}>
+        <div className={`${css.chartCard} ${css.pieChartCard}`}>
           <h2 className={css.chartTitle}>Location of Incident</h2>
           <div className={css.chartCanvasWrapper}>
             <canvas ref={incidentLocationCanvasRef} />
@@ -3774,7 +3790,7 @@ function NewDashboard() {
         </div>
 
         {/* Center: Cases per Maritial Status (Pie Chart with Inline Labels) */}
-        <div className={css.chartCard}>
+        <div className={`${css.chartCard} ${css.pieChartCard}`}>
           <h2 className={css.chartTitle} title="Cases per Maritial Status">
             Cases per Maritial Status
           </h2>
@@ -3784,7 +3800,7 @@ function NewDashboard() {
         </div>
 
         {/* Right: Cases per Nationality (Pie Chart with Inline Labels) */}
-        <div className={css.chartCard}>
+        <div className={`${css.chartCard} ${css.pieChartCard}`}>
           <h2 className={css.chartTitle} title="Cases per Nationality">
             Cases per Nationality
           </h2>
@@ -3797,7 +3813,7 @@ function NewDashboard() {
       {/* Row with Cases per Child getting Education, Cases per Language & Cases per Religion: all 3 in same row */}
       <div className={css.chartsGridThree}>
         {/* Left: Cases per Child getting Education (Pie Chart with Inline Labels) */}
-        <div className={css.chartCard}>
+        <div className={`${css.chartCard} ${css.pieChartCard}`}>
           <h2 className={css.chartTitle} title="Cases per Child getting Education">
             Cases per Child getting Education
           </h2>
@@ -3807,7 +3823,7 @@ function NewDashboard() {
         </div>
 
         {/* Center: Cases per Language (Pie Chart with Inline Labels) */}
-        <div className={css.chartCard}>
+        <div className={`${css.chartCard} ${css.pieChartCard}`}>
           <h2 className={css.chartTitle} title="Cases per Language">
             Cases per Language
           </h2>
@@ -3817,7 +3833,7 @@ function NewDashboard() {
         </div>
 
         {/* Right: Cases per Religion (Pie Chart with Inline Labels) */}
-        <div className={css.chartCard}>
+        <div className={`${css.chartCard} ${css.pieChartCard}`}>
           <h2 className={css.chartTitle} title="Cases per Religion">
             Cases per Religion
           </h2>
