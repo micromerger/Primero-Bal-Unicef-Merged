@@ -3,33 +3,39 @@
 # Dedicated model for New Dashboard metrics and case statistics.
 # Encapsulates case aggregation logic without altering core Child or Dashboard models.
 class NewDashboard
-  attr_reader :user, :record_state, :scope
+  attr_reader :user, :record_state, :district, :date_from, :date_to, :scope
 
-  def initialize(user = nil, record_state: true)
+  def initialize(user = nil, options = {})
     @user = user
-    @record_state = record_state
-    @scope = record_state ? Child.where("data @? '$.record_state ? (@ == true || @ == \"true\")'") : Child.all
+    @record_state = options.fetch(:record_state, true)
+    @district = options[:district].presence
+    @date_from = options[:date_from].presence
+    @date_to = options[:date_to].presence
+    @scope = NewDashboardScope.build(user, @record_state)
   end
 
   def total_cases
-    @scope.count
+    case_data_list.size
   end
 
   def open_cases
-    @scope.where("data @? '$.status ? (@ == \"open\")'").count
+    case_data_list.count { |c| c['status'] == 'open' }
   end
 
   def closed_cases
-    @scope.where("data @? '$.status ? (@ == \"closed\")'").count
+    case_data_list.count { |c| c['status'] == 'closed' }
   end
 
   def cases_by_status_and_sex
-    counts = @scope.pluck(Arel.sql("data->>'status'"), Arel.sql("data->>'sex'")).tally
+    counts = Hash.new(0)
+    case_data_list.each { |c| counts[[c['status'], c['sex']]] += 1 }
     {
-      open_male: counts[%w[open male]] || 0, closed_male: counts[%w[closed male]] || 0,
-      open_female: counts[%w[open female]] || 0, closed_female: counts[%w[closed female]] || 0,
-      open_transgender: counts[%w[open transgender_baf5dac]] || 0,
-      closed_transgender: counts[%w[closed transgender_baf5dac]] || 0
+      open_male: counts[%w[open male]],
+      closed_male: counts[%w[closed male]],
+      open_female: counts[%w[open female]],
+      closed_female: counts[%w[closed female]],
+      open_transgender: counts[%w[open transgender_baf5dac]],
+      closed_transgender: counts[%w[closed transgender_baf5dac]]
     }
   end
 
@@ -44,7 +50,7 @@ class NewDashboard
   end
 
   def category_charts
-    NewDashboardCategoryStats.chart_data(@scope)
+    NewDashboardCategoryStats.chart_data(case_data_list)
   end
 
   def services_chart_data
@@ -55,10 +61,9 @@ class NewDashboard
   end
 
   def accumulate_services(counts)
-    @scope.each do |c|
-      st_list = Array(c.data['services_section']).map { |s| s['service_type'] }.compact.uniq
-      key = c.data['status'] == 'closed' ? :closed : :open
-      st_list.each { |st| counts[st][key] += 1 }
+    case_data_list.each do |c|
+      key = c['status'] == 'closed' ? :closed : :open
+      Array(c['services_section']).each { |s| counts[s['service_type']][key] += 1 if s['service_type'].present? }
     end
   end
 
@@ -68,25 +73,33 @@ class NewDashboard
   end
 
   def nature_of_cases_chart_data
-    counts = @scope.pluck(Arel.sql("data->>'risk_level'")).compact.reject(&:blank?).tally
+    counts = Hash.new(0)
+    case_data_list.each do |c|
+      risk = c['risk_level']
+      counts[risk] += 1 if risk.present?
+    end
     total = [counts.values.sum.to_f, 1.0].max
     counts.transform_values { |count| gender_entry(count, total) }
   end
 
   def monthly_trend_chart_data
-    records = @scope.pluck(Arel.sql("data->>'registration_date'"), Arel.sql("data->>'status'"))
-    records.each_with_object({}) do |(date, status), acc|
+    case_data_list.each_with_object({}) do |c, acc|
+      date = c['registration_date']
       next if date.blank?
 
       m = date.to_s[0..6]
       acc[m] ||= { total: 0, open: 0, closed: 0 }
       acc[m][:total] += 1
-      acc[m][status == 'closed' ? :closed : :open] += 1
+      acc[m][c['status'] == 'closed' ? :closed : :open] += 1
     end.sort.to_h
   end
 
   def gender_chart_data
-    counts = @scope.pluck(Arel.sql("data->>'sex'")).compact.reject(&:blank?).tally
+    counts = Hash.new(0)
+    case_data_list.each do |c|
+      sex = c['sex']
+      counts[sex] += 1 if sex.present?
+    end
     total = [counts.values.sum.to_f, 1.0].max
     counts.transform_values { |count| gender_entry(count, total) }
   end
@@ -99,11 +112,11 @@ class NewDashboard
   end
 
   def accumulate_sources(counts)
-    records = @scope.pluck(Arel.sql("data->>'source_of_information_4442e8c'"), Arel.sql("data->>'status'"))
-    records.each do |source, status|
+    case_data_list.each do |c|
+      source = c['source_of_information_4442e8c']
       next if source.blank?
 
-      key = status == 'closed' ? :closed : :open
+      key = c['status'] == 'closed' ? :closed : :open
       counts[source][key] += 1
     end
   end
@@ -113,7 +126,25 @@ class NewDashboard
           &.each_with_object({}) { |v, h| h[v['id']] = v['display_text'] } || {}
   end
 
+  def case_data_list
+    @case_data_list ||= begin
+      list = @scope.pluck(:data)
+      list = filter_by_district(list)
+      NewDashboardDateFilter.filter(list, @date_from, @date_to)
+    end
+  end
+
   private
+
+  def filter_by_district(list)
+    return list if @district.blank?
+
+    locations = NewDashboardLocationStats.location_names_map
+    list.select do |c|
+      loc_name = locations[c['location_current']]
+      loc_name.present? && loc_name.split(':')[2]&.strip == @district
+    end
+  end
 
   def gender_entry(count, total)
     { count: count || 0, percentage: (((count || 0) / total) * 100).round }

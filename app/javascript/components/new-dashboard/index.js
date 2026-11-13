@@ -13,7 +13,25 @@ function formatFallbackLabel(key) {
     .replace(/\b\w/g, l => l.toUpperCase());
 }
 
+const LOOKUP_CACHE_TTL_MS = 5 * 60 * 1000;
+
 async function fetchLookupMap(lookupId, fetchOptions) {
+  const cacheKey = `primero_lookup_cache_${lookupId}`;
+
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+
+    if (cached) {
+      const parsed = JSON.parse(cached);
+
+      if (parsed && parsed.timestamp && Date.now() - parsed.timestamp < LOOKUP_CACHE_TTL_MS && parsed.data) {
+        return parsed.data;
+      }
+    }
+  } catch (_e) {
+    // ignore sessionStorage errors
+  }
+
   try {
     const res = await fetch(`/api/v2/lookups/${lookupId}`, fetchOptions);
 
@@ -40,7 +58,58 @@ async function fetchLookupMap(lookupId, fetchOptions) {
       map[v.id] = String(label || "").trim();
     });
 
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: map }));
+    } catch (_e) {
+      // ignore
+    }
+
     return map;
+  } catch (_err) {
+    return {};
+  }
+}
+
+async function fetchUserMap(fetchOptions) {
+  const cacheKey = "primero_users_cache";
+
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+
+    if (cached) {
+      const parsed = JSON.parse(cached);
+
+      if (parsed && parsed.timestamp && Date.now() - parsed.timestamp < LOOKUP_CACHE_TTL_MS && parsed.data) {
+        return parsed.data;
+      }
+    }
+  } catch (_e) {
+    // ignore sessionStorage errors
+  }
+
+  try {
+    const res = await fetch("/api/v2/users?per=500", fetchOptions);
+
+    if (!res.ok) {
+      return {};
+    }
+    const usersJson = await res.json();
+    const usersList = usersJson?.data || [];
+    const userMap = {};
+
+    usersList.forEach(u => {
+      if (u && u.user_name) {
+        userMap[u.user_name] = u.full_name || u.user_name;
+      }
+    });
+
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: userMap }));
+    } catch (_e) {
+      // ignore
+    }
+
+    return userMap;
   } catch (_err) {
     return {};
   }
@@ -161,7 +230,8 @@ const WORKFLOW_DEFINITIONS = [
   { key: "assessment", label: "Assessment" },
   { key: "case_plan", label: "Individual Rehabilitation Program" },
   { key: "service_provision", label: "Service Provision" },
-  { key: "services_implemented", label: "Service Implemented" }
+  { key: "services_implemented", label: "Service Implemented" },
+  { key: "reopened", label: "Reopened" }
 ];
 
 function formatMonthYear(ymStr) {
@@ -552,993 +622,1110 @@ function NewDashboard() {
   const ageGroupChartInstance = useRef(null);
   const workflowChartInstance = useRef(null);
 
-  const fetchCasesData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [districtsList, setDistrictsList] = useState([]);
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-    const headers = {
-      Accept: "application/json",
-      "Content-Type": "application/json"
-    };
-
-    const fetchOptions = {
-      method: "GET",
-      headers,
-      credentials: "include"
-    };
-
-    try {
-      const [
-        casesRes,
-        newDashboardRes,
-        locationsRes,
-        usersRes,
-        genderLookup,
-        sourceLookup,
-        incidentsLookup,
-        vulnerabilitiesLookup,
-        diagnosedLookup,
-        natureLookup,
-        undiagnosedLookup,
-        servicesLookup,
-        careArrangementLookup,
-        incidentLocationLookup,
-        maritalStatusLookup,
-        nationalityLookup,
-        languageLookup,
-        religionLookup
-      ] = await Promise.all([
-        fetch("/api/v2/cases?record_state=true&per=500", fetchOptions),
-        fetch("/api/v2/new_dashboards?record_state=true", fetchOptions).catch(() => null),
-        fetch("/api/v2/locations?per=500", fetchOptions).catch(() => null),
-        fetch("/api/v2/users?per=500", fetchOptions).catch(() => null),
-        fetchLookupMap(31, fetchOptions),
-        fetchLookupMap(329, fetchOptions),
-        fetchLookupMap(20, fetchOptions),
-        fetchLookupMap(372, fetchOptions),
-        fetchLookupMap(64, fetchOptions),
-        fetchLookupMap(13, fetchOptions),
-        fetchLookupMap(341, fetchOptions),
-        fetchLookupMap(18, fetchOptions),
-        fetchLookupMap(26, fetchOptions),
-        fetchLookupMap(41, fetchOptions),
-        fetchLookupMap(37, fetchOptions),
-        fetchLookupMap(2, fetchOptions),
-        fetchLookupMap(5, fetchOptions),
-        fetchLookupMap(6, fetchOptions)
-      ]);
-
-      if (!casesRes.ok && (!newDashboardRes || !newDashboardRes.ok)) {
-        throw new Error("Failed to fetch cases data");
+  const fetchCasesData = useCallback(
+    async (districtParam = "", dateFromParam = "", dateToParam = "", isBackground = false, forceRefresh = false) => {
+      if (!isBackground) {
+        setLoading(true);
       }
+      setError(null);
 
-      const locationMap = {};
+      const headers = {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      };
 
-      if (locationsRes && locationsRes.ok) {
-        const locJson = await locationsRes.json();
-        const locList = locJson?.data || [];
+      const fetchOptions = {
+        method: "GET",
+        headers,
+        credentials: "include"
+      };
 
-        locList.forEach(loc => {
-          if (loc && loc.code) {
-            const nameEn = loc.name?.en || (typeof loc.name === "string" ? loc.name : "");
+      try {
+        const queryParams = ["record_state=true"];
 
-            if (nameEn) {
-              locationMap[loc.code] = nameEn;
-            }
+        if (districtParam) {
+          queryParams.push(`district=${encodeURIComponent(districtParam)}`);
+        }
+        if (dateFromParam) {
+          queryParams.push(`date_from=${encodeURIComponent(dateFromParam)}`);
+        }
+        if (dateToParam) {
+          queryParams.push(`date_to=${encodeURIComponent(dateToParam)}`);
+        }
+        if (forceRefresh) {
+          queryParams.push("refresh=true");
+          queryParams.push(`_t=${Date.now()}`);
+        }
+
+        const dashboardEndpoint = `/api/v2/new_dashboards?${queryParams.join("&")}`;
+
+        const [
+          newDashboardRes,
+          userMap,
+          genderLookup,
+          sourceLookup,
+          incidentsLookup,
+          vulnerabilitiesLookup,
+          diagnosedLookup,
+          natureLookup,
+          undiagnosedLookup,
+          servicesLookup,
+          careArrangementLookup,
+          incidentLocationLookup,
+          maritalStatusLookup,
+          nationalityLookup,
+          languageLookup,
+          religionLookup
+        ] = await Promise.all([
+          fetch(dashboardEndpoint, fetchOptions).catch(() => null),
+          fetchUserMap(fetchOptions),
+          fetchLookupMap(31, fetchOptions),
+          fetchLookupMap(329, fetchOptions),
+          fetchLookupMap(20, fetchOptions),
+          fetchLookupMap(372, fetchOptions),
+          fetchLookupMap(64, fetchOptions),
+          fetchLookupMap(13, fetchOptions),
+          fetchLookupMap(341, fetchOptions),
+          fetchLookupMap(18, fetchOptions),
+          fetchLookupMap(26, fetchOptions),
+          fetchLookupMap(338, fetchOptions),
+          fetchLookupMap(37, fetchOptions),
+          fetchLookupMap(2, fetchOptions),
+          fetchLookupMap(5, fetchOptions),
+          fetchLookupMap(6, fetchOptions)
+        ]);
+
+        let casesRes = null;
+        let locationsRes = null;
+
+        if (!newDashboardRes || !newDashboardRes.ok) {
+          [casesRes, locationsRes] = await Promise.all([
+            fetch("/api/v2/cases?record_state=true&per=500", fetchOptions),
+            fetch("/api/v2/locations?per=500", fetchOptions).catch(() => null)
+          ]);
+
+          if (!casesRes.ok) {
+            throw new Error("Failed to fetch cases data");
           }
-        });
-      }
+        }
 
-      const userMap = {};
+        const locationMap = {};
 
-      if (usersRes && usersRes.ok) {
-        const usersJson = await usersRes.json();
-        const usersList = usersJson?.data || [];
+        if (locationsRes && locationsRes.ok) {
+          const locJson = await locationsRes.json();
+          const locList = locJson?.data || [];
 
-        usersList.forEach(u => {
-          if (u && u.user_name) {
-            userMap[u.user_name] = u.full_name || u.user_name;
-          }
-        });
-      }
+          locList.forEach(loc => {
+            if (loc && loc.code) {
+              const nameEn = loc.name?.en || (typeof loc.name === "string" ? loc.name : "");
 
-      let totalCount = 0;
-      let openCasesCount = 0;
-      let closedCasesCount = 0;
-      let openMale = 0;
-      let closedMale = 0;
-      let openFemale = 0;
-      let closedFemale = 0;
-      let openTrans = 0;
-      let closedTrans = 0;
-
-      const sourceMap = {};
-      const genderCountsMap = {};
-      const natureRiskMap = {};
-      const monthMap = {};
-      const servicesMap = {};
-      const incidentsMap = {};
-      const vulnerabilitiesMap = {};
-      const diagnosedDisabilityMap = {};
-      const undiagnosedDisabilityMap = {};
-      const districtMap = {};
-      const tehsilMap = {};
-      const incidentLocationMap = {};
-      const careArrangementMap = {};
-      const caseWorkerMap = {};
-      const maritalStatusMap = {};
-      const nationalityMap = {};
-      const educationMap = {};
-      const languageMap = {};
-      const religionMap = {};
-      const ageGroupMap = {};
-
-      AGE_GROUP_DEFINITIONS.forEach(({ key }) => {
-        ageGroupMap[key] = { open: 0, closed: 0 };
-      });
-
-      const workflowMap = {};
-
-      WORKFLOW_DEFINITIONS.forEach(({ key }) => {
-        workflowMap[key] = 0;
-      });
-
-      if (casesRes.ok) {
-        const casesJson = await casesRes.json();
-        const casesList = casesJson?.data || [];
-
-        totalCount = casesJson?.metadata?.total ?? casesList.length;
-
-        casesList.forEach(c => {
-          const status = (c.status || "open").toLowerCase();
-          const isOpen = status === "open";
-          const isClosed = status === "closed";
-          const sex = (c.sex || "").toLowerCase();
-          const sourceVal = c.source_of_information_4442e8c;
-          const rawDate = c.registration_date;
-          const ym = String(rawDate || "").substring(0, 7);
-
-          if (isOpen) {
-            openCasesCount += 1;
-          } else if (isClosed) {
-            closedCasesCount += 1;
-          }
-
-          if (sourceVal) {
-            if (!sourceMap[sourceVal]) {
-              sourceMap[sourceVal] = { open: 0, closed: 0 };
-            }
-            if (isOpen) {
-              sourceMap[sourceVal].open += 1;
-            } else if (isClosed) {
-              sourceMap[sourceVal].closed += 1;
-            }
-          }
-
-          if (sex) {
-            genderCountsMap[sex] = (genderCountsMap[sex] || 0) + 1;
-          }
-
-          if (sex === "male") {
-            if (isOpen) openMale += 1;
-            if (isClosed) closedMale += 1;
-          } else if (sex === "female") {
-            if (isOpen) openFemale += 1;
-            if (isClosed) closedFemale += 1;
-          } else if (sex.includes("transgender")) {
-            if (isOpen) openTrans += 1;
-            if (isClosed) closedTrans += 1;
-          }
-
-          const risk = String(c.risk_level || "")
-            .toLowerCase()
-            .trim();
-
-          if (risk) {
-            natureRiskMap[risk] = (natureRiskMap[risk] || 0) + 1;
-          }
-
-          const servicesSection = Array.isArray(c.services_section) ? c.services_section : [];
-          const distinctServices = new Set();
-
-          servicesSection.forEach(s => {
-            if (s && s.service_type) {
-              distinctServices.add(s.service_type);
+              if (nameEn) {
+                locationMap[loc.code] = nameEn;
+              }
             }
           });
+        }
 
-          distinctServices.forEach(st => {
-            if (!servicesMap[st]) {
+        let totalCount = 0;
+        let openCasesCount = 0;
+        let closedCasesCount = 0;
+        let openMale = 0;
+        let closedMale = 0;
+        let openFemale = 0;
+        let closedFemale = 0;
+        let openTrans = 0;
+        let closedTrans = 0;
+
+        const sourceMap = {};
+        const genderCountsMap = {};
+        const natureRiskMap = {};
+        const monthMap = {};
+        const servicesMap = {};
+        const incidentsMap = {};
+        const vulnerabilitiesMap = {};
+        const diagnosedDisabilityMap = {};
+        const undiagnosedDisabilityMap = {};
+        const districtMap = {};
+        const tehsilMap = {};
+        const incidentLocationMap = {};
+        const careArrangementMap = {};
+        const caseWorkerMap = {};
+        const maritalStatusMap = {};
+        const nationalityMap = {};
+        const educationMap = {};
+        const languageMap = {};
+        const religionMap = {};
+        const ageGroupMap = {};
+
+        AGE_GROUP_DEFINITIONS.forEach(({ key }) => {
+          ageGroupMap[key] = { open: 0, closed: 0 };
+        });
+
+        const workflowMap = {};
+
+        WORKFLOW_DEFINITIONS.forEach(({ key }) => {
+          workflowMap[key] = 0;
+        });
+
+        if (casesRes && casesRes.ok) {
+          const casesJson = await casesRes.json();
+          const casesList = casesJson?.data || [];
+
+          const locDistricts = Object.values(locationMap)
+            .map(name => name.split(":")[2]?.trim())
+            .filter(Boolean);
+          const uniqueDistricts = Array.from(new Set(locDistricts)).sort();
+
+          setDistrictsList(prev => (prev.length > 0 ? prev : uniqueDistricts));
+
+          const activeCasesList = districtParam
+            ? casesList.filter(c => {
+                const locCode = c.location_current;
+                const locName = locCode ? locationMap[locCode] : null;
+                const dist = locName ? locName.split(":")[2]?.trim() : null;
+
+                return dist === districtParam;
+              })
+            : casesList;
+
+          totalCount = districtParam ? activeCasesList.length : casesJson?.metadata?.total ?? casesList.length;
+
+          activeCasesList.forEach(c => {
+            const status = (c.status || "open").toLowerCase();
+            const isOpen = status === "open";
+            const isClosed = status === "closed";
+            const sex = (c.sex || "").toLowerCase();
+            const sourceVal = c.source_of_information_4442e8c;
+            const rawDate = c.registration_date;
+            const ym = String(rawDate || "").substring(0, 7);
+
+            if (isOpen) {
+              openCasesCount += 1;
+            } else if (isClosed) {
+              closedCasesCount += 1;
+            }
+
+            if (sourceVal) {
+              if (!sourceMap[sourceVal]) {
+                sourceMap[sourceVal] = { open: 0, closed: 0 };
+              }
+              if (isOpen) {
+                sourceMap[sourceVal].open += 1;
+              } else if (isClosed) {
+                sourceMap[sourceVal].closed += 1;
+              }
+            }
+
+            if (sex) {
+              genderCountsMap[sex] = (genderCountsMap[sex] || 0) + 1;
+            }
+
+            if (sex === "male") {
+              if (isOpen) openMale += 1;
+              if (isClosed) closedMale += 1;
+            } else if (sex === "female") {
+              if (isOpen) openFemale += 1;
+              if (isClosed) closedFemale += 1;
+            } else if (sex.includes("transgender")) {
+              if (isOpen) openTrans += 1;
+              if (isClosed) closedTrans += 1;
+            }
+
+            const risk = String(c.risk_level || "")
+              .toLowerCase()
+              .trim();
+
+            if (risk) {
+              natureRiskMap[risk] = (natureRiskMap[risk] || 0) + 1;
+            }
+
+            const servicesSection = Array.isArray(c.services_section) ? c.services_section : [];
+
+            servicesSection.forEach(s => {
+              if (s && s.service_type) {
+                const st = s.service_type;
+
+                if (!servicesMap[st]) {
+                  servicesMap[st] = {
+                    open: 0,
+                    closed: 0
+                  };
+                }
+                if (isOpen) {
+                  servicesMap[st].open += 1;
+                } else if (isClosed) {
+                  servicesMap[st].closed += 1;
+                }
+              }
+            });
+
+            const protectionConcerns = Array.isArray(c.protection_concerns) ? c.protection_concerns : [];
+            const distinctConcerns = new Set();
+
+            protectionConcerns.forEach(pc => {
+              if (pc) {
+                distinctConcerns.add(pc);
+              }
+            });
+
+            distinctConcerns.forEach(pc => {
+              if (!incidentsMap[pc]) {
+                incidentsMap[pc] = {
+                  open: 0,
+                  closed: 0
+                };
+              }
+              if (isOpen) {
+                incidentsMap[pc].open += 1;
+              } else if (isClosed) {
+                incidentsMap[pc].closed += 1;
+              }
+            });
+
+            const vulnerabilities = Array.isArray(c.vulnerabilities_aba2a7a) ? c.vulnerabilities_aba2a7a : [];
+            const distinctVulnerabilities = new Set();
+
+            vulnerabilities.forEach(v => {
+              if (v) {
+                distinctVulnerabilities.add(v);
+              }
+            });
+
+            distinctVulnerabilities.forEach(v => {
+              if (!vulnerabilitiesMap[v]) {
+                vulnerabilitiesMap[v] = {
+                  open: 0,
+                  closed: 0
+                };
+              }
+              if (isOpen) {
+                vulnerabilitiesMap[v].open += 1;
+              } else if (isClosed) {
+                vulnerabilitiesMap[v].closed += 1;
+              }
+            });
+
+            const diagnosedList = toArray(c.does_the_child_have_any_of_the_following_disabilities__2a1788b);
+            const distinctDiagnosed = new Set(diagnosedList.filter(Boolean));
+
+            distinctDiagnosed.forEach(d => {
+              diagnosedDisabilityMap[d] = (diagnosedDisabilityMap[d] || 0) + 1;
+            });
+
+            const undiagnosedList = toArray(c.undiagnosed_disability_b164b9c);
+            const distinctUndiagnosed = new Set(undiagnosedList.filter(Boolean));
+
+            distinctUndiagnosed.forEach(u => {
+              undiagnosedDisabilityMap[u] = (undiagnosedDisabilityMap[u] || 0) + 1;
+            });
+
+            const locCode = c.location_current;
+            const locName = locCode ? locationMap[locCode] : null;
+
+            if (locName) {
+              const parts = locName.split(":");
+              const district = parts[2] ? parts[2].trim() : null;
+              const tehsil = parts[3] ? parts[3].trim() : null;
+
+              if (district) {
+                if (!districtMap[district]) {
+                  districtMap[district] = { open: 0, closed: 0 };
+                }
+                if (isOpen) {
+                  districtMap[district].open += 1;
+                } else if (isClosed) {
+                  districtMap[district].closed += 1;
+                }
+              }
+
+              if (tehsil) {
+                if (!tehsilMap[tehsil]) {
+                  tehsilMap[tehsil] = { open: 0, closed: 0 };
+                }
+                if (isOpen) {
+                  tehsilMap[tehsil].open += 1;
+                } else if (isClosed) {
+                  tehsilMap[tehsil].closed += 1;
+                }
+              }
+            }
+
+            const incidentLocs = toArray(c.location_of_the_incident_1f10ef1);
+
+            incidentLocs.forEach(incidentLoc => {
+              if (incidentLoc) {
+                incidentLocationMap[incidentLoc] = (incidentLocationMap[incidentLoc] || 0) + 1;
+              }
+            });
+
+            const careArrangement = c.current_care_arrangements_type;
+
+            if (careArrangement) {
+              careArrangementMap[careArrangement] = (careArrangementMap[careArrangement] || 0) + 1;
+            }
+
+            const ownedBy = c.owned_by;
+
+            if (ownedBy) {
+              if (!caseWorkerMap[ownedBy]) {
+                caseWorkerMap[ownedBy] = { total: 0, open: 0, closed: 0 };
+              }
+              caseWorkerMap[ownedBy].total += 1;
+              if (isOpen) {
+                caseWorkerMap[ownedBy].open += 1;
+              } else if (isClosed) {
+                caseWorkerMap[ownedBy].closed += 1;
+              }
+            }
+
+            const maritalVal = c.maritial_status || c.marital_status;
+
+            if (maritalVal) {
+              maritalStatusMap[maritalVal] = (maritalStatusMap[maritalVal] || 0) + 1;
+            }
+
+            const nationalityList = toArray(c.nationality);
+            const distinctNationalities = new Set(nationalityList.filter(Boolean));
+
+            distinctNationalities.forEach(nat => {
+              nationalityMap[nat] = (nationalityMap[nat] || 0) + 1;
+            });
+
+            const educationVal = c.is_the_child_enrolled_in_formal_education__a512ab5;
+
+            if (educationVal !== null && educationVal !== undefined && educationVal !== "") {
+              const eduKey = String(educationVal).toLowerCase().trim();
+
+              educationMap[eduKey] = (educationMap[eduKey] || 0) + 1;
+            }
+
+            const languageList = toArray(c.language);
+            const distinctLanguages = new Set(languageList.filter(Boolean));
+
+            distinctLanguages.forEach(lang => {
+              languageMap[lang] = (languageMap[lang] || 0) + 1;
+            });
+
+            const religionList = toArray(c.religion);
+            const distinctReligions = new Set(religionList.filter(Boolean));
+
+            distinctReligions.forEach(rel => {
+              religionMap[rel] = (religionMap[rel] || 0) + 1;
+            });
+
+            const ageGroup = getAgeGroup(c.age);
+
+            if (isOpen) {
+              ageGroupMap[ageGroup].open += 1;
+            } else if (isClosed) {
+              ageGroupMap[ageGroup].closed += 1;
+            }
+
+            if (isOpen && c.workflow) {
+              const wf = String(c.workflow).toLowerCase();
+
+              if (workflowMap[wf] !== undefined) {
+                workflowMap[wf] += 1;
+              }
+            }
+
+            if (ym && ym.length === 7) {
+              if (!monthMap[ym]) {
+                monthMap[ym] = { total: 0, open: 0, closed: 0 };
+              }
+              monthMap[ym].total += 1;
+              if (isOpen) {
+                monthMap[ym].open += 1;
+              } else if (isClosed) {
+                monthMap[ym].closed += 1;
+              }
+            }
+          });
+        }
+
+        if (newDashboardRes && newDashboardRes.ok) {
+          const dashJson = await newDashboardRes.json();
+          const m = dashJson?.metadata;
+
+          if (m) {
+            if (m.total !== undefined) totalCount = m.total;
+            if (m.open !== undefined) openCasesCount = m.open;
+            if (m.closed !== undefined) closedCasesCount = m.closed;
+            if (m.open_male !== undefined) openMale = m.open_male;
+            if (m.closed_male !== undefined) closedMale = m.closed_male;
+            if (m.open_female !== undefined) openFemale = m.open_female;
+            if (m.closed_female !== undefined) closedFemale = m.closed_female;
+            if (m.open_transgender !== undefined) openTrans = m.open_transgender;
+            if (m.closed_transgender !== undefined) closedTrans = m.closed_transgender;
+            if (Array.isArray(m.districts) && m.districts.length > 0) {
+              setDistrictsList(prev => (prev.length > 0 ? prev : m.districts));
+            }
+          }
+
+          const serverSources = dashJson?.charts?.source_of_information;
+
+          if (serverSources) {
+            Object.keys(serverSources).forEach(k => {
+              if (!sourceMap[k]) {
+                sourceMap[k] = { open: 0, closed: 0 };
+              }
+              sourceMap[k].open = serverSources[k].open || 0;
+              sourceMap[k].closed = serverSources[k].closed || 0;
+            });
+          }
+
+          const serverGender = dashJson?.charts?.cases_per_gender;
+
+          if (serverGender) {
+            Object.keys(serverGender).forEach(k => {
+              if (serverGender[k] && serverGender[k].count !== undefined) {
+                genderCountsMap[k] = serverGender[k].count;
+              }
+            });
+          }
+
+          const serverMonths = dashJson?.charts?.cases_per_month_year;
+
+          if (serverMonths) {
+            Object.keys(serverMonths).forEach(mKey => {
+              if (!monthMap[mKey]) {
+                monthMap[mKey] = { total: 0, open: 0, closed: 0 };
+              }
+              monthMap[mKey].total = serverMonths[mKey].total;
+              monthMap[mKey].open = serverMonths[mKey].open;
+              monthMap[mKey].closed = serverMonths[mKey].closed;
+            });
+          }
+
+          const serverNature = dashJson?.charts?.nature_of_cases;
+
+          if (serverNature) {
+            Object.keys(serverNature).forEach(k => {
+              if (serverNature[k] && serverNature[k].count !== undefined) {
+                natureRiskMap[k] = serverNature[k].count;
+              }
+            });
+          }
+
+          const serverServices = dashJson?.charts?.cases_per_services_provided;
+
+          if (serverServices && Object.keys(servicesMap).length === 0) {
+            Object.keys(serverServices).forEach(st => {
               servicesMap[st] = {
-                open: 0,
-                closed: 0
+                open: serverServices[st].open || 0,
+                closed: serverServices[st].closed || 0
               };
-            }
-            if (isOpen) {
-              servicesMap[st].open += 1;
-            } else if (isClosed) {
-              servicesMap[st].closed += 1;
-            }
-          });
+            });
+          }
 
-          const protectionConcerns = Array.isArray(c.protection_concerns) ? c.protection_concerns : [];
-          const distinctConcerns = new Set();
+          const serverIncidents = dashJson?.charts?.cases_per_incidents;
 
-          protectionConcerns.forEach(pc => {
-            if (pc) {
-              distinctConcerns.add(pc);
-            }
-          });
-
-          distinctConcerns.forEach(pc => {
-            if (!incidentsMap[pc]) {
+          if (serverIncidents && Object.keys(incidentsMap).length === 0) {
+            Object.keys(serverIncidents).forEach(pc => {
               incidentsMap[pc] = {
-                open: 0,
-                closed: 0
+                open: serverIncidents[pc].open || 0,
+                closed: serverIncidents[pc].closed || 0
               };
-            }
-            if (isOpen) {
-              incidentsMap[pc].open += 1;
-            } else if (isClosed) {
-              incidentsMap[pc].closed += 1;
-            }
-          });
+            });
+          }
 
-          const vulnerabilities = Array.isArray(c.vulnerabilities_aba2a7a) ? c.vulnerabilities_aba2a7a : [];
-          const distinctVulnerabilities = new Set();
+          const serverVulnerabilities = dashJson?.charts?.cases_per_vulnerabilities;
 
-          vulnerabilities.forEach(v => {
-            if (v) {
-              distinctVulnerabilities.add(v);
-            }
-          });
-
-          distinctVulnerabilities.forEach(v => {
-            if (!vulnerabilitiesMap[v]) {
+          if (serverVulnerabilities && Object.keys(vulnerabilitiesMap).length === 0) {
+            Object.keys(serverVulnerabilities).forEach(v => {
               vulnerabilitiesMap[v] = {
-                open: 0,
-                closed: 0
+                open: serverVulnerabilities[v].open || 0,
+                closed: serverVulnerabilities[v].closed || 0
               };
-            }
-            if (isOpen) {
-              vulnerabilitiesMap[v].open += 1;
-            } else if (isClosed) {
-              vulnerabilitiesMap[v].closed += 1;
-            }
-          });
+            });
+          }
 
-          const diagnosedList = toArray(c.does_the_child_have_any_of_the_following_disabilities__2a1788b);
-          const distinctDiagnosed = new Set(diagnosedList.filter(Boolean));
+          const serverDiagnosed = dashJson?.charts?.cases_per_diagnosed_disability;
 
-          distinctDiagnosed.forEach(d => {
-            diagnosedDisabilityMap[d] = (diagnosedDisabilityMap[d] || 0) + 1;
-          });
+          if (serverDiagnosed && Object.keys(diagnosedDisabilityMap).length === 0) {
+            Object.keys(serverDiagnosed).forEach(d => {
+              diagnosedDisabilityMap[d] = serverDiagnosed[d];
+            });
+          }
 
-          const undiagnosedList = toArray(c.undiagnosed_disability_b164b9c);
-          const distinctUndiagnosed = new Set(undiagnosedList.filter(Boolean));
+          const serverUndiagnosed = dashJson?.charts?.cases_per_undiagnosed_disability;
 
-          distinctUndiagnosed.forEach(u => {
-            undiagnosedDisabilityMap[u] = (undiagnosedDisabilityMap[u] || 0) + 1;
-          });
+          if (serverUndiagnosed && Object.keys(undiagnosedDisabilityMap).length === 0) {
+            Object.keys(serverUndiagnosed).forEach(u => {
+              undiagnosedDisabilityMap[u] = serverUndiagnosed[u];
+            });
+          }
 
-          const locCode = c.location_current;
-          const locName = locCode ? locationMap[locCode] : null;
+          const serverDistrict = dashJson?.charts?.cases_per_district;
 
-          if (locName) {
-            const parts = locName.split(":");
-            const district = parts[2] ? parts[2].trim() : null;
-            const tehsil = parts[3] ? parts[3].trim() : null;
+          if (serverDistrict && Object.keys(districtMap).length === 0) {
+            Object.keys(serverDistrict).forEach(k => {
+              districtMap[k] = {
+                open: serverDistrict[k].open || 0,
+                closed: serverDistrict[k].closed || 0
+              };
+            });
+          }
 
-            if (district) {
-              if (!districtMap[district]) {
-                districtMap[district] = { open: 0, closed: 0 };
+          const serverTehsil = dashJson?.charts?.cases_per_tehsil;
+
+          if (serverTehsil && Object.keys(tehsilMap).length === 0) {
+            Object.keys(serverTehsil).forEach(k => {
+              tehsilMap[k] = {
+                open: serverTehsil[k].open || 0,
+                closed: serverTehsil[k].closed || 0
+              };
+            });
+          }
+
+          const serverIncidentLocation = dashJson?.charts?.cases_per_incident_location;
+
+          if (serverIncidentLocation && Object.keys(incidentLocationMap).length === 0) {
+            Object.keys(serverIncidentLocation).forEach(k => {
+              incidentLocationMap[k] = serverIncidentLocation[k];
+            });
+          }
+
+          const serverCareArrangement = dashJson?.charts?.cases_per_care_arrangement;
+
+          if (serverCareArrangement && Object.keys(careArrangementMap).length === 0) {
+            Object.keys(serverCareArrangement).forEach(k => {
+              careArrangementMap[k] = serverCareArrangement[k];
+            });
+          }
+
+          const serverCaseWorkers = dashJson?.charts?.cases_per_case_worker;
+
+          if (serverCaseWorkers && Object.keys(caseWorkerMap).length === 0) {
+            Object.keys(serverCaseWorkers).forEach(k => {
+              const entry = serverCaseWorkers[k];
+
+              if (entry) {
+                caseWorkerMap[k] = {
+                  label: entry.label,
+                  total: entry.total || 0,
+                  open: entry.open || 0,
+                  closed: entry.closed || 0
+                };
               }
-              if (isOpen) {
-                districtMap[district].open += 1;
-              } else if (isClosed) {
-                districtMap[district].closed += 1;
+            });
+          }
+
+          const serverMarital = dashJson?.charts?.cases_per_marital_status;
+
+          if (serverMarital && Object.keys(maritalStatusMap).length === 0) {
+            Object.keys(serverMarital).forEach(k => {
+              maritalStatusMap[k] = serverMarital[k];
+            });
+          }
+
+          const serverNationality = dashJson?.charts?.cases_per_nationality;
+
+          if (serverNationality && Object.keys(nationalityMap).length === 0) {
+            Object.keys(serverNationality).forEach(k => {
+              nationalityMap[k] = serverNationality[k];
+            });
+          }
+
+          const serverEducation = dashJson?.charts?.cases_per_child_getting_education;
+
+          if (serverEducation && Object.keys(educationMap).length === 0) {
+            Object.keys(serverEducation).forEach(k => {
+              educationMap[k] = serverEducation[k];
+            });
+          }
+
+          const serverLanguage = dashJson?.charts?.cases_per_language;
+
+          if (serverLanguage && Object.keys(languageMap).length === 0) {
+            Object.keys(serverLanguage).forEach(k => {
+              languageMap[k] = serverLanguage[k];
+            });
+          }
+
+          const serverReligion = dashJson?.charts?.cases_per_religion;
+
+          if (serverReligion && Object.keys(religionMap).length === 0) {
+            Object.keys(serverReligion).forEach(k => {
+              religionMap[k] = serverReligion[k];
+            });
+          }
+
+          const serverAgeGroups = dashJson?.charts?.cases_per_age_groups;
+
+          if (serverAgeGroups && Object.values(ageGroupMap).every(v => v.open === 0 && v.closed === 0)) {
+            Object.keys(serverAgeGroups).forEach(k => {
+              if (!ageGroupMap[k]) {
+                ageGroupMap[k] = { open: 0, closed: 0 };
               }
-            }
+              ageGroupMap[k].open = serverAgeGroups[k].open || 0;
+              ageGroupMap[k].closed = serverAgeGroups[k].closed || 0;
+            });
+          }
 
-            if (tehsil) {
-              if (!tehsilMap[tehsil]) {
-                tehsilMap[tehsil] = { open: 0, closed: 0 };
+          const serverWorkflow = dashJson?.charts?.cases_per_workflow;
+
+          if (serverWorkflow && Object.values(workflowMap).every(v => v === 0)) {
+            Object.keys(serverWorkflow).forEach(k => {
+              if (workflowMap[k] !== undefined) {
+                workflowMap[k] = serverWorkflow[k] || 0;
               }
-              if (isOpen) {
-                tehsilMap[tehsil].open += 1;
-              } else if (isClosed) {
-                tehsilMap[tehsil].closed += 1;
-              }
-            }
+            });
           }
+        }
 
-          const incidentLoc = c.location_of_the_incident_1f10ef1;
-
-          if (incidentLoc) {
-            incidentLocationMap[incidentLoc] = (incidentLocationMap[incidentLoc] || 0) + 1;
-          }
-
-          const careArrangement = c.current_care_arrangements_type;
-
-          if (careArrangement) {
-            careArrangementMap[careArrangement] = (careArrangementMap[careArrangement] || 0) + 1;
-          }
-
-          const ownedBy = c.owned_by;
-
-          if (ownedBy) {
-            if (!caseWorkerMap[ownedBy]) {
-              caseWorkerMap[ownedBy] = { total: 0, open: 0, closed: 0 };
-            }
-            caseWorkerMap[ownedBy].total += 1;
-            if (isOpen) {
-              caseWorkerMap[ownedBy].open += 1;
-            } else if (isClosed) {
-              caseWorkerMap[ownedBy].closed += 1;
-            }
-          }
-
-          const maritalVal = c.maritial_status || c.marital_status;
-
-          if (maritalVal) {
-            maritalStatusMap[maritalVal] = (maritalStatusMap[maritalVal] || 0) + 1;
-          }
-
-          const nationalityList = toArray(c.nationality);
-          const distinctNationalities = new Set(nationalityList.filter(Boolean));
-
-          distinctNationalities.forEach(nat => {
-            nationalityMap[nat] = (nationalityMap[nat] || 0) + 1;
-          });
-
-          const educationVal = c.is_the_child_enrolled_in_formal_education__a512ab5;
-
-          if (educationVal !== null && educationVal !== undefined && educationVal !== "") {
-            const eduKey = String(educationVal).toLowerCase().trim();
-
-            educationMap[eduKey] = (educationMap[eduKey] || 0) + 1;
-          }
-
-          const languageList = toArray(c.language);
-          const distinctLanguages = new Set(languageList.filter(Boolean));
-
-          distinctLanguages.forEach(lang => {
-            languageMap[lang] = (languageMap[lang] || 0) + 1;
-          });
-
-          const religionList = toArray(c.religion);
-          const distinctReligions = new Set(religionList.filter(Boolean));
-
-          distinctReligions.forEach(rel => {
-            religionMap[rel] = (religionMap[rel] || 0) + 1;
-          });
-
-          const ageGroup = getAgeGroup(c.age);
-
-          if (isOpen) {
-            ageGroupMap[ageGroup].open += 1;
-          } else if (isClosed) {
-            ageGroupMap[ageGroup].closed += 1;
-          }
-
-          if (isOpen && c.workflow) {
-            const wf = String(c.workflow).toLowerCase();
-
-            if (workflowMap[wf] !== undefined) {
-              workflowMap[wf] += 1;
-            }
-          }
-
-          if (ym && ym.length === 7) {
-            if (!monthMap[ym]) {
-              monthMap[ym] = { total: 0, open: 0, closed: 0 };
-            }
-            monthMap[ym].total += 1;
-            if (isOpen) {
-              monthMap[ym].open += 1;
-            } else if (isClosed) {
-              monthMap[ym].closed += 1;
-            }
-          }
+        setMetrics({
+          total: totalCount,
+          open: openCasesCount,
+          closed: closedCasesCount,
+          openMale,
+          closedMale,
+          openFemale,
+          closedFemale,
+          openTrans,
+          closedTrans
         });
-      }
 
-      if (newDashboardRes && newDashboardRes.ok) {
-        const dashJson = await newDashboardRes.json();
-        const m = dashJson?.metadata;
+        // Sort sources in DESCENDING ORDER by total cases (open + closed) for the row chart
+        const sortedSources = Object.keys(sourceMap)
+          .map(key => {
+            const openCount = sourceMap[key]?.open || 0;
+            const closedCount = sourceMap[key]?.closed || 0;
 
-        if (m) {
-          if (m.total !== undefined) totalCount = m.total;
-          if (m.open !== undefined) openCasesCount = m.open;
-          if (m.closed !== undefined) closedCasesCount = m.closed;
-          if (m.open_male !== undefined) openMale = m.open_male;
-          if (m.closed_male !== undefined) closedMale = m.closed_male;
-          if (m.open_female !== undefined) openFemale = m.open_female;
-          if (m.closed_female !== undefined) closedFemale = m.closed_female;
-          if (m.open_transgender !== undefined) openTrans = m.open_transgender;
-          if (m.closed_transgender !== undefined) closedTrans = m.closed_transgender;
-        }
-
-        const serverSources = dashJson?.charts?.source_of_information;
-
-        if (serverSources) {
-          Object.keys(serverSources).forEach(k => {
-            if (!sourceMap[k]) {
-              sourceMap[k] = { open: 0, closed: 0 };
-            }
-            sourceMap[k].open = serverSources[k].open || 0;
-            sourceMap[k].closed = serverSources[k].closed || 0;
-          });
-        }
-
-        const serverGender = dashJson?.charts?.cases_per_gender;
-
-        if (serverGender) {
-          Object.keys(serverGender).forEach(k => {
-            if (serverGender[k] && serverGender[k].count !== undefined) {
-              genderCountsMap[k] = serverGender[k].count;
-            }
-          });
-        }
-
-        const serverMonths = dashJson?.charts?.cases_per_month_year;
-
-        if (serverMonths) {
-          Object.keys(serverMonths).forEach(mKey => {
-            if (!monthMap[mKey]) {
-              monthMap[mKey] = { total: 0, open: 0, closed: 0 };
-            }
-            monthMap[mKey].total = serverMonths[mKey].total;
-            monthMap[mKey].open = serverMonths[mKey].open;
-            monthMap[mKey].closed = serverMonths[mKey].closed;
-          });
-        }
-
-        const serverNature = dashJson?.charts?.nature_of_cases;
-
-        if (serverNature) {
-          Object.keys(serverNature).forEach(k => {
-            if (serverNature[k] && serverNature[k].count !== undefined) {
-              natureRiskMap[k] = serverNature[k].count;
-            }
-          });
-        }
-
-        const serverServices = dashJson?.charts?.cases_per_services_provided;
-
-        if (serverServices && Object.keys(servicesMap).length === 0) {
-          Object.keys(serverServices).forEach(st => {
-            servicesMap[st] = {
-              open: serverServices[st].open || 0,
-              closed: serverServices[st].closed || 0
+            return {
+              key,
+              label: sourceLookup[key] || formatFallbackLabel(key),
+              open: openCount,
+              closed: closedCount,
+              total: openCount + closedCount
             };
-          });
-        }
+          })
+          .filter(s => s.total > 0)
+          .sort((a, b) => b.total - a.total);
 
-        const serverIncidents = dashJson?.charts?.cases_per_incidents;
+        setSourceChartData({
+          labels: sortedSources.map(s => s.label),
+          open: sortedSources.map(s => s.open),
+          closed: sortedSources.map(s => s.closed)
+        });
 
-        if (serverIncidents && Object.keys(incidentsMap).length === 0) {
-          Object.keys(serverIncidents).forEach(pc => {
-            incidentsMap[pc] = {
-              open: serverIncidents[pc].open || 0,
-              closed: serverIncidents[pc].closed || 0
-            };
-          });
-        }
+        // Prepare Cases per Gender pie chart data (descending order)
+        const sortedGenders = Object.keys(genderCountsMap)
+          .map(key => ({
+            key,
+            label: genderLookup[key] || formatFallbackLabel(key),
+            count: genderCountsMap[key]
+          }))
+          .filter(g => g.count > 0)
+          .sort((a, b) => b.count - a.count);
 
-        const serverVulnerabilities = dashJson?.charts?.cases_per_vulnerabilities;
+        setGenderChartData({
+          labels: sortedGenders.map(g => g.label),
+          data: sortedGenders.map(g => g.count),
+          colors: sortedGenders.map((_, idx) => GENDER_COLORS[idx % GENDER_COLORS.length])
+        });
 
-        if (serverVulnerabilities && Object.keys(vulnerabilitiesMap).length === 0) {
-          Object.keys(serverVulnerabilities).forEach(v => {
-            vulnerabilitiesMap[v] = {
-              open: serverVulnerabilities[v].open || 0,
-              closed: serverVulnerabilities[v].closed || 0
-            };
-          });
-        }
+        // Prepare Cases per Month/Year chronological trend data
+        const sortedMonths = Object.keys(monthMap).sort();
 
-        const serverDiagnosed = dashJson?.charts?.cases_per_diagnosed_disability;
+        setTimelineChartData({
+          labels: sortedMonths.map(formatMonthYear),
+          total: sortedMonths.map(m => monthMap[m].total),
+          open: sortedMonths.map(m => monthMap[m].open),
+          closed: sortedMonths.map(m => monthMap[m].closed)
+        });
 
-        if (serverDiagnosed && Object.keys(diagnosedDisabilityMap).length === 0) {
-          Object.keys(serverDiagnosed).forEach(d => {
-            diagnosedDisabilityMap[d] = serverDiagnosed[d];
-          });
-        }
+        // Prepare Nature of Cases pie chart data (descending order)
+        const sortedNature = Object.keys(natureRiskMap)
+          .map(key => ({
+            key,
+            label: natureLookup[key] || formatFallbackLabel(key),
+            count: natureRiskMap[key]
+          }))
+          .filter(n => n.count > 0)
+          .sort((a, b) => b.count - a.count);
 
-        const serverUndiagnosed = dashJson?.charts?.cases_per_undiagnosed_disability;
+        setNatureChartData({
+          labels: sortedNature.map(n => n.label),
+          data: sortedNature.map(n => n.count),
+          colors: sortedNature.map((_, idx) => NATURE_COLORS[idx % NATURE_COLORS.length])
+        });
 
-        if (serverUndiagnosed && Object.keys(undiagnosedDisabilityMap).length === 0) {
-          Object.keys(serverUndiagnosed).forEach(u => {
-            undiagnosedDisabilityMap[u] = serverUndiagnosed[u];
-          });
-        }
+        // Sort services in DESCENDING ORDER by total cases (open + closed) for the row chart
+        const sortedServices = Object.keys(servicesMap)
+          .map(key => ({
+            key,
+            label: servicesLookup[key] || formatFallbackLabel(key),
+            open: servicesMap[key].open,
+            closed: servicesMap[key].closed,
+            total: servicesMap[key].open + servicesMap[key].closed
+          }))
+          .filter(s => s.total > 0)
+          .sort((a, b) => b.total - a.total);
 
-        const serverDistrict = dashJson?.charts?.cases_per_district;
+        setServicesChartData({
+          labels: sortedServices.map(s => s.label),
+          open: sortedServices.map(s => s.open),
+          closed: sortedServices.map(s => s.closed)
+        });
 
-        if (serverDistrict && Object.keys(districtMap).length === 0) {
-          Object.keys(serverDistrict).forEach(k => {
-            districtMap[k] = {
-              open: serverDistrict[k].open || 0,
-              closed: serverDistrict[k].closed || 0
-            };
-          });
-        }
+        // Sort incidents in DESCENDING ORDER by total cases (open + closed) for the bar chart
+        const sortedIncidents = Object.keys(incidentsMap)
+          .map(key => ({
+            key,
+            label: incidentsLookup[key] || formatFallbackLabel(key),
+            open: incidentsMap[key].open,
+            closed: incidentsMap[key].closed,
+            total: incidentsMap[key].open + incidentsMap[key].closed
+          }))
+          .filter(i => i.total > 0)
+          .sort((a, b) => b.total - a.total);
 
-        const serverTehsil = dashJson?.charts?.cases_per_tehsil;
+        setIncidentsChartData({
+          labels: sortedIncidents.map(i => i.label),
+          open: sortedIncidents.map(i => i.open),
+          closed: sortedIncidents.map(i => i.closed)
+        });
 
-        if (serverTehsil && Object.keys(tehsilMap).length === 0) {
-          Object.keys(serverTehsil).forEach(k => {
-            tehsilMap[k] = {
-              open: serverTehsil[k].open || 0,
-              closed: serverTehsil[k].closed || 0
-            };
-          });
-        }
+        // Sort vulnerabilities in DESCENDING ORDER by total cases (open + closed) for the bar chart
+        const sortedVulnerabilities = Object.keys(vulnerabilitiesMap)
+          .map(key => ({
+            key,
+            label: vulnerabilitiesLookup[key] || formatFallbackLabel(key),
+            open: vulnerabilitiesMap[key].open,
+            closed: vulnerabilitiesMap[key].closed,
+            total: vulnerabilitiesMap[key].open + vulnerabilitiesMap[key].closed
+          }))
+          .filter(v => v.total > 0)
+          .sort((a, b) => b.total - a.total);
 
-        const serverIncidentLocation = dashJson?.charts?.cases_per_incident_location;
+        setVulnerabilitiesChartData({
+          labels: sortedVulnerabilities.map(v => v.label),
+          open: sortedVulnerabilities.map(v => v.open),
+          closed: sortedVulnerabilities.map(v => v.closed)
+        });
 
-        if (serverIncidentLocation && Object.keys(incidentLocationMap).length === 0) {
-          Object.keys(serverIncidentLocation).forEach(k => {
-            incidentLocationMap[k] = serverIncidentLocation[k];
-          });
-        }
+        // Prepare Cases per Diagnosed Disability pie chart data (descending order)
+        const sortedDiagnosed = Object.keys(diagnosedDisabilityMap)
+          .map(key => ({
+            key,
+            label: diagnosedLookup[key] || formatFallbackLabel(key),
+            count: diagnosedDisabilityMap[key]
+          }))
+          .filter(item => item.count > 0)
+          .sort((a, b) => b.count - a.count);
 
-        const serverCareArrangement = dashJson?.charts?.cases_per_care_arrangement;
+        setDiagnosedDisabilityChartData({
+          labels: sortedDiagnosed.map(d => d.label),
+          data: sortedDiagnosed.map(d => d.count),
+          colors: sortedDiagnosed.map((_, idx) => DIAGNOSED_COLORS[idx % DIAGNOSED_COLORS.length])
+        });
 
-        if (serverCareArrangement && Object.keys(careArrangementMap).length === 0) {
-          Object.keys(serverCareArrangement).forEach(k => {
-            careArrangementMap[k] = serverCareArrangement[k];
-          });
-        }
+        // Prepare Cases per Undiagnosed Disability pie chart data (descending order)
+        const sortedUndiagnosed = Object.keys(undiagnosedDisabilityMap)
+          .map(key => ({
+            key,
+            label: undiagnosedLookup[key] || formatFallbackLabel(key),
+            count: undiagnosedDisabilityMap[key]
+          }))
+          .filter(item => item.count > 0)
+          .sort((a, b) => b.count - a.count);
 
-        const serverCaseWorkers = dashJson?.charts?.cases_per_case_worker;
+        setUndiagnosedDisabilityChartData({
+          labels: sortedUndiagnosed.map(u => u.label),
+          data: sortedUndiagnosed.map(u => u.count),
+          colors: sortedUndiagnosed.map((_, idx) => UNDIAGNOSED_COLORS[idx % UNDIAGNOSED_COLORS.length])
+        });
 
-        if (serverCaseWorkers && Object.keys(caseWorkerMap).length === 0) {
-          Object.keys(serverCaseWorkers).forEach(k => {
-            const entry = serverCaseWorkers[k];
+        // Sort districts in DESCENDING ORDER by total cases (open + closed) for the bar chart
+        const sortedDistricts = Object.keys(districtMap)
+          .map(key => ({
+            label: key,
+            open: districtMap[key].open,
+            closed: districtMap[key].closed,
+            total: districtMap[key].open + districtMap[key].closed
+          }))
+          .filter(d => d.total > 0)
+          .sort((a, b) => b.total - a.total);
 
-            if (entry) {
-              caseWorkerMap[k] = {
-                label: entry.label,
-                total: entry.total || 0,
-                open: entry.open || 0,
-                closed: entry.closed || 0
-              };
-            }
-          });
-        }
+        setDistrictChartData({
+          labels: sortedDistricts.map(d => d.label),
+          open: sortedDistricts.map(d => d.open),
+          closed: sortedDistricts.map(d => d.closed)
+        });
 
-        const serverMarital = dashJson?.charts?.cases_per_marital_status;
+        // Sort tehsils in DESCENDING ORDER by total cases (open + closed) for the bar chart
+        const sortedTehsils = Object.keys(tehsilMap)
+          .map(key => ({
+            label: key,
+            open: tehsilMap[key].open,
+            closed: tehsilMap[key].closed,
+            total: tehsilMap[key].open + tehsilMap[key].closed
+          }))
+          .filter(t => t.total > 0)
+          .sort((a, b) => b.total - a.total);
 
-        if (serverMarital && Object.keys(maritalStatusMap).length === 0) {
-          Object.keys(serverMarital).forEach(k => {
-            maritalStatusMap[k] = serverMarital[k];
-          });
-        }
+        setTehsilChartData({
+          labels: sortedTehsils.map(t => t.label),
+          open: sortedTehsils.map(t => t.open),
+          closed: sortedTehsils.map(t => t.closed)
+        });
 
-        const serverNationality = dashJson?.charts?.cases_per_nationality;
+        // Prepare Location of Incident pie chart data (descending order)
+        const sortedIncidentLocations = Object.keys(incidentLocationMap)
+          .map(key => ({
+            key,
+            label: incidentLocationLookup[key] || formatFallbackLabel(key),
+            count: incidentLocationMap[key]
+          }))
+          .filter(item => item.count > 0)
+          .sort((a, b) => b.count - a.count);
 
-        if (serverNationality && Object.keys(nationalityMap).length === 0) {
-          Object.keys(serverNationality).forEach(k => {
-            nationalityMap[k] = serverNationality[k];
-          });
-        }
+        setIncidentLocationChartData({
+          labels: sortedIncidentLocations.map(item => item.label),
+          data: sortedIncidentLocations.map(item => item.count),
+          colors: sortedIncidentLocations.map(
+            (_, idx) => INCIDENT_LOCATION_COLORS[idx % INCIDENT_LOCATION_COLORS.length]
+          )
+        });
 
-        const serverEducation = dashJson?.charts?.cases_per_child_getting_education;
+        // Prepare Cases per Care Arrangement pie chart data (descending order)
+        const sortedCareArrangements = Object.keys(careArrangementMap)
+          .map(key => ({
+            key,
+            label: careArrangementLookup[key] || formatFallbackLabel(key),
+            count: careArrangementMap[key]
+          }))
+          .filter(item => item.count > 0)
+          .sort((a, b) => b.count - a.count);
 
-        if (serverEducation && Object.keys(educationMap).length === 0) {
-          Object.keys(serverEducation).forEach(k => {
-            educationMap[k] = serverEducation[k];
-          });
-        }
+        setCareArrangementChartData({
+          labels: sortedCareArrangements.map(item => item.label),
+          data: sortedCareArrangements.map(item => item.count),
+          colors: sortedCareArrangements.map((_, idx) => CARE_ARRANGEMENT_COLORS[idx % CARE_ARRANGEMENT_COLORS.length])
+        });
 
-        const serverLanguage = dashJson?.charts?.cases_per_language;
+        // Prepare Cases per Caseworker line chart data (descending order)
+        const sortedCaseWorkers = Object.keys(caseWorkerMap)
+          .map(userName => ({
+            userName,
+            label: userMap[userName] || caseWorkerMap[userName].label || formatFallbackLabel(userName),
+            total: caseWorkerMap[userName].total,
+            open: caseWorkerMap[userName].open,
+            closed: caseWorkerMap[userName].closed
+          }))
+          .filter(item => item.total > 0)
+          .sort((a, b) => b.total - a.total);
 
-        if (serverLanguage && Object.keys(languageMap).length === 0) {
-          Object.keys(serverLanguage).forEach(k => {
-            languageMap[k] = serverLanguage[k];
-          });
-        }
+        setCaseWorkerChartData({
+          labels: sortedCaseWorkers.map(w => w.label),
+          total: sortedCaseWorkers.map(w => w.total),
+          open: sortedCaseWorkers.map(w => w.open),
+          closed: sortedCaseWorkers.map(w => w.closed)
+        });
 
-        const serverReligion = dashJson?.charts?.cases_per_religion;
+        // Prepare Cases per Marital Status pie chart data (descending order)
+        const sortedMarital = Object.keys(maritalStatusMap)
+          .map(key => ({
+            key,
+            label: maritalStatusLookup[key] || formatFallbackLabel(key),
+            count: maritalStatusMap[key]
+          }))
+          .filter(item => item.count > 0)
+          .sort((a, b) => b.count - a.count);
 
-        if (serverReligion && Object.keys(religionMap).length === 0) {
-          Object.keys(serverReligion).forEach(k => {
-            religionMap[k] = serverReligion[k];
-          });
-        }
+        setMaritalStatusChartData({
+          labels: sortedMarital.map(item => item.label),
+          data: sortedMarital.map(item => item.count),
+          colors: sortedMarital.map((_, idx) => MARITAL_STATUS_COLORS[idx % MARITAL_STATUS_COLORS.length])
+        });
 
-        const serverAgeGroups = dashJson?.charts?.cases_per_age_groups;
+        // Prepare Cases per Nationality pie chart data (descending order)
+        const sortedNationality = Object.keys(nationalityMap)
+          .map(key => ({
+            key,
+            label: nationalityLookup[key] || formatFallbackLabel(key),
+            count: nationalityMap[key]
+          }))
+          .filter(item => item.count > 0)
+          .sort((a, b) => b.count - a.count);
 
-        if (serverAgeGroups && Object.values(ageGroupMap).every(v => v.open === 0 && v.closed === 0)) {
-          Object.keys(serverAgeGroups).forEach(k => {
-            if (!ageGroupMap[k]) {
-              ageGroupMap[k] = { open: 0, closed: 0 };
-            }
-            ageGroupMap[k].open = serverAgeGroups[k].open || 0;
-            ageGroupMap[k].closed = serverAgeGroups[k].closed || 0;
-          });
-        }
+        setNationalityChartData({
+          labels: sortedNationality.map(item => item.label),
+          data: sortedNationality.map(item => item.count),
+          colors: sortedNationality.map((_, idx) => NATIONALITY_COLORS[idx % NATIONALITY_COLORS.length])
+        });
 
-        const serverWorkflow = dashJson?.charts?.cases_per_workflow;
+        // Prepare Cases per Child getting Education pie chart data (descending order)
+        const sortedEducation = Object.keys(educationMap)
+          .map(key => ({
+            key,
+            label: formatEducationLabel(key),
+            count: educationMap[key]
+          }))
+          .filter(item => item.count > 0)
+          .sort((a, b) => b.count - a.count);
 
-        if (serverWorkflow && Object.values(workflowMap).every(v => v === 0)) {
-          Object.keys(serverWorkflow).forEach(k => {
-            if (workflowMap[k] !== undefined) {
-              workflowMap[k] = serverWorkflow[k] || 0;
-            }
-          });
-        }
-      }
+        setEducationChartData({
+          labels: sortedEducation.map(item => item.label),
+          data: sortedEducation.map(item => item.count),
+          colors: sortedEducation.map((_, idx) => EDUCATION_COLORS[idx % EDUCATION_COLORS.length])
+        });
 
-      setMetrics({
-        total: totalCount,
-        open: openCasesCount,
-        closed: closedCasesCount,
-        openMale,
-        closedMale,
-        openFemale,
-        closedFemale,
-        openTrans,
-        closedTrans
-      });
+        // Prepare Cases per Language pie chart data (descending order)
+        const sortedLanguage = Object.keys(languageMap)
+          .map(key => ({
+            key,
+            label: languageLookup[key] || formatFallbackLabel(key),
+            count: languageMap[key]
+          }))
+          .filter(item => item.count > 0)
+          .sort((a, b) => b.count - a.count);
 
-      // Sort sources in DESCENDING ORDER by total cases (open + closed) for the row chart
-      const sortedSources = Object.keys(sourceMap)
-        .map(key => {
-          const openCount = sourceMap[key]?.open || 0;
-          const closedCount = sourceMap[key]?.closed || 0;
+        setLanguageChartData({
+          labels: sortedLanguage.map(item => item.label),
+          data: sortedLanguage.map(item => item.count),
+          colors: sortedLanguage.map((_, idx) => LANGUAGE_COLORS[idx % LANGUAGE_COLORS.length])
+        });
+
+        // Prepare Cases per Religion pie chart data (descending order)
+        const sortedReligion = Object.keys(religionMap)
+          .map(key => ({
+            key,
+            label: religionLookup[key] || formatFallbackLabel(key),
+            count: religionMap[key]
+          }))
+          .filter(item => item.count > 0)
+          .sort((a, b) => b.count - a.count);
+
+        setReligionChartData({
+          labels: sortedReligion.map(item => item.label),
+          data: sortedReligion.map(item => item.count),
+          colors: sortedReligion.map((_, idx) => RELIGION_COLORS[idx % RELIGION_COLORS.length])
+        });
+
+        // Prepare Cases per Age-Groups row chart data (in defined order: 0-5, 6-9, 10-13, 14-18, 18+, Unknown)
+        const orderedAgeGroups = AGE_GROUP_DEFINITIONS.map(({ key, label }) => {
+          const openCount = ageGroupMap[key]?.open || 0;
+          const closedCount = ageGroupMap[key]?.closed || 0;
 
           return {
             key,
-            label: sourceLookup[key] || formatFallbackLabel(key),
+            label,
             open: openCount,
-            closed: closedCount,
-            total: openCount + closedCount
+            closed: closedCount
           };
-        })
-        .filter(s => s.total > 0)
-        .sort((a, b) => b.total - a.total);
+        });
 
-      setSourceChartData({
-        labels: sortedSources.map(s => s.label),
-        open: sortedSources.map(s => s.open),
-        closed: sortedSources.map(s => s.closed)
-      });
+        setAgeGroupChartData({
+          labels: orderedAgeGroups.map(item => item.label),
+          open: orderedAgeGroups.map(item => item.open),
+          closed: orderedAgeGroups.map(item => item.closed)
+        });
 
-      // Prepare Cases per Gender pie chart data (descending order)
-      const sortedGenders = Object.keys(genderCountsMap)
-        .map(key => ({
-          key,
-          label: genderLookup[key] || formatFallbackLabel(key),
-          count: genderCountsMap[key]
-        }))
-        .filter(g => g.count > 0)
-        .sort((a, b) => b.count - a.count);
-
-      setGenderChartData({
-        labels: sortedGenders.map(g => g.label),
-        data: sortedGenders.map(g => g.count),
-        colors: sortedGenders.map((_, idx) => GENDER_COLORS[idx % GENDER_COLORS.length])
-      });
-
-      // Prepare Cases per Month/Year chronological trend data
-      const sortedMonths = Object.keys(monthMap).sort();
-
-      setTimelineChartData({
-        labels: sortedMonths.map(formatMonthYear),
-        total: sortedMonths.map(m => monthMap[m].total),
-        open: sortedMonths.map(m => monthMap[m].open),
-        closed: sortedMonths.map(m => monthMap[m].closed)
-      });
-
-      // Prepare Nature of Cases pie chart data (descending order)
-      const sortedNature = Object.keys(natureRiskMap)
-        .map(key => ({
-          key,
-          label: natureLookup[key] || formatFallbackLabel(key),
-          count: natureRiskMap[key]
-        }))
-        .filter(n => n.count > 0)
-        .sort((a, b) => b.count - a.count);
-
-      setNatureChartData({
-        labels: sortedNature.map(n => n.label),
-        data: sortedNature.map(n => n.count),
-        colors: sortedNature.map((_, idx) => NATURE_COLORS[idx % NATURE_COLORS.length])
-      });
-
-      // Sort services in DESCENDING ORDER by total cases (open + closed) for the row chart
-      const sortedServices = Object.keys(servicesMap)
-        .map(key => ({
-          key,
-          label: servicesLookup[key] || formatFallbackLabel(key),
-          open: servicesMap[key].open,
-          closed: servicesMap[key].closed,
-          total: servicesMap[key].open + servicesMap[key].closed
-        }))
-        .filter(s => s.total > 0)
-        .sort((a, b) => b.total - a.total);
-
-      setServicesChartData({
-        labels: sortedServices.map(s => s.label),
-        open: sortedServices.map(s => s.open),
-        closed: sortedServices.map(s => s.closed)
-      });
-
-      // Sort incidents in DESCENDING ORDER by total cases (open + closed) for the bar chart
-      const sortedIncidents = Object.keys(incidentsMap)
-        .map(key => ({
-          key,
-          label: incidentsLookup[key] || formatFallbackLabel(key),
-          open: incidentsMap[key].open,
-          closed: incidentsMap[key].closed,
-          total: incidentsMap[key].open + incidentsMap[key].closed
-        }))
-        .filter(i => i.total > 0)
-        .sort((a, b) => b.total - a.total);
-
-      setIncidentsChartData({
-        labels: sortedIncidents.map(i => i.label),
-        open: sortedIncidents.map(i => i.open),
-        closed: sortedIncidents.map(i => i.closed)
-      });
-
-      // Sort vulnerabilities in DESCENDING ORDER by total cases (open + closed) for the bar chart
-      const sortedVulnerabilities = Object.keys(vulnerabilitiesMap)
-        .map(key => ({
-          key,
-          label: vulnerabilitiesLookup[key] || formatFallbackLabel(key),
-          open: vulnerabilitiesMap[key].open,
-          closed: vulnerabilitiesMap[key].closed,
-          total: vulnerabilitiesMap[key].open + vulnerabilitiesMap[key].closed
-        }))
-        .filter(v => v.total > 0)
-        .sort((a, b) => b.total - a.total);
-
-      setVulnerabilitiesChartData({
-        labels: sortedVulnerabilities.map(v => v.label),
-        open: sortedVulnerabilities.map(v => v.open),
-        closed: sortedVulnerabilities.map(v => v.closed)
-      });
-
-      // Prepare Cases per Diagnosed Disability pie chart data (descending order)
-      const sortedDiagnosed = Object.keys(diagnosedDisabilityMap)
-        .map(key => ({
-          key,
-          label: diagnosedLookup[key] || formatFallbackLabel(key),
-          count: diagnosedDisabilityMap[key]
-        }))
-        .filter(item => item.count > 0)
-        .sort((a, b) => b.count - a.count);
-
-      setDiagnosedDisabilityChartData({
-        labels: sortedDiagnosed.map(d => d.label),
-        data: sortedDiagnosed.map(d => d.count),
-        colors: sortedDiagnosed.map((_, idx) => DIAGNOSED_COLORS[idx % DIAGNOSED_COLORS.length])
-      });
-
-      // Prepare Cases per Undiagnosed Disability pie chart data (descending order)
-      const sortedUndiagnosed = Object.keys(undiagnosedDisabilityMap)
-        .map(key => ({
-          key,
-          label: undiagnosedLookup[key] || formatFallbackLabel(key),
-          count: undiagnosedDisabilityMap[key]
-        }))
-        .filter(item => item.count > 0)
-        .sort((a, b) => b.count - a.count);
-
-      setUndiagnosedDisabilityChartData({
-        labels: sortedUndiagnosed.map(u => u.label),
-        data: sortedUndiagnosed.map(u => u.count),
-        colors: sortedUndiagnosed.map((_, idx) => UNDIAGNOSED_COLORS[idx % UNDIAGNOSED_COLORS.length])
-      });
-
-      // Sort districts in DESCENDING ORDER by total cases (open + closed) for the bar chart
-      const sortedDistricts = Object.keys(districtMap)
-        .map(key => ({
-          label: key,
-          open: districtMap[key].open,
-          closed: districtMap[key].closed,
-          total: districtMap[key].open + districtMap[key].closed
-        }))
-        .filter(d => d.total > 0)
-        .sort((a, b) => b.total - a.total);
-
-      setDistrictChartData({
-        labels: sortedDistricts.map(d => d.label),
-        open: sortedDistricts.map(d => d.open),
-        closed: sortedDistricts.map(d => d.closed)
-      });
-
-      // Sort tehsils in DESCENDING ORDER by total cases (open + closed) for the bar chart
-      const sortedTehsils = Object.keys(tehsilMap)
-        .map(key => ({
-          label: key,
-          open: tehsilMap[key].open,
-          closed: tehsilMap[key].closed,
-          total: tehsilMap[key].open + tehsilMap[key].closed
-        }))
-        .filter(t => t.total > 0)
-        .sort((a, b) => b.total - a.total);
-
-      setTehsilChartData({
-        labels: sortedTehsils.map(t => t.label),
-        open: sortedTehsils.map(t => t.open),
-        closed: sortedTehsils.map(t => t.closed)
-      });
-
-      // Prepare Location of Incident pie chart data (descending order)
-      const sortedIncidentLocations = Object.keys(incidentLocationMap)
-        .map(key => ({
-          key,
-          label: incidentLocationLookup[key] || formatFallbackLabel(key),
-          count: incidentLocationMap[key]
-        }))
-        .filter(item => item.count > 0)
-        .sort((a, b) => b.count - a.count);
-
-      setIncidentLocationChartData({
-        labels: sortedIncidentLocations.map(item => item.label),
-        data: sortedIncidentLocations.map(item => item.count),
-        colors: sortedIncidentLocations.map((_, idx) => INCIDENT_LOCATION_COLORS[idx % INCIDENT_LOCATION_COLORS.length])
-      });
-
-      // Prepare Cases per Care Arrangement pie chart data (descending order)
-      const sortedCareArrangements = Object.keys(careArrangementMap)
-        .map(key => ({
-          key,
-          label: careArrangementLookup[key] || formatFallbackLabel(key),
-          count: careArrangementMap[key]
-        }))
-        .filter(item => item.count > 0)
-        .sort((a, b) => b.count - a.count);
-
-      setCareArrangementChartData({
-        labels: sortedCareArrangements.map(item => item.label),
-        data: sortedCareArrangements.map(item => item.count),
-        colors: sortedCareArrangements.map((_, idx) => CARE_ARRANGEMENT_COLORS[idx % CARE_ARRANGEMENT_COLORS.length])
-      });
-
-      // Prepare Cases per Caseworker line chart data (descending order)
-      const sortedCaseWorkers = Object.keys(caseWorkerMap)
-        .map(userName => ({
-          userName,
-          label: userMap[userName] || caseWorkerMap[userName].label || formatFallbackLabel(userName),
-          total: caseWorkerMap[userName].total,
-          open: caseWorkerMap[userName].open,
-          closed: caseWorkerMap[userName].closed
-        }))
-        .filter(item => item.total > 0)
-        .sort((a, b) => b.total - a.total);
-
-      setCaseWorkerChartData({
-        labels: sortedCaseWorkers.map(w => w.label),
-        total: sortedCaseWorkers.map(w => w.total),
-        open: sortedCaseWorkers.map(w => w.open),
-        closed: sortedCaseWorkers.map(w => w.closed)
-      });
-
-      // Prepare Cases per Marital Status pie chart data (descending order)
-      const sortedMarital = Object.keys(maritalStatusMap)
-        .map(key => ({
-          key,
-          label: maritalStatusLookup[key] || formatFallbackLabel(key),
-          count: maritalStatusMap[key]
-        }))
-        .filter(item => item.count > 0)
-        .sort((a, b) => b.count - a.count);
-
-      setMaritalStatusChartData({
-        labels: sortedMarital.map(item => item.label),
-        data: sortedMarital.map(item => item.count),
-        colors: sortedMarital.map((_, idx) => MARITAL_STATUS_COLORS[idx % MARITAL_STATUS_COLORS.length])
-      });
-
-      // Prepare Cases per Nationality pie chart data (descending order)
-      const sortedNationality = Object.keys(nationalityMap)
-        .map(key => ({
-          key,
-          label: nationalityLookup[key] || formatFallbackLabel(key),
-          count: nationalityMap[key]
-        }))
-        .filter(item => item.count > 0)
-        .sort((a, b) => b.count - a.count);
-
-      setNationalityChartData({
-        labels: sortedNationality.map(item => item.label),
-        data: sortedNationality.map(item => item.count),
-        colors: sortedNationality.map((_, idx) => NATIONALITY_COLORS[idx % NATIONALITY_COLORS.length])
-      });
-
-      // Prepare Cases per Child getting Education pie chart data (descending order)
-      const sortedEducation = Object.keys(educationMap)
-        .map(key => ({
-          key,
-          label: formatEducationLabel(key),
-          count: educationMap[key]
-        }))
-        .filter(item => item.count > 0)
-        .sort((a, b) => b.count - a.count);
-
-      setEducationChartData({
-        labels: sortedEducation.map(item => item.label),
-        data: sortedEducation.map(item => item.count),
-        colors: sortedEducation.map((_, idx) => EDUCATION_COLORS[idx % EDUCATION_COLORS.length])
-      });
-
-      // Prepare Cases per Language pie chart data (descending order)
-      const sortedLanguage = Object.keys(languageMap)
-        .map(key => ({
-          key,
-          label: languageLookup[key] || formatFallbackLabel(key),
-          count: languageMap[key]
-        }))
-        .filter(item => item.count > 0)
-        .sort((a, b) => b.count - a.count);
-
-      setLanguageChartData({
-        labels: sortedLanguage.map(item => item.label),
-        data: sortedLanguage.map(item => item.count),
-        colors: sortedLanguage.map((_, idx) => LANGUAGE_COLORS[idx % LANGUAGE_COLORS.length])
-      });
-
-      // Prepare Cases per Religion pie chart data (descending order)
-      const sortedReligion = Object.keys(religionMap)
-        .map(key => ({
-          key,
-          label: religionLookup[key] || formatFallbackLabel(key),
-          count: religionMap[key]
-        }))
-        .filter(item => item.count > 0)
-        .sort((a, b) => b.count - a.count);
-
-      setReligionChartData({
-        labels: sortedReligion.map(item => item.label),
-        data: sortedReligion.map(item => item.count),
-        colors: sortedReligion.map((_, idx) => RELIGION_COLORS[idx % RELIGION_COLORS.length])
-      });
-
-      // Prepare Cases per Age-Groups row chart data (in defined order: 0-5, 6-9, 10-13, 14-18, 18+, Unknown)
-      const orderedAgeGroups = AGE_GROUP_DEFINITIONS.map(({ key, label }) => {
-        const openCount = ageGroupMap[key]?.open || 0;
-        const closedCount = ageGroupMap[key]?.closed || 0;
-
-        return {
+        // Prepare Cases per Workflow row chart data (in defined order, open cases only)
+        const orderedWorkflows = WORKFLOW_DEFINITIONS.map(({ key, label }) => ({
           key,
           label,
-          open: openCount,
-          closed: closedCount
-        };
-      });
+          count: workflowMap[key] || 0
+        }));
 
-      setAgeGroupChartData({
-        labels: orderedAgeGroups.map(item => item.label),
-        open: orderedAgeGroups.map(item => item.open),
-        closed: orderedAgeGroups.map(item => item.closed)
-      });
+        setWorkflowChartData({
+          labels: orderedWorkflows.map(item => item.label),
+          data: orderedWorkflows.map(item => item.count)
+        });
+      } catch (err) {
+        setError(err?.message || "Failed to load dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
-      // Prepare Cases per Workflow row chart data (in defined order, open cases only)
-      const orderedWorkflows = WORKFLOW_DEFINITIONS.map(({ key, label }) => ({
-        key,
-        label,
-        count: workflowMap[key] || 0
-      }));
+  const handleDistrictChange = useCallback(
+    e => {
+      const newDistrict = e.target.value;
 
-      setWorkflowChartData({
-        labels: orderedWorkflows.map(item => item.label),
-        data: orderedWorkflows.map(item => item.count)
-      });
-    } catch (err) {
-      setError(err?.message || "Failed to load dashboard data");
-    } finally {
-      setLoading(false);
-    }
+      setSelectedDistrict(newDistrict);
+      fetchCasesData(newDistrict, dateFrom, dateTo, false, true);
+    },
+    [fetchCasesData, dateFrom, dateTo]
+  );
+
+  const handleDateFromChange = useCallback(
+    e => {
+      const newFrom = e.target.value;
+
+      setDateFrom(newFrom);
+      fetchCasesData(selectedDistrict, newFrom, dateTo, false, true);
+    },
+    [fetchCasesData, selectedDistrict, dateTo]
+  );
+
+  const handleDateToChange = useCallback(
+    e => {
+      const newTo = e.target.value;
+
+      setDateTo(newTo);
+      fetchCasesData(selectedDistrict, dateFrom, newTo, false, true);
+    },
+    [fetchCasesData, selectedDistrict, dateFrom]
+  );
+
+  const handleClearDate = useCallback(() => {
+    setDateFrom("");
+    setDateTo("");
+    fetchCasesData(selectedDistrict, "", "", false, true);
+  }, [fetchCasesData, selectedDistrict]);
+
+  const handleResetFilters = useCallback(() => {
+    setSelectedDistrict("");
+    setDateFrom("");
+    setDateTo("");
+    setShowDateFilter(false);
+    fetchCasesData("", "", "", false, true);
+  }, [fetchCasesData]);
+
+  const toggleDateFilter = useCallback(() => {
+    setShowDateFilter(prev => !prev);
   }, []);
 
+  // Initial fetch on mount / user login and auto-refresh every 2 minutes
   useEffect(() => {
-    fetchCasesData();
-  }, [fetchCasesData]);
+    fetchCasesData(selectedDistrict, dateFrom, dateTo, false, true);
+
+    const intervalId = setInterval(() => {
+      fetchCasesData(selectedDistrict, dateFrom, dateTo, true, true);
+    }, 2 * 60 * 1000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [fetchCasesData, selectedDistrict, dateFrom, dateTo]);
+
+  // Refresh when window or tab gains focus or user returns from login
+  useEffect(() => {
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === "visible") {
+        fetchCasesData(selectedDistrict, dateFrom, dateTo, true, true);
+      }
+    };
+
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+
+    return () => {
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+    };
+  }, [fetchCasesData, selectedDistrict, dateFrom, dateTo]);
 
   // Render "Cases per Source of information" row chart in descending order
   useEffect(() => {
@@ -3258,11 +3445,75 @@ function NewDashboard() {
 
   return (
     <div className={css.container}>
-      {/* <div className={css.header}>
-        <div className={css.headerContent}>
-          <h1 className={css.title}>CPIMS Dashboard</h1>
+      <div className={css.filterRow}>
+        <div className={css.filterContainer}>
+          <label htmlFor="district-select" className={css.filterLabel}>
+            District:
+            <select
+              id="district-select"
+              className={css.filterSelect}
+              value={selectedDistrict}
+              onChange={handleDistrictChange}
+            >
+              <option value="">All Districts</option>
+              {districtsList.map(dist => (
+                <option key={dist} value={dist}>
+                  {dist}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className={css.dateFilterSection}>
+            <button
+              type="button"
+              className={`${css.dateFilterToggle} ${
+                showDateFilter || dateFrom || dateTo ? css.dateFilterToggleActive : ""
+              }`}
+              onClick={toggleDateFilter}
+              title="Filter cases by registration date"
+            >
+              Date
+            </button>
+            {(showDateFilter || dateFrom || dateTo) && (
+              <div className={css.dateBoxesRow}>
+                <label htmlFor="date-from-input" className={css.filterLabel}>
+                  From:
+                  <input
+                    id="date-from-input"
+                    type="date"
+                    className={css.dateInput}
+                    value={dateFrom}
+                    onChange={handleDateFromChange}
+                    title="Date From"
+                  />
+                </label>
+                <label htmlFor="date-to-input" className={css.filterLabel}>
+                  To:
+                  <input
+                    id="date-to-input"
+                    type="date"
+                    className={css.dateInput}
+                    value={dateTo}
+                    onChange={handleDateToChange}
+                    title="Date To"
+                  />
+                </label>
+                {(dateFrom || dateTo) }
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className={css.resetButton || css.refreshButton}
+            onClick={handleResetFilters}
+            title="Reset all filters"
+          >
+            Reset
+          </button>
         </div>
-      </div> */}
+      </div>
 
       {error && <div className={css.errorText}>{error}</div>}
 
