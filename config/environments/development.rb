@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 Rails.application.configure do
   config.cache_classes = false
   config.action_controller.perform_caching = false
@@ -11,7 +9,6 @@ Rails.application.configure do
   config.eager_load = ENV['PROFILE'] == 'true'
   config.action_mailer.raise_delivery_errors = false
   config.action_mailer.delivery_method = :letter_opener
-  config.action_dispatch.default_headers['X-Frame-Options'] = "ALLOW-FROM https://www.punjab.cpims.org.pk:8443"
 
   $stdout.sync = true
   logger = ActiveSupport::Logger.new($stdout)

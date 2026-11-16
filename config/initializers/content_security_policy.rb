@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Define an application-wide content security policy
 # For further information see the following documentation
 # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy
 
-return unless Rails.env.production?
+return if ActiveRecord::Type::Boolean.new.cast(ENV.fetch('SKIP_CSP', nil)) || false
 
 self_sources = %i[self https]
+
+self_sources += %i[http] if Rails.env.development?
 
 storage_sources =
   case ENV.fetch('PRIMERO_STORAGE_TYPE', nil)
@@ -20,16 +20,16 @@ storage_sources =
 
 media_sources = storage_sources + %i[data blob]
 font_and_image_sources = self_sources + %i[data blob]
-style_sources = self_sources + %i[unsafe_inline] + [-> { "'nonce-
-#{request.content_security_policy_nonce}'" }]
+style_sources = self_sources
 child_sources = self_sources + %i[blob]
+connect_sources = font_and_image_sources
 script_sources = %i[strict_dynamic] + ["'wasm-unsafe-eval'"]
-feed_url = ["https://www.punjab.cpims.org.pk:8443"]
-defaults = %i[self https]
+
+connect_sources += %i[ws wss data blob] if Rails.env.development?
 
 Rails.application.config.content_security_policy do |policy|
   policy.default_src(*self_sources)
-  policy.connect_src(*font_and_image_sources)
+  policy.connect_src(*connect_sources)
   policy.font_src(*font_and_image_sources)
   policy.img_src(*font_and_image_sources)
   policy.media_src(*media_sources)
@@ -37,7 +37,8 @@ Rails.application.config.content_security_policy do |policy|
   policy.script_src(*script_sources)
   policy.style_src(*style_sources)
   policy.child_src(*child_sources)
-  policy.frame_src(*defaults, *feed_url)
+  policy.frame_src(*child_sources)
+  policy.worker_src(*font_and_image_sources)
   policy.base_uri(:self)
   policy.frame_ancestors(:self)
 
