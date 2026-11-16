@@ -3450,11 +3450,53 @@ function NewDashboard() {
   const openTransDisplay = getDisplayCount(loading, metrics.openTrans);
   const closedTransDisplay = getDisplayCount(loading, metrics.closedTrans);
 
+  const getRatio = (openVal, closedVal) => {
+    const o = Number(openVal) || 0;
+    const c = Number(closedVal) || 0;
+    const t = o + c;
+
+    if (t === 0) {
+      return { openPct: 50, closedPct: 50 };
+    }
+    const openPct = Math.round((o / t) * 100);
+
+    return { openPct, closedPct: 100 - openPct };
+  };
+
+  const statusRatio = getRatio(metrics.open, metrics.closed);
+  const maleRatio = getRatio(metrics.openMale, metrics.closedMale);
+  const femaleRatio = getRatio(metrics.openFemale, metrics.closedFemale);
+  const transRatio = getRatio(metrics.openTrans, metrics.closedTrans);
+
   return (
     <div className={css.container}>
       <div className={css.filterRow}>
+        <div className={css.headerContent}>
+          <h1 className={css.title}>
+            Child Protection Dashboard
+            <span className={css.liveBadge}>
+              <span className={css.liveDot} />
+              Live
+            </span>
+          </h1>
+          <p className={css.subtitle}>CPIMS Case Analytics &amp; Demographics Overview</p>
+        </div>
+
         <div className={css.filterContainer}>
           <label htmlFor="district-select" className={css.filterLabel}>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
             District:
             <select
               id="district-select"
@@ -3480,6 +3522,21 @@ function NewDashboard() {
               onClick={toggleDateFilter}
               title="Filter cases by registration date"
             >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
               Date
             </button>
             {(showDateFilter || dateFrom || dateTo) && (
@@ -3526,6 +3583,19 @@ function NewDashboard() {
             onClick={handleResetFilters}
             title="Reset all filters"
           >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M23 4v6h-6" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
             Reset
           </button>
         </div>
@@ -3533,14 +3603,28 @@ function NewDashboard() {
 
       {error && <div className={css.errorText}>{error}</div>}
 
-      {/* Row containing all 5 boxes with identical design (Total Cases has reduced width) */}
+      {/* Row containing all 5 boxes with enhanced design */}
       <div className={css.boxesRow}>
         {/* 1. Total Cases Box */}
-        <div className={`${css.card} ${css.totalCard}`}>
+        <div className={`${css.card} ${css.totalCard} ${css.cardTotal}`}>
           <div className={css.cardHeader}>
             <h2 className={css.cardTitle} title="Total Cases">
               Total Cases
             </h2>
+            <div className={`${css.cardIconBadge} ${css.iconBadgeBlue}`}>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
           </div>
 
           <div className={css.metricSection}>
@@ -3548,14 +3632,30 @@ function NewDashboard() {
               <span className={css.singleMetricCount}>{totalDisplay}</span>
             </div>
           </div>
+          <div className={css.singleMetricCaption}>Active Case Records</div>
         </div>
 
         {/* 2. Case Status Box */}
-        <div className={css.card}>
+        <div className={`${css.card} ${css.cardStatus}`}>
           <div className={css.cardHeader}>
             <h2 className={css.cardTitle} title="Total Cases per Status">
               Total Cases per Status
             </h2>
+            <div className={`${css.cardIconBadge} ${css.iconBadgeEmerald}`}>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
           </div>
 
           <div className={css.metricSection}>
@@ -3568,14 +3668,34 @@ function NewDashboard() {
               <span className={css.metricCountClosed}>{closedDisplay}</span>
             </div>
           </div>
+
+          <div className={css.ratioBarTrack} title={`Open: ${statusRatio.openPct}%, Closed: ${statusRatio.closedPct}%`}>
+            <div className={css.ratioBarOpen} style={{ width: `${statusRatio.openPct}%` }} />
+            <div className={css.ratioBarClosed} style={{ width: `${statusRatio.closedPct}%` }} />
+          </div>
         </div>
 
         {/* 3. Male Cases Box */}
-        <div className={css.card}>
+        <div className={`${css.card} ${css.cardMale}`}>
           <div className={css.cardHeader}>
             <h2 className={css.cardTitle} title="Total Male Cases per Status">
               Total Male Cases per Status
             </h2>
+            <div className={`${css.cardIconBadge} ${css.iconBadgeSky}`}>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
           </div>
 
           <div className={css.metricSection}>
@@ -3588,14 +3708,34 @@ function NewDashboard() {
               <span className={css.metricCountClosed}>{closedMaleDisplay}</span>
             </div>
           </div>
+
+          <div className={css.ratioBarTrack} title={`Open: ${maleRatio.openPct}%, Closed: ${maleRatio.closedPct}%`}>
+            <div className={css.ratioBarOpen} style={{ width: `${maleRatio.openPct}%` }} />
+            <div className={css.ratioBarClosed} style={{ width: `${maleRatio.closedPct}%` }} />
+          </div>
         </div>
 
         {/* 4. Female Cases Box */}
-        <div className={css.card}>
+        <div className={`${css.card} ${css.cardFemale}`}>
           <div className={css.cardHeader}>
             <h2 className={css.cardTitle} title="Total Female Cases per Status">
               Total Female Cases per Status
             </h2>
+            <div className={`${css.cardIconBadge} ${css.iconBadgePink}`}>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
           </div>
 
           <div className={css.metricSection}>
@@ -3608,14 +3748,33 @@ function NewDashboard() {
               <span className={css.metricCountClosed}>{closedFemaleDisplay}</span>
             </div>
           </div>
+
+          <div className={css.ratioBarTrack} title={`Open: ${femaleRatio.openPct}%, Closed: ${femaleRatio.closedPct}%`}>
+            <div className={css.ratioBarOpen} style={{ width: `${femaleRatio.openPct}%` }} />
+            <div className={css.ratioBarClosed} style={{ width: `${femaleRatio.closedPct}%` }} />
+          </div>
         </div>
 
         {/* 5. Transgender Cases Box */}
-        <div className={css.card}>
+        <div className={`${css.card} ${css.cardTrans}`}>
           <div className={css.cardHeader}>
             <h2 className={css.cardTitle} title="Total Transgender Cases per Status">
               Total Transgender Cases per Status
             </h2>
+            <div className={`${css.cardIconBadge} ${css.iconBadgePurple}`}>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </div>
           </div>
 
           <div className={css.metricSection}>
@@ -3627,6 +3786,11 @@ function NewDashboard() {
               <span className={css.badgeClosed}>CLOSED</span>
               <span className={css.metricCountClosed}>{closedTransDisplay}</span>
             </div>
+          </div>
+
+          <div className={css.ratioBarTrack} title={`Open: ${transRatio.openPct}%, Closed: ${transRatio.closedPct}%`}>
+            <div className={css.ratioBarOpen} style={{ width: `${transRatio.openPct}%` }} />
+            <div className={css.ratioBarClosed} style={{ width: `${transRatio.closedPct}%` }} />
           </div>
         </div>
       </div>
