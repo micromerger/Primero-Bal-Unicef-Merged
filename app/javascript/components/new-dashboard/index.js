@@ -3692,8 +3692,9 @@ function NewDashboard() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
+                <circle cx="10" cy="14" r="5" />
+                <path d="M19 5l-5.4 5.4" />
+                <path d="M19 9V5h-4" />
               </svg>
             </div>
           </div>
@@ -3732,8 +3733,9 @@ function NewDashboard() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
+                <circle cx="12" cy="9" r="5" />
+                <path d="M12 14v7" />
+                <path d="M9 18h6" />
               </svg>
             </div>
           </div>
@@ -3768,11 +3770,18 @@ function NewDashboard() {
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2.2"
+                strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                <circle cx="12" cy="12" r="4" />
+                <path d="M15 9l6-6" />
+                <path d="M21 7V3h-4" />
+                <path d="M9 9L3 3" />
+                <path d="M3 7V3h4" />
+                <path d="M5.5 8.5l3-3" />
+                <path d="M12 16v6" />
+                <path d="M9.5 19h5" />
               </svg>
             </div>
           </div>
