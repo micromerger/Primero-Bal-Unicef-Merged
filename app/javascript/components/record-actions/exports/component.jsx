@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { yupResolver } from "@hookform/resolvers/yup";
 import isEmpty from "lodash/isEmpty";
 import uniq from "lodash/uniq";
@@ -46,10 +44,19 @@ import {
   INDIVIDUAL_FIELDS_FIELD,
   MODULE_FIELD,
   NAME,
+  OLD_INCIDENT_RECORDER_FORMAT,
   PASSWORD_FIELD
 } from "./constants";
 import form from "./form";
-import { buildFields, exportFormsOptions, formatFields, formatFileName, isCustomExport, isPdfExport } from "./utils";
+import {
+  buildFields,
+  exportFormsOptions,
+  formatFields,
+  formatFileName,
+  isCustomExport,
+  isIncidentRecorderExport,
+  isPdfExport
+} from "./utils";
 
 const FORM_ID = "exports-record-form";
 
@@ -228,6 +235,14 @@ function Component({
         [FORM_TO_EXPORT_FIELD]: uniq(
           fields.filter(field => fieldNames.includes(field.id)).map(field => field.formSectionId)
         )
+      };
+    }
+
+    // For the Incident Recorder export, let the user opt into the legacy format (services read from subforms)
+    if (isIncidentRecorderExport(values[EXPORT_TYPE_FIELD])) {
+      exportParams = {
+        ...exportParams,
+        [OLD_INCIDENT_RECORDER_FORMAT]: Boolean(values[OLD_INCIDENT_RECORDER_FORMAT])
       };
     }
 

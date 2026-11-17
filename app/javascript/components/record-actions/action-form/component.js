@@ -5,6 +5,7 @@ import PropTypes from "prop-types";
 
 import ActionDialog from "../../action-dialog";
 import { useI18n } from "../../i18n";
+import useSystemStrings, { ACTION_BUTTON, PAGE } from "../../application/use-system-strings";
 import { constructInitialValues } from "../../record-form";
 import { ID_FIELD, MODULES, RECORD_TYPES } from "../../../config";
 import { saveRecord, selectRecordsByIndexes } from "../../records";
@@ -15,6 +16,7 @@ import { fetchAlerts } from "../../nav/action-creators";
 import { useMemoizedSelector } from "../../../libs";
 import { useApp } from "../../application";
 import { getRecordFormsByUniqueIdWithFallback } from "../../record-form/selectors";
+import PendingTransitionAlert from "../pending-transition-alert";
 
 function Component({
   checkVisible,
@@ -33,15 +35,20 @@ function Component({
   pending,
   recordType,
   selectedRowsIndex,
-  setPending
+  setPending,
+  pendingTransitionIds = []
 }) {
   const formikRef = useRef();
   const i18n = useI18n();
+  const { label: actionLabel } = useSystemStrings(ACTION_BUTTON);
+  const { label: pageLabel } = useSystemStrings(PAGE);
   const dispatch = useDispatch();
   const { online } = useApp();
 
   const selectedRecords = useMemoizedSelector(state => selectRecordsByIndexes(state, recordType, selectedRowsIndex));
-  const selectedIds = selectedRecords.map(record => record.get(ID_FIELD));
+  const selectedIds = selectedRecords
+    .map(record => record.get(ID_FIELD))
+    .filter(id => !pendingTransitionIds.includes(id));
 
   const form = useMemoizedSelector(state =>
     getRecordFormsByUniqueIdWithFallback(state, {
@@ -71,12 +78,13 @@ function Component({
 
   const modalProps = {
     confirmButtonLabel: i18n.t("buttons.save"),
-    dialogTitle: i18n.t(dialogTitle),
+    dialogTitle: actionLabel(dialogTitle),
     cancelHandler: close,
     onClose: close,
     open,
     pending,
     omitCloseAfterSuccess: true,
+    enabledSuccessButton: selectedIds.length > 0,
     successHandler
   };
 
@@ -113,7 +121,7 @@ function Component({
               "update",
               body,
               id,
-              i18n.t(creationMessage),
+              pageLabel(creationMessage),
               i18n.t("offline_submitted_changes"),
               false,
               false,
@@ -134,6 +142,7 @@ function Component({
   return (
     <Formik {...formProps}>
       <ActionDialog {...modalProps}>
+        <PendingTransitionAlert pendingTransitionIds={pendingTransitionIds} />
         <Form noValidate autoComplete="off">
           <Fields {...fieldsProps} />
         </Form>
@@ -155,6 +164,7 @@ Component.propTypes = {
   includeRecordModuleID: PropTypes.bool,
   open: PropTypes.bool,
   pending: PropTypes.bool,
+  pendingTransitionIds: PropTypes.array,
   recordAction: PropTypes.string,
   records: PropTypes.array,
   recordType: PropTypes.string,

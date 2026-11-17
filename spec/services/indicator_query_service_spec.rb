@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe IndicatorQueryService, search: true do
@@ -26,6 +24,8 @@ describe IndicatorQueryService, search: true do
     @bar.save(validate: false)
     @baz = User.new(user_name: 'baz', role: role_self, user_groups: [group2])
     @baz.save(validate: false)
+    @assigner = User.new(user_name: 'assigner', role: role_self)
+    @assigner.save(validate: false)
 
     # TODO: Add back indicators once the pivoted/faceted indicators are migrated to SQL
     @indicators =
@@ -36,25 +36,30 @@ describe IndicatorQueryService, search: true do
     Child.create!(
       data: {
         record_state: true, status: 'open', owned_by: 'foo', workflow: 'new',
-        owned_by_groups: %w[usergroup-group1]
+        owned_by_groups: %w[usergroup-group1], module_id: 'primeromodule-cp'
       }
     )
     Child.create!(data: {
                     record_state: true, status: 'open', owned_by: 'foo',
-                    last_updated_by: 'bar', workflow: 'assessment', owned_by_groups: %w[usergroup-group1]
+                    last_updated_by: 'bar', workflow: 'assessment', owned_by_groups: %w[usergroup-group1],
+                    module_id: 'primeromodule-cp'
                   })
-    Child.create!(data: { record_state: false, status: 'open', owned_by: 'foo', workflow: 'new' })
+    Child.create!(data: { record_state: false, status: 'open', owned_by: 'foo', workflow: 'new',
+                          module_id: 'primeromodule-cp' })
     Child.create!(data: {
                     record_state: true, status: 'closed', owned_by: 'foo',
-                    date_closure: 1.day.ago, workflow: 'closed', owned_by_groups: %w[usergroup-group1]
+                    date_closure: 1.day.ago, workflow: 'closed', owned_by_groups: %w[usergroup-group1],
+                    module_id: 'primeromodule-cp'
                   })
     Child.create!(data: {
                     record_state: true, status: 'closed', owned_by: 'foo',
-                    date_closure: 2.days.ago, workflow: 'closed', owned_by_groups: %w[usergroup-group1]
+                    date_closure: 2.days.ago, workflow: 'closed', owned_by_groups: %w[usergroup-group1],
+                    module_id: 'primeromodule-cp'
                   })
     Child.create!(data: {
                     record_state: true, status: 'closed', owned_by: 'foo',
-                    date_closure: 15.days.ago, workflow: 'closed', owned_by_groups: %w[usergroup-group1]
+                    date_closure: 15.days.ago, workflow: 'closed', owned_by_groups: %w[usergroup-group1],
+                    module_id: 'primeromodule-cp'
                   })
     Child.create!(
       data: {
@@ -62,11 +67,20 @@ describe IndicatorQueryService, search: true do
         assigned_user_names: %w[user_service],
         services_section: [
           { 'service_response_day_time' => 5.day.ago, 'service_response_timeframe' => '3_hours' }
-        ]
+        ], module_id: 'primeromodule-cp'
       }
     )
-    Child.create!(data: { record_state: true, status: 'open', owned_by: 'baz', workflow: 'new' })
-    Child.create!(data: { record_state: true, status: 'closed', owned_by: 'baz', workflow: 'closed' })
+    Child.create!(data: { record_state: true, status: 'open', owned_by: 'baz', workflow: 'new',
+                          module_id: 'primeromodule-cp' })
+    Child.create!(data: { record_state: true, status: 'closed', owned_by: 'baz', workflow: 'closed',
+                          module_id: 'primeromodule-cp' })
+
+    assigned_child = Child.create!(data: { record_state: true, status: 'open', owned_by: 'assigner',
+                                           module_id: 'primeromodule-cp' })
+    assignment = Assign.new(
+      record: assigned_child, transitioned_to: 'foo', transitioned_by: 'assigner'
+    )
+    assignment.save(validate: false)
   end
 
   describe 'individual user scope' do
@@ -75,7 +89,7 @@ describe IndicatorQueryService, search: true do
     end
 
     it 'shows the number of all open cases' do
-      expect(stats['case']['total']['total']['count']).to eq(2)
+      expect(stats['case']['total']['total']['count']).to eq(3)
     end
 
     it 'shows the string queries to get all open cases' do
@@ -84,7 +98,7 @@ describe IndicatorQueryService, search: true do
     end
 
     it 'shows the number of updated cases' do
-      expect(stats['case']['new_or_updated']['new_or_updated']['count']).to eq(1)
+      expect(stats['case']['new_or_updated']['new_or_updated']['count']).to eq(2)
     end
 
     it 'shows the string queries to get all updated cases' do
@@ -103,6 +117,22 @@ describe IndicatorQueryService, search: true do
       expect(stats['case']['workflow']['new']['query']).to match_array(expected_query_new)
       expected_query_assessment = %w[record_state=true status=open,closed owned_by=foo workflow=assessment]
       expect(stats['case']['workflow']['assessment']['query']).to match_array(expected_query_assessment)
+    end
+
+    it 'shows recently_assigned' do
+      expect(stats['case']['recently_assigned_to_me']['recently_assigned_to_me']['count']).to eq(1)
+    end
+
+    it 'shows the string queries to get all recently_assigned cases' do
+      expected_static = %w[status=open assign=foo record_state=true]
+      query_strings = stats['case']['recently_assigned_to_me']['recently_assigned_to_me']['query']
+      dynamic_queries, static_queries = query_strings.partition { |q| q.start_with? 'reassigned_transferred_on' }
+      dynamic_query, = dynamic_queries
+      expect(static_queries).to match_array(expected_static)
+      # split the query into the field name and the date ignoring the .. at the end
+      field, value = dynamic_query.match(/^(\w+)=(.+)\.\.$/).captures
+      expect(field).to eq('reassigned_transferred_on')
+      expect { Time.iso8601(value) }.not_to raise_error
     end
   end
 
@@ -168,7 +198,50 @@ describe IndicatorQueryService, search: true do
     end
   end
 
+  describe 'user module scope' do
+    before do
+      @cp = PrimeroModule.create!(unique_id: 'primeromodule-cp', name: 'CP', associated_record_types: %w[case])
+      @gbv = PrimeroModule.create!(unique_id: 'primeromodule-gbv', name: 'GBV', associated_record_types: %w[case])
+      permission_case = Permission.new(resource: Permission::CASE, actions: [Permission::READ])
+      single_role = Role.new(group_permission: Permission::SELF, permissions: [permission_case], primero_modules: [@cp])
+      single_role.save(validate: false)
+      multi_role = Role.new(
+        group_permission: Permission::SELF, permissions: [permission_case], primero_modules: [@cp, @gbv]
+      )
+      multi_role.save(validate: false)
+      @single_module_user = User.new(user_name: 'single_mod', role: single_role, user_groups: [@group1])
+      @single_module_user.save(validate: false)
+      @multi_module_user = User.new(user_name: 'multi_mod', role: multi_role, user_groups: [@group1])
+      @multi_module_user.save(validate: false)
+
+      Child.create!(data: { record_state: true, status: 'open', owned_by: 'single_mod', module_id: PrimeroModule::CP })
+      Child.create!(data: { record_state: true, status: 'open', owned_by: 'single_mod', module_id: PrimeroModule::GBV })
+      Child.create!(data: { record_state: true, status: 'open', owned_by: 'multi_mod', module_id: PrimeroModule::CP })
+      Child.create!(data: { record_state: true, status: 'open', owned_by: 'multi_mod', module_id: PrimeroModule::GBV })
+      Child.create!(data: { record_state: true, status: 'open', owned_by: 'multi_mod',
+                            module_id: 'primeromodule-other' })
+    end
+
+    it 'scopes open-case indicators to the module when the user has a single module' do
+      stats = IndicatorQueryService.query(Dashboard::CASE_OVERVIEW.indicators, @single_module_user)
+      expect(stats['case']['total']['total']['query']).to match_array(
+        %w[record_state=true status=open module_id=primeromodule-cp]
+      )
+      # Only the CP case is counted; the GBV case is excluded
+      expect(stats['case']['total']['total']['count']).to eq(1)
+    end
+
+    it 'scopes by all role modules (OR) when the user has multiple modules' do
+      stats = IndicatorQueryService.query(Dashboard::CASE_OVERVIEW.indicators, @multi_module_user)
+      expect(stats['case']['total']['total']['query']).to match_array(
+        ['record_state=true', 'status=open', 'module_id=primeromodule-cp,primeromodule-gbv']
+      )
+      # Both the CP and GBV cases are counted (module_id IN [cp, gbv]); the out-of-role module is excluded
+      expect(stats['case']['total']['total']['count']).to eq(2)
+    end
+  end
+
   after :each do
-    clean_data(User, UserGroup, Role, Child, SystemSettings)
+    clean_data(User, UserGroup, Role, Child, SystemSettings, PrimeroModule)
   end
 end

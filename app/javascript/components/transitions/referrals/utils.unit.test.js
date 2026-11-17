@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import * as utils from "./utils";
 
 describe("components/transitions/referrals/utils.js", () => {
@@ -7,7 +5,14 @@ describe("components/transitions/referrals/utils.js", () => {
     it("should have known methods", () => {
       const clone = { ...utils };
 
-      ["referralAgencyName"].forEach(property => {
+      [
+        "createValidationSchema",
+        "mapRecordForCaseCreation",
+        "referralAgencyName",
+        "referralHeaderKey",
+        "referralMessageKey",
+        "referralConfirmButtonKey"
+      ].forEach(property => {
         expect(clone).toHaveProperty(property);
         expect(clone[property]).toBeInstanceOf(Function);
         delete clone[property];

@@ -1,14 +1,12 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { format } from "date-fns";
 
-import { DATE_FORMAT } from "../../../config";
+import { selectedDateFormat } from "../../../libs/date-picker-localization";
 
-export default filter => {
+export default (filter, i18n) => {
   const { value } = filter;
 
   if (value instanceof Date) {
-    return format(value, DATE_FORMAT);
+    return format(value, selectedDateFormat(false, i18n.locale));
   }
 
   return value;

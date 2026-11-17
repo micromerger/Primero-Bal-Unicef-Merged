@@ -2,6 +2,7 @@ import { fromJS, Map, OrderedMap } from "immutable";
 
 import { mountedComponent, screen } from "../../../../../test-utils";
 import { FormSectionRecord, FieldRecord, NavRecord } from "../../../records";
+import { PrimeroModuleRecord } from "../../../../application/records";
 
 import NavGroup from "./component";
 
@@ -133,5 +134,36 @@ describe("<NavGroup />", () => {
     mountedComponent(<NavGroup {...props} />, initialState);
     expect(screen.getByText("Identification / Registration")).toBeInTheDocument();
     expect(screen.getByRole("button")).toBeInTheDocument();
+  });
+
+  it("renders the overridden name of the default registry details form", () => {
+    const registryNav = OrderedMap({
+      1: NavRecord({
+        group: "identification_registration",
+        groupOrder: 1,
+        name: "forms.record_types.registry_details",
+        order: 2,
+        formId: "registry_from_case",
+        is_first_tab: true,
+        i18nName: true
+      })
+    });
+    const stateWithFieldLabels = {
+      application: {
+        modules: [
+          PrimeroModuleRecord({
+            unique_id: "primeromodule-cp",
+            name: "CP",
+            associated_record_types: ["case", "registry_record"],
+            field_labels: { "forms.record_types.registry_details": { en: "CBCRC Details" } }
+          })
+        ]
+      },
+      user: { modules: ["primeromodule-cp"] }
+    };
+
+    mountedComponent(<NavGroup {...props} group={registryNav} />, stateWithFieldLabels);
+
+    expect(screen.getByText("CBCRC Details")).toBeInTheDocument();
   });
 });

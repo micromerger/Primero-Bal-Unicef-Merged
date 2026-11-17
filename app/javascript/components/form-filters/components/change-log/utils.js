@@ -1,12 +1,12 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 /* eslint-disable import/prefer-default-export */
 import { fromJS } from "immutable";
+import { batch } from "react-redux";
 
 import { SEPARATOR } from "../../../form/constants";
 import { FILTER_TYPES } from "../../../index-filters";
+import { RECORD_TYPES_PLURAL } from "../../../../config";
 
-import { FILTER_NAMES } from "./constants";
+import { FILTER_NAMES, FIRST_PAGE_RESULTS } from "./constants";
 
 export const getFilters = (forms, i18n) => [
   {
@@ -48,3 +48,10 @@ export const getFilters = (forms, i18n) => [
       )
   }
 ];
+
+export function onSubmitFn({ filters, dispatch, fetchFn, setFormFilters, recordId, recordType }) {
+  batch(() => {
+    dispatch(fetchFn(RECORD_TYPES_PLURAL[recordType], recordId, FIRST_PAGE_RESULTS, filters));
+    dispatch(setFormFilters(filters));
+  });
+}

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Exports records to JSON formatted text
 class Exporters::JsonExporter < Exporters::BaseExporter
   class << self
@@ -20,6 +18,7 @@ class Exporters::JsonExporter < Exporters::BaseExporter
 
   def export(records)
     super(records)
+    preload_referrals(records)
     hashes = records.map { |m| convert_model_to_hash(m) }
     buffer.write(JSON.pretty_generate(hashes))
   end

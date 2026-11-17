@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { memo, useCallback } from "react";
 import PropTypes from "prop-types";
 import isEmpty from "lodash/isEmpty";
@@ -8,6 +6,7 @@ import { cx } from "@emotion/css";
 import { useI18n } from "../../i18n";
 import {
   DATE_FIELD,
+  REGISTRY_FIELD,
   SELECT_FIELD,
   TICK_FIELD,
   RADIO_FIELD,
@@ -16,7 +15,8 @@ import {
   AUDIO_FIELD,
   DOCUMENT_FIELD,
   LINK_TO_FORM,
-  TALLY_FIELD
+  TALLY_FIELD,
+  SIGNATURE_FIELD
 } from "../constants";
 import Tooltip from "../../tooltip";
 import { ConditionalWrapper, displayNameHelper } from "../../../libs";
@@ -35,8 +35,11 @@ import RadioField from "./field-types/radio-field";
 import AttachmentField from "./field-types/attachments";
 import LinkToForm from "./field-types/link-to-form";
 import TallyField from "./field-types/tally-field";
+import SignatureField from "./field-types/signature-field";
+import RegistryField from "./field-types/registry-field";
 import css from "./styles.css";
 import { asyncFieldOffline } from "./utils";
+import PhoneField from "./field-types/phone-field";
 
 function FormSectionField({
   name,
@@ -68,7 +71,8 @@ function FormSectionField({
     link_to_form: linkToForm,
     option_strings_source: optionStringsSource,
     option_strings_text: optionsStringsText,
-    options
+    options,
+    phone_number: isPhoneNumber
   } = field;
 
   const classes = cx(css.field, { [css.readonly]: mode.isShow });
@@ -149,7 +153,15 @@ function FormSectionField({
         return AttachmentField;
       case TALLY_FIELD:
         return TallyField;
+      case SIGNATURE_FIELD:
+        return SignatureField;
+      case REGISTRY_FIELD:
+        return RegistryField;
       default:
+        if (isPhoneNumber) {
+          return PhoneField;
+        }
+
         return TextField;
     }
   })(type);

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ManagedReports::Indicators::FactorsOfRecruitment do
@@ -103,7 +101,22 @@ describe ManagedReports::Indicators::FactorsOfRecruitment do
 
     incident1 = Incident.new_with_user(@self_user, { incident_date: Date.new(2020, 8, 8), status: 'open' })
     incident1.save!
-    incident2 = Incident.new_with_user(@group_user, { incident_date: Date.new(2021, 8, 8), status: 'open' })
+    incident2 = Incident.new_with_user(
+      @group_user,
+      {
+        incident_date: Date.new(2021, 8, 8),
+        status: 'open',
+        module_id: PrimeroModule::MRM,
+        recruitment: [
+          {
+            factors_of_recruitment: %w[unknown other],
+            violation_tally: { 'boys' => 5, 'girls' => 10, 'unknown' => 5, 'total' => 20 },
+            ctfmr_verified: 'verified',
+            ctfmr_verified_date: Date.new(2021, 10, 5)
+          }
+        ]
+      }.with_indifferent_access
+    )
     incident2.save!
     incident3 = Incident.new_with_user(@agency_user, { incident_date: Date.new(2022, 1, 8), status: 'open' })
     incident3.save!
@@ -111,57 +124,60 @@ describe ManagedReports::Indicators::FactorsOfRecruitment do
     incident4.save!
     incident5 = Incident.new_with_user(@all_user, { incident_date: Date.new(2022, 3, 28), status: 'open' })
     incident5.save!
+    incident6 = Incident.new_with_user(@self_user, { incident_date: Date.new(2022, 3, 29), status: 'closed' })
+    incident6.save!
 
     Violation.create!(
       data: {
         type: 'recruitment',
         factors_of_recruitment: %w[abduction conscription],
-        violation_tally: { 'boys': 1, 'girls': 1, 'unknown': 1, 'total': 3 }
+        violation_tally: { 'boys' => 1, 'girls' => 1, 'unknown' => 1, 'total' => 3 }
       },
       incident_id: incident1.id
     )
     Violation.create!(
       data: {
         type: 'maiming', factors_of_recruitment: %w[family_community_pressure family_problems_abuse],
-        violation_tally: { 'boys': 3, 'girls': 2, 'unknown': 1, 'total': 6 }
+        violation_tally: { 'boys' => 3, 'girls' => 2, 'unknown' => 1, 'total' => 6 }
       },
       incident_id: incident1.id
     )
     Violation.create!(
       data: {
         type: 'recruitment', factors_of_recruitment: %w[idealism intimidation],
-        violation_tally: { 'boys': 1, 'girls': 1, 'unknown': 1, 'total': 3 }
+        violation_tally: { 'boys' => 1, 'girls' => 1, 'unknown' => 1, 'total' => 3 }
       },
       incident_id: incident3.id
     )
     Violation.create!(
       data: {
         type: 'recruitment', factors_of_recruitment: %w[idealism abduction],
-        violation_tally: { 'boys': 1, 'girls': 1, 'unknown': 0, 'total': 2 }
+        violation_tally: { 'boys' => 1, 'girls' => 1, 'unknown' => 0, 'total' => 2 }
       },
       incident_id: incident4.id
     )
     Violation.create!(
       data: {
         factors_of_recruitment: %w[family_community_pressure intimidation],
-        violation_tally: { 'boys': 5, 'girls': 10, 'unknown': 5, 'total': 20 }
+        violation_tally: { 'boys' => 5, 'girls' => 10, 'unknown' => 5, 'total' => 20 }
       },
       incident_id: incident1.id
     )
     Violation.create!(
       data: {
-        type: 'recruitment', factors_of_recruitment: %w[unknown other],
-        violation_tally: { 'boys': 5, 'girls': 10, 'unknown': 5, 'total': 20 }
+        type: 'recruitment',
+        factors_of_recruitment: %w[other conscription],
+        violation_tally: { 'boys' => 2, 'girls' => 1, 'unknown' => 0, 'total' => 3 }
       },
-      incident_id: incident2.id
+      incident_id: incident5.id
     )
     Violation.create!(
       data: {
         type: 'recruitment',
-        factors_of_recruitment: %w[other conscription],
-        violation_tally: { 'boys': 2, 'girls': 1, 'unknown': 0, 'total': 3 }
+        factors_of_recruitment: %w[idealism conscription],
+        violation_tally: { 'boys' => 1, 'girls' => 1, 'unknown' => 0, 'total' => 2 }
       },
-      incident_id: incident5.id
+      incident_id: incident6.id
     )
   end
 
@@ -181,6 +197,27 @@ describe ManagedReports::Indicators::FactorsOfRecruitment do
         { 'total' => 5, 'unknown' => 1, 'girls' => 2, 'boys' => 2, 'id' => 'abduction' }
       ]
     )
+  end
+
+  describe 'has_late_verified_violations filter' do
+    it 'returns the data only for those incidents where the value is true' do
+      factors_recruitment_data = ManagedReports::Indicators::FactorsOfRecruitment.build(
+        nil,
+        {
+          'type' => SearchFilters::Value.new(field_name: 'type', value: 'recruitment'),
+          'has_late_verified_violations' => SearchFilters::BooleanValue.new(
+            field_name: 'has_late_verified_violations', value: true
+          )
+        }
+      ).data
+
+      expect(factors_recruitment_data).to match_array(
+        [
+          { 'id' => 'unknown', 'boys' => 5, 'girls' => 10, 'unknown' => 5, 'total' => 20 },
+          { 'id' => 'other', 'boys' => 5, 'girls' => 10, 'unknown' => 5, 'total' => 20 }
+        ]
+      )
+    end
   end
 
   describe 'records in scope' do
@@ -260,8 +297,8 @@ describe ManagedReports::Indicators::FactorsOfRecruitment do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'year'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2022-10-10'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2022-10-10')
             ),
             'type' => SearchFilters::Value.new(field_name: 'type', value: 'recruitment')
           }
@@ -306,8 +343,8 @@ describe ManagedReports::Indicators::FactorsOfRecruitment do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'month'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2022-03-30'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2022-03-30')
             ),
             'type' => SearchFilters::Value.new(field_name: 'type', value: 'recruitment')
           }
@@ -369,8 +406,8 @@ describe ManagedReports::Indicators::FactorsOfRecruitment do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2022-03-30'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2022-03-30')
             ),
             'type' => SearchFilters::Value.new(field_name: 'type', value: 'recruitment')
           }

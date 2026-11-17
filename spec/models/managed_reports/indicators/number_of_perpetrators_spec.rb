@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ManagedReports::Indicators::NumberOfPerpetrators do
@@ -104,6 +102,7 @@ describe ManagedReports::Indicators::NumberOfPerpetrators do
     Incident.new_with_user(
       @self_user,
       incident_date: Date.new(2020, 8, 12),
+      consent_reporting: 'true',
       alleged_perpetrator:
       [
         { unique_id: '10cfd918-3c69-4baa-b1cc-6c9a1cd9ea10' },
@@ -113,16 +112,30 @@ describe ManagedReports::Indicators::NumberOfPerpetrators do
     Incident.new_with_user(
       @group_user,
       incident_date: Date.new(2020, 9, 12),
+      consent_reporting: 'true',
       alleged_perpetrator: [{ unique_id: '10cfd918-3c69-4baa-b1cc-6c9a1cd9ea31' }]
     ).save!
     Incident.new_with_user(
       @agency_user,
       incident_date: Date.new(2021, 1, 12),
+      consent_reporting: 'true',
       alleged_perpetrator: [{ unique_id: '10cfd918-3c69-4baa-b1cc-6c9a1cd9ea31' }]
     ).save!
     Incident.new_with_user(
       @all_user,
       incident_date: Date.new(2021, 2, 12),
+      consent_reporting: 'true',
+      alleged_perpetrator: [
+        { unique_id: '11cfd918-3c69-4baa-b1cc-6c9a1cd9ea31' },
+        { unique_id: '12cfd918-3c69-4baa-b1cc-6c9a1cd9ea15' },
+        { unique_id: '13cfd918-3c69-4baa-b1cc-6c9a1cd9ea15' }
+      ]
+    ).save!
+    Incident.new_with_user(
+      @all_user,
+      incident_date: Date.new(2021, 2, 12),
+      consent_reporting: 'true',
+      gbv_reported_elsewhere: 'gbvims-org',
       alleged_perpetrator: [
         { unique_id: '11cfd918-3c69-4baa-b1cc-6c9a1cd9ea31' },
         { unique_id: '12cfd918-3c69-4baa-b1cc-6c9a1cd9ea15' },
@@ -197,8 +210,8 @@ describe ManagedReports::Indicators::NumberOfPerpetrators do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'year'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2022-10-10'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2022-10-10')
             )
           }
         ).data
@@ -221,8 +234,8 @@ describe ManagedReports::Indicators::NumberOfPerpetrators do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'month'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2021-02-28'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2021-02-28')
             )
           }
         ).data
@@ -247,8 +260,8 @@ describe ManagedReports::Indicators::NumberOfPerpetrators do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2021-03-30'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2021-03-30')
             )
           }
         ).data

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'write_xlsx'
 
 # Exports selected forms and fields to a multi-tabbed Excel file.
@@ -39,7 +37,7 @@ class Exporters::SelectedFieldsExcelExporter < Exporters::ExcelExporter
   end
 
   def establish_record_constraints(record)
-    if user.referred_to_record?(record)
+    if referred_to_record?(record)
       self.record_constraints = Exporters::Constraints::SelectedFieldsExcelExporterConstraints.new(
         record_type:, user:, excluded_field_names: self.class.excluded_field_names, options:,
         constraining_fields: constraining_fields?, constraining_forms_and_fields: constraining_forms_and_fields?,

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'prawn/document'
 require 'prawn/measurement_extensions'
 
@@ -47,6 +45,10 @@ module Exporters
         add_child_photo(@pdf, child, true)
         @pdf.start_new_page unless cases_with_photo.last == child
       end
+    end
+
+    def skip_attachments?
+      false
     end
 
     private

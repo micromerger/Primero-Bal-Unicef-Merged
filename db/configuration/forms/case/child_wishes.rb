@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 child_preferences_fields_subform = [
   Field.new('name' => 'wishes_name',
             'type' => 'text_field',
@@ -45,7 +43,7 @@ child_wishes_fields = [
   Field.new('name' => 'child_preferences_section',
             'type' => 'subform',
             'editable' => true,
-            'subform_section' => child_preferences_section,
+            'subform' => child_preferences_section,
             'display_name_en' => "Child's Preferences")
 ]
 

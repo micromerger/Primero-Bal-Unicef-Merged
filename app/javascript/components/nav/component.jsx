@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { Drawer, List, useMediaQuery, Divider, IconButton, Box } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
@@ -7,6 +5,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { push } from "connected-react-router";
 import { isEqual } from "lodash";
 import { cx } from "@emotion/css";
+import { useRouteMatch } from "react-router-dom";
 
 import { ROUTES, PERMITTED_URL, APPLICATION_NAV } from "../../config";
 import AgencyLogo from "../agency-logo";
@@ -15,7 +14,7 @@ import Logo from "../../images/punjab-logo.png";
 import useMemoizedSelector from "../../libs/use-memoized-selector";
 import MobileToolbar from "../mobile-toolbar";
 import { useApp } from "../application";
-import Permission, { usePermissions, MANAGE, RESOURCES } from "../permissions";
+import Permission, { usePermissions, RESOURCES } from "../permissions";
 import { getLocationsAvailable } from "../application/selectors";
 import TranslationsToggle from "../translations-toggle";
 import NetworkIndicator from "../network-indicator";
@@ -25,6 +24,7 @@ import { useI18n } from "../i18n";
 import { hasQueueData } from "../connectivity/selectors";
 import FieldMode from "../network-indicator/components/field-mode";
 import PoweredBy from "../powered-by";
+import { MANAGE_RESTRICTED } from "../permissions/constants";
 
 import { NAME, LOGOUT_DIALOG } from "./constants";
 import css from "./styles.css";
@@ -37,12 +37,16 @@ function Nav() {
   const dispatch = useDispatch();
   const i18n = useI18n();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const intakeRoute = useRouteMatch(ROUTES.intake_new);
+  const intakeThankYouRoute = useRouteMatch(ROUTES.intake_thankyou);
 
   const { dialogOpen, dialogClose } = useDialog(LOGOUT_DIALOG);
 
   useEffect(() => {
-    dispatch(fetchAlerts());
-  }, []);
+    if (!intakeRoute && !intakeThankYouRoute) {
+      dispatch(fetchAlerts());
+    }
+  }, [intakeRoute, intakeThankYouRoute]);
 
   const { demo, useContainedNavStyle } = useApp();
   const username = useMemoizedSelector(state => selectUsername(state), isEqual);
@@ -52,7 +56,7 @@ function Nav() {
   const hasLocationsAvailable = useMemoizedSelector(state => getLocationsAvailable(state), isEqual);
   const hasUnsubmittedOfflineChanges = useMemoizedSelector(state => hasQueueData(state));
 
-  const canManageMetadata = usePermissions(RESOURCES.metadata, MANAGE);
+  const canManageMetadata = usePermissions(RESOURCES.metadata, MANAGE_RESTRICTED);
 
   const handleToggleDrawer = open => event => {
     if (event.type === "keydown" && (event.key === "Tab" || event.key === "Shift")) {
@@ -135,7 +139,9 @@ function Nav() {
       <div className={css.navNetworkIndicator}>
         <NetworkIndicator />
       </div>
-      <List className={navListClasses}>{permittedMenuEntries(APPLICATION_NAV(permissions, userId))}</List>
+      {Boolean(intakeRoute?.path) || Boolean(intakeThankYouRoute?.path) || (
+        <List className={navListClasses}>{permittedMenuEntries(APPLICATION_NAV(permissions, userId))}</List>
+      )}
       <div className={css.navAgencies}>
         <AgencyLogo />
       </div>

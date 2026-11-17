@@ -1,19 +1,13 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe Api::V2::FamiliesController, type: :request do
   before do
-    clean_data(Child, Family)
-    family1
-    family2
-    family3
-    family4
+    clean_data(User, Child, Family)
   end
 
-  let(:family1) do
+  let!(:family1) do
     Family.create!(
       data: {
         family_number: '40bf9109',
@@ -24,15 +18,22 @@ describe Api::V2::FamiliesController, type: :request do
             relation_sex: 'male',
             relation_age: 10,
             relation_date_of_birth: Date.today - 10.years
+          },
+          {
+            unique_id: '002',
+            relation_name: 'Member2',
+            relation_sex: 'male',
+            relation_age: 8,
+            relation_date_of_birth: Date.today - 8.years
           }
         ]
       }
     )
   end
 
-  let(:family2) { Family.create!(data: { family_number: '8962e835' }) }
-  let(:family3) { Family.create!(data: { family_number: '2ef057e8' }) }
-  let(:family4) { Family.create!(data: { family_number: '318e0925' }) }
+  let!(:family2) { Family.create!(data: { family_number: '8962e835' }) }
+  let!(:family3) { Family.create!(data: { family_number: '2ef057e8' }) }
+  let!(:family4) { Family.create!(data: { family_number: '318e0925' }) }
   let(:json) { JSON.parse(response.body) }
 
   describe 'GET /api/v2/families', search: true do
@@ -63,7 +64,7 @@ describe Api::V2::FamiliesController, type: :request do
     end
 
     context 'when the authorized user is not the record owner' do
-      it 'can list all families' do
+      it 'cannot list families if a query is not present' do
         login_for_test(
           permissions: [Permission.new(resource: Permission::FAMILY, actions: [Permission::READ])],
           group_permission: Permission::GROUP
@@ -71,8 +72,8 @@ describe Api::V2::FamiliesController, type: :request do
         get '/api/v2/families'
 
         expect(response).to have_http_status(200)
-        expect(json['data'].size).to eq(4)
-        expect(json['metadata']['total']).to eq(4)
+        expect(json['data'].size).to eq(0)
+        expect(json['metadata']['total']).to eq(0)
         expect(json['metadata']['per']).to eq(20)
         expect(json['metadata']['page']).to eq(1)
       end
@@ -95,6 +96,49 @@ describe Api::V2::FamiliesController, type: :request do
         expect(json['errors'][0]['resource']).to eq('/api/v2/families')
       end
     end
+
+    context 'when a user with SELF scope can search families owned by others' do
+      it 'returns an empty list when no query is passed in' do
+        login_for_test(
+          permissions: [
+            Permission.new(
+              resource: Permission::FAMILY,
+              actions: [Permission::SEARCH_OWNED_BY_OTHERS, Permission::SEARCH_AND_SELECT_FAMILY_RECORD]
+            )
+          ],
+          group_permission: Permission::SELF
+        )
+
+        get '/api/v2/families'
+
+        expect(response).to have_http_status(200)
+        expect(json['data'].size).to eq(0)
+        expect(json['metadata']['total']).to eq(0)
+        expect(json['metadata']['per']).to eq(20)
+        expect(json['metadata']['page']).to eq(1)
+      end
+
+      it 'returns the families that match the query' do
+        login_for_test(
+          permissions: [
+            Permission.new(
+              resource: Permission::FAMILY,
+              actions: [Permission::SEARCH_AND_SELECT_FAMILY_RECORD, Permission::SEARCH_OWNED_BY_OTHERS]
+            )
+          ],
+          group_permission: Permission::SELF
+        )
+
+        get '/api/v2/families?query=40bf9109&id_search=true'
+
+        expect(response).to have_http_status(200)
+        expect(json['data'].size).to eq(1)
+        expect(json['data'].map { |c| c['family_number'] }).to match_array(%w[40bf9109])
+        expect(json['metadata']['total']).to eq(1)
+        expect(json['metadata']['per']).to eq(20)
+        expect(json['metadata']['page']).to eq(1)
+      end
+    end
   end
 
   describe 'GET /api/v2/families/:id' do
@@ -108,16 +152,26 @@ describe Api::V2::FamiliesController, type: :request do
       end
     end
 
-    context 'when the authorized user is not the record owner' do
-      it 'fetches the correct record with code 200' do
+    context 'when a user has linked cases to a family' do
+      it 'fetches the family with code 200 when search and select family records permission is granted' do
         login_for_test(
-          permissions: [Permission.new(resource: Permission::FAMILY, actions: [Permission::READ])],
-          group_permission: Permission::GROUP
+          user_name: 'caseworker',
+          permissions: [
+            Permission.new(resource: Permission::FAMILY, actions: [Permission::SEARCH_AND_SELECT_FAMILY_RECORD])
+          ],
+          group_permission: Permission::SELF
         )
-        get "/api/v2/families/#{family1.id}"
+
+        user = User.new(user_name: 'caseworker')
+        user.save(validate: false)
+
+        family2.cases = [Child.new_with_user(user)]
+        family2.save!
+
+        get "/api/v2/families/#{family2.id}"
 
         expect(response).to have_http_status(200)
-        expect(json['data']['id']).to eq(family1.id)
+        expect(json['data']['id']).to eq(family2.id)
       end
     end
   end
@@ -154,7 +208,7 @@ describe Api::V2::FamiliesController, type: :request do
     it 'successfully deletes a record with a code of 200' do
       login_for_test(
         permissions: [
-          Permission.new(resource: Permission::FAMILY, actions: [Permission::ENABLE_DISABLE_RECORD])
+          Permission.new(resource: Permission::FAMILY, actions: [Permission::READ, Permission::ENABLE_DISABLE_RECORD])
         ]
       )
       delete "/api/v2/families/#{family1.id}"
@@ -169,7 +223,7 @@ describe Api::V2::FamiliesController, type: :request do
 
   describe 'POST /api/v2/families/:id/case' do
     context 'when user is unauthorized' do
-      it 'refuses unauthorized access' do
+      it 'fails if the user does not have the CASE_FROM_FAMILY permission' do
         login_for_test(
           permissions: [
             Permission.new(resource: Permission::FAMILY, actions: [Permission::READ, Permission::WRITE])
@@ -182,6 +236,27 @@ describe Api::V2::FamiliesController, type: :request do
         expect(response).to have_http_status(403)
         expect(json['errors'].size).to eq(1)
         expect(json['errors'][0]['resource']).to eq("/api/v2/families/#{family1.id}/case")
+      end
+
+      it 'fails when the user does not have access to the underlying family record' do
+        login_for_test(
+          user_name: 'hacker',
+          group_permission: Permission::SELF,
+          permissions: [
+            Permission.new(resource: Permission::CASE, actions: [Permission::READ]),
+            Permission.new(
+              resource: Permission::FAMILY,
+              actions: [
+                Permission::READ, Permission::WRITE, Permission::CASE_FROM_FAMILY
+              ]
+            )
+          ]
+        )
+
+        params = { data: { family_member_id: '001' } }
+        post "/api/v2/families/#{family1.id}/case", params:, as: :json
+
+        expect(response).to have_http_status(403)
       end
     end
 
@@ -198,7 +273,7 @@ describe Api::V2::FamiliesController, type: :request do
           ]
         )
 
-        params = { data: { family_member_id: '002' } }
+        params = { data: { family_member_id: '003' } }
 
         post "/api/v2/families/#{family1.id}/case", params:, as: :json
 
@@ -208,9 +283,10 @@ describe Api::V2::FamiliesController, type: :request do
       end
     end
 
-    it 'successfully creates a case record with a code of 200' do
+    it 'successfully creates a case record with read access and returns a code of 200' do
       login_for_test(
         permissions: [
+          Permission.new(resource: Permission::CASE, actions: [Permission::READ]),
           Permission.new(
             resource: Permission::FAMILY,
             actions: [
@@ -227,11 +303,48 @@ describe Api::V2::FamiliesController, type: :request do
       expect(response).to have_http_status(200)
       expect(json['data']['id']).to eq(family1.id)
 
+      family_member = json['data']['family_members'].find { |member| member['unique_id'] == '001' }
+      expect(family_member['case_id']).to be_present
+      expect(family_member['case_id_display']).to be_present
+      expect(family_member['can_read_record']).to be_truthy
+
       child = Child.find_by(id: json['data']['record']['id'])
       expect(child.name_first).to eq('Member1')
       expect(child.sex).to eq('male')
       expect(child.age).to eq(10)
       expect(child.date_of_birth).to eq(Date.today - 10.years)
+      expect(child.family_number).to eq('40bf9109')
+    end
+
+    it 'successfully creates a case record without read access and returns a code of 200' do
+      login_for_test(
+        permissions: [
+          Permission.new(
+            resource: Permission::FAMILY,
+            actions: [
+              Permission::READ, Permission::WRITE, Permission::CASE_FROM_FAMILY
+            ]
+          )
+        ]
+      )
+
+      params = { data: { family_member_id: '002' } }
+
+      post "/api/v2/families/#{family1.id}/case", params:, as: :json
+
+      expect(response).to have_http_status(200)
+      expect(json['data']['id']).to eq(family1.id)
+
+      family_member = json['data']['family_members'].find { |member| member['unique_id'] == '002' }
+      expect(family_member['case_id']).to be_present
+      expect(family_member['case_id_display']).to be_present
+      expect(family_member['can_read_record']).to be_falsey
+
+      child = Child.find_by(id: json['data']['record']['id'])
+      expect(child.name_first).to eq('Member2')
+      expect(child.sex).to eq('male')
+      expect(child.age).to eq(8)
+      expect(child.date_of_birth).to eq(Date.today - 8.years)
       expect(child.family_number).to eq('40bf9109')
     end
   end

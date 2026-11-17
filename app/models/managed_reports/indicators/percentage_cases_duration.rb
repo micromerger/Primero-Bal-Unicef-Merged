@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # An indicator that returns % of cases by duration
 class ManagedReports::Indicators::PercentageCasesDuration < ManagedReports::SqlReportIndicator
   include ManagedReports::PercentageIndicator
@@ -16,7 +14,7 @@ class ManagedReports::Indicators::PercentageCasesDuration < ManagedReports::SqlR
       date_group_query = build_date_group(params, {}, Child)
       group_id = date_group_query.present? ? 'group_id' : nil
 
-      %(
+      <<~SQL
         WITH protection_assessment_cases AS (
           SELECT
             #{date_group_query&.+(' AS group_id,')}
@@ -24,7 +22,8 @@ class ManagedReports::Indicators::PercentageCasesDuration < ManagedReports::SqlR
             COALESCE(srch_gender, 'incomplete_data') AS gender,
             #{duration_days_query}
           FROM cases
-          WHERE srch_next_steps && '{a_continue_protection_assessment}'
+          WHERE srch_record_state = TRUE
+          AND srch_next_steps && '{a_continue_protection_assessment}'
           #{build_filter_query(current_user, params)&.prepend('AND ')}
         ),
         cases_with_duration_range AS (
@@ -46,7 +45,7 @@ class ManagedReports::Indicators::PercentageCasesDuration < ManagedReports::SqlR
           COUNT(*) AS count
         FROM cases_with_duration_range
         GROUP BY #{group_id&.+(',')} gender, duration_range
-      )
+      SQL
     end
 
     # rubocop:enable Metrics/MethodLength

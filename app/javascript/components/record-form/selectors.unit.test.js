@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { Map, List, OrderedMap, fromJS } from "immutable";
 
 import { mapEntriesToRecord } from "../../libs";
@@ -7,6 +5,7 @@ import { ACTIONS } from "../permissions";
 import {
   APPROVALS,
   CASE_RELATIONSHIPS,
+  ACCESS_LOGS,
   CHANGE_LOGS,
   IDENTIFICATION_REGISTRATION,
   INCIDENT_FROM_CASE,
@@ -14,7 +13,8 @@ import {
   RECORD_OWNER,
   REFERRAL,
   SERVICES_SUBFORM_FIELD,
-  TRANSFERS_ASSIGNMENTS
+  TRANSFERS_ASSIGNMENTS,
+  RECORD_TYPES
 } from "../../config";
 import { FieldRecord, SEPARATOR, SUBFORM_SECTION, TEXT_FIELD } from "../form";
 
@@ -80,6 +80,36 @@ const formSections = {
       es: ""
     },
     fields: [2],
+    is_nested: null
+  },
+  64: {
+    id: 64,
+    unique_id: "change_logs",
+    name: {
+      en: "Change Logs",
+      fr: "",
+      ar: "",
+      "ar-LB": "",
+      so: "",
+      es: ""
+    },
+    visible: true,
+    is_first_tab: true,
+    order: 10,
+    order_form_group: 30,
+    parent_form: "case",
+    editable: true,
+    module_ids: ["primeromodule-cp"],
+    form_group_id: "change_logs",
+    form_group_name: {
+      en: "",
+      fr: "",
+      ar: "",
+      "ar-LB": "",
+      so: "",
+      es: ""
+    },
+    fields: [],
     is_nested: null
   }
 };
@@ -237,6 +267,13 @@ const stateWithRecords = fromJS({
     I18n: {
       locale: "en",
       dir: "ltr"
+    }
+  },
+  user: {
+    modules: ["primeromodule-cp"],
+    permittedForms: {
+      change_logs: "rw",
+      basic_identity: "rw"
     }
   },
   forms: {
@@ -450,6 +487,28 @@ describe("<RecordForm /> - Selectors", () => {
 
       expect(record.equals(List([]))).toBe(true);
     });
+
+    it("returns array of forms without default forms", () => {
+      const forms = selectors.getRecordForms(stateWithRecords, {
+        includeDefaultForms: false,
+        recordType: RECORD_TYPES.cases,
+        primeroModule: "primeromodule-cp",
+        checkPermittedForms: true
+      });
+
+      expect(forms.map(f => f.get("unique_id")).toJS()).toEqual(["basic_identity"]);
+    });
+
+    it("should return forms with visible false", () => {
+      const forms = selectors.getRecordForms(stateWithRecords, {
+        includeDefaultForms: true,
+        recordType: RECORD_TYPES.cases,
+        primeroModule: "primeromodule-cp",
+        checkPermittedForms: true
+      });
+
+      expect(forms.map(f => f.get("unique_id")).toJS()).toEqual(["basic_identity", "change_logs"]);
+    });
   });
 
   describe("getRecordFormsByUniqueId", () => {
@@ -457,6 +516,7 @@ describe("<RecordForm /> - Selectors", () => {
       const expected = R.FormSectionRecord({
         id: 62,
         unique_id: "basic_identity",
+        userPermission: "rw",
         name: Map({
           en: "Basic Identity",
           fr: "",
@@ -485,6 +545,7 @@ describe("<RecordForm /> - Selectors", () => {
           {
             date_include_time: false,
             date_validation: "default_date_validation",
+            date_input: null,
             disabled: null,
             display_name: {
               ar: "",
@@ -511,6 +572,7 @@ describe("<RecordForm /> - Selectors", () => {
             option_strings_condition: null,
             order: null,
             parent_form: null,
+            phone_number: false,
             required: true,
             selected_value: null,
             showIf: null,
@@ -527,6 +589,7 @@ describe("<RecordForm /> - Selectors", () => {
             display_conditions_subform: undefined,
             autosum_total: true,
             tally: {},
+            signature_provided_by_label: {},
             collapse: null,
             calculation: {}
           }
@@ -572,6 +635,7 @@ describe("<RecordForm /> - Selectors", () => {
           {
             date_include_time: false,
             date_validation: "default_date_validation",
+            date_input: null,
             disabled: null,
             display_name: {
               ar: "",
@@ -598,6 +662,7 @@ describe("<RecordForm /> - Selectors", () => {
             option_strings_condition: null,
             order: null,
             parent_form: null,
+            phone_number: false,
             required: true,
             selected_value: null,
             showIf: null,
@@ -612,6 +677,7 @@ describe("<RecordForm /> - Selectors", () => {
             tick_box_label: {},
             display_conditions_record: undefined,
             display_conditions_subform: undefined,
+            signature_provided_by_label: {},
             autosum_total: true,
             tally: {},
             collapse: null,
@@ -1102,6 +1168,7 @@ describe("<RecordForm /> - Selectors", () => {
         fromJS([
           "Approvals from State",
           "Record Owner from State",
+          "access_log.label",
           "change_logs.label",
           "forms.record_types.case_relationships",
           "forms.record_types.referrals",
@@ -1126,6 +1193,7 @@ describe("<RecordForm /> - Selectors", () => {
 
     expect(result).toEqual(
       fromJS([
+        "access_log.label",
         "change_logs.label",
         "forms.record_types.approvals",
         "forms.record_types.case_relationships",
@@ -1152,6 +1220,7 @@ describe("<RecordForm /> - Selectors", () => {
 
       expect(result).toEqual(
         fromJS([
+          ACCESS_LOGS,
           APPROVALS,
           CASE_RELATIONSHIPS,
           CHANGE_LOGS,
@@ -1171,7 +1240,7 @@ describe("<RecordForm /> - Selectors", () => {
           fromJS({
             user: {
               permissions: {
-                cases: [ACTIONS.CHANGE_LOG]
+                cases: [ACTIONS.CHANGE_LOG, ACTIONS.REFERRAL]
               }
             }
           }),
@@ -1191,6 +1260,11 @@ describe("<RecordForm /> - Selectors", () => {
       const result = selectors
         .getRecordInformationNav(
           fromJS({
+            user: {
+              permissions: {
+                cases: [ACTIONS.READ]
+              }
+            },
             records: {
               cases: {
                 data: [{ id: "001", permitted_form_actions: { case: [ACTIONS.CHANGE_LOG] } }],
@@ -1207,7 +1281,35 @@ describe("<RecordForm /> - Selectors", () => {
         .toList()
         .sort();
 
-      expect(result).toEqual(fromJS([CHANGE_LOGS, RECORD_OWNER, REFERRAL, TRANSFERS_ASSIGNMENTS]));
+      expect(result).toEqual(fromJS([CHANGE_LOGS, RECORD_OWNER, TRANSFERS_ASSIGNMENTS]));
+    });
+
+    it("should prioritize record permissions over user permissions when record permissions exist", () => {
+      const result = selectors
+        .getRecordInformationNav(
+          fromJS({
+            user: {
+              permissions: {
+                cases: [ACTIONS.CHANGE_LOG, ACTIONS.REFERRAL, ACTIONS.APPROVALS]
+              }
+            },
+            records: {
+              cases: {
+                data: [{ id: "002", permitted_form_actions: { case: [ACTIONS.REFERRAL] } }],
+                selectedRecord: "002"
+              }
+            }
+          }),
+          {
+            recordType: "case",
+            primeroModule: "primeromodule-cp"
+          }
+        )
+        .map(form => form.formId)
+        .toList()
+        .sort();
+
+      expect(result).toEqual(fromJS([RECORD_OWNER, REFERRAL, TRANSFERS_ASSIGNMENTS]));
     });
   });
 
@@ -1609,6 +1711,25 @@ describe("<RecordForm /> - Selectors", () => {
 
       expect(subform.id).toBe(3);
       expect(subform.unique_id).toBe("nested_services");
+    });
+  });
+
+  describe("getIdentifiedUser", () => {
+    it("returns the user", () => {
+      const user = selectors.getIdentifiedUser(
+        fromJS({
+          forms: {
+            options: {
+              users: { identified: [{ user_name: "user1", full_name: "User 1", email: "user1@example.com" }] }
+            }
+          }
+        }),
+        "user1"
+      );
+
+      expect(user.get("user_name")).toEqual("user1");
+      expect(user.get("full_name")).toEqual("User 1");
+      expect(user.get("email")).toEqual("user1@example.com");
     });
   });
 });

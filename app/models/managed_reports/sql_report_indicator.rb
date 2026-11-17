@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Class to hold SQL results
 # rubocop:disable Metrics/ClassLength
 class ManagedReports::SqlReportIndicator < ValueObject
@@ -113,6 +111,13 @@ class ManagedReports::SqlReportIndicator < ValueObject
       end
     end
 
+    def user_module_query(current_user, table_name = nil)
+      return if current_user.blank?
+
+      field_name = quoted_query(table_name, 'srch_module_id')
+      ActiveRecord::Base.sanitize_sql_for_conditions(["#{field_name} IN (?) ", current_user.module_unique_ids])
+    end
+
     def build_date_group(params = {}, opts = {}, model_class = nil)
       date_param = filter_date(params)
       return unless date_param.present?
@@ -170,6 +175,32 @@ class ManagedReports::SqlReportIndicator < ValueObject
                              params&.[]('ghn_date_filter')&.field_name == 'ctfmr_verified_date'
 
       'incidents'
+    end
+
+    def result_with_query(result, params, parent_query = [])
+      query = parent_query + query_for_result(result, params)
+      result.entries.each_with_object({}) do |(key, value), memo|
+        query += query_for_entry({ key => value })
+        memo[key] = key.to_sym == :id ? value : { count: value, query: }
+      end
+    end
+
+    def group_with_query(group, params)
+      data = group[:data].map { |elem| result_with_query(elem, params, query_for_group(group, params)) }
+
+      group.merge(data:)
+    end
+
+    def query_for_group(_, _)
+      []
+    end
+
+    def query_for_entry(_)
+      []
+    end
+
+    def query_for_result(_, _)
+      []
     end
   end
 

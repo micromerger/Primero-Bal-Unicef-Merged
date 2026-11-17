@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Service for the logic of bulk assign records
 class BulkAssignService
   def initialize(model_class, transitioned_by, args)
@@ -20,7 +18,8 @@ class BulkAssignService
   def search_records
     PhoneticSearchService.search(
       @model_class, query:, phonetic:, filters: search_filters,
-                    sort: sort_order, scope: query_scope
+                    sort: sort_order, scope: query_scope,
+                    pagination: { page: 1, per_page: Assign::MAX_BULK_RECORDS }
     )
   end
 
@@ -29,6 +28,7 @@ class BulkAssignService
   def assign_records_batch(records)
     records.each do |record|
       next unless record.can_be_assigned? && @transitioned_by.can_assign?(record)
+      next if record.pending_transition_for?(@transitioned_by)
 
       create_assignment(record)
     rescue StandardError => e
@@ -43,7 +43,7 @@ class BulkAssignService
       transitioned_to: @args[:transitioned_to],
       transitioned_by: @transitioned_by.user_name,
       notes: @args[:notes],
-      from_bulk_export: true
+      notify_user: false
     )
   end
 

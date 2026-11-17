@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe Api::V2::CodesOfConductController, type: :request do
@@ -78,7 +76,7 @@ describe Api::V2::CodesOfConductController, type: :request do
       )
 
       params = {
-        data: { title:  'Some Title', content: 'Some Content' }
+        data: { title: 'Some Title', content: 'Some Content' }
       }
 
       post('/api/v2/codes_of_conduct', params:)
@@ -96,7 +94,7 @@ describe Api::V2::CodesOfConductController, type: :request do
       login_for_test(permissions: [])
 
       params = {
-        data: { title:  'Some Title', content: 'Some Content' }
+        data: { title: 'Some Title', content: 'Some Content' }
       }
 
       post('/api/v2/codes_of_conduct', params:)

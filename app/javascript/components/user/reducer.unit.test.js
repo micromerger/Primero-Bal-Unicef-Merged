@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 
 import { mapListToObject, mapObjectPropertiesToRecords } from "../../libs";
@@ -19,11 +17,13 @@ describe("User - Reducers", () => {
       isAuthenticated: true,
       loaded: false,
       id: 1,
-      username: "primero"
+      username: "primero",
+      roleGroupPermission: "self"
     });
     const payload = {
       id: 1,
-      username: "primero"
+      username: "primero",
+      groupPermission: "self"
     };
     const action = {
       type: Actions.SET_AUTHENTICATED_USER,

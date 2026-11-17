@@ -1,13 +1,23 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Main API controller for Registry records
 class Api::V2::RegistryRecordsController < ApplicationApiController
   include Api::V2::Concerns::Pagination
   include Api::V2::Concerns::Record
 
   private
+
+  def authorize_index!
+    authorize!(:index, RegistryRecord)
+  rescue CanCan::AccessDenied => e
+    raise e unless can?(:write, Child)
+  end
+
+  def authorize_read!(model)
+    authorize!(:index, model)
+  rescue CanCan::AccessDenied => e
+    raise e unless can?(:write, Child)
+  end
 
   alias select_updated_fields_super select_updated_fields
   def select_updated_fields

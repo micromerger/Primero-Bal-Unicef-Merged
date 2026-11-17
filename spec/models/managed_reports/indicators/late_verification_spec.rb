@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ManagedReports::Indicators::LateVerification do
@@ -13,6 +11,7 @@ describe ManagedReports::Indicators::LateVerification do
     incident = Incident.create!(data: { incident_date: Date.new(2022, 1, 23), status: 'open' })
     incident1 = Incident.create!(data: { incident_date: Date.new(2022, 6, 29), status: 'open' })
     incident2 = Incident.create!(data: { incident_date: Date.new(2021, 10, 21), status: 'open' })
+    incident3 = Incident.create!(data: { incident_date: Date.new(2021, 10, 25), status: 'closed' })
 
     Violation.create!(
       data: { type: 'killing', violation_tally: { 'boys' => 2, 'girls' => 0, 'unknown' => 2, 'total' => 4 },
@@ -37,6 +36,24 @@ describe ManagedReports::Indicators::LateVerification do
               ctfmr_verified: 'verified', ctfmr_verified_date: Date.new(2022, 1, 1) },
       incident_id: incident2.id
     )
+
+    Violation.create!(
+      data: { type: 'killing', violation_tally: { 'boys' => 1, 'girls' => 2, 'unknown' => 1, 'total' => 4 },
+              ctfmr_verified: 'verified', ctfmr_verified_date: Date.new(2022, 1, 1) },
+      incident_id: incident3.id
+    )
+
+    Violation.create!(
+      data: { type: 'deprivation_liberty', violation_tally: { 'boys' => 1, 'girls' => 2, 'unknown' => 1, 'total' => 4 },
+              ctfmr_verified: 'verified', ctfmr_verified_date: Date.new(2022, 1, 1) },
+      incident_id: incident2.id
+    )
+
+    Violation.create!(
+      data: { type: 'military_use', violation_tally: { 'boys' => 1, 'girls' => 2, 'unknown' => 1, 'total' => 4 },
+              ctfmr_verified: 'verified', ctfmr_verified_date: Date.new(2022, 1, 1) },
+      incident_id: incident2.id
+    )
   end
 
   after do
@@ -44,47 +61,99 @@ describe ManagedReports::Indicators::LateVerification do
   end
 
   it 'return data for late verification indicator' do
+    common_query = %w[
+      violation_with_verification_status=maiming_verified
+      has_late_verified_violations=true
+      ctfmr_verified_date=2022-07-01..2022-07-30
+    ]
+
     data = ManagedReports::Indicators::LateVerification.build(
       nil,
       {
         'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
         'ghn_date_filter' => SearchFilters::DateRange.new(
           field_name: 'ghn_date_filter',
-          from: '2022-07-01',
-          to: '2022-07-30'
+          from: Date.parse('2022-07-01'),
+          to: Date.parse('2022-07-30')
         )
       }
     ).data
 
     expect(data).to match_array(
       [
-        { group_id: 'boys', data: [{ id: 'maiming', total: 2 }] },
-        { group_id: 'girls', data: [{ id: 'maiming', total: 3 }] },
-        { group_id: 'unknown', data: [{ id: 'maiming', total: 2 }] },
-        { group_id: 'total', data: [{ id: 'maiming', total: 7 }] }
+        {
+          group_id: 'boys',
+          data: [
+            { id: 'maiming', total: { count: 2, query: %w[child_types=boys] + common_query } }
+          ]
+        },
+        {
+          group_id: 'girls',
+          data: [
+            { id: 'maiming', total: { count: 3, query: %w[child_types=girls] + common_query } }
+          ]
+        },
+        {
+          group_id: 'unknown',
+          data: [
+            { id: 'maiming', total: { count: 2, query: %w[child_types=unknown] + common_query } }
+          ]
+        },
+        {
+          group_id: 'total',
+          data: [
+            { id: 'maiming', total: { count: 7, query: common_query } }
+          ]
+        }
       ]
     )
   end
 
   it 'return data for late verification indicator' do
+    common_query = %w[
+      violation_with_verification_status=maiming_verified
+      has_late_verified_violations=true
+      ctfmr_verified_date=2022-01-01..2022-01-01
+    ]
+
     data = ManagedReports::Indicators::LateVerification.build(
       nil,
       {
         'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
         'ghn_date_filter' => SearchFilters::DateRange.new(
           field_name: 'ghn_date_filter',
-          from: '2022-01-01',
-          to: '2022-01-01'
+          from: Date.parse('2022-01-01'),
+          to: Date.parse('2022-01-01')
         )
       }
     ).data
 
     expect(data).to match_array(
       [
-        { group_id: 'boys', data: [{ id: 'maiming', total: 1 }] },
-        { group_id: 'girls', data: [{ id: 'maiming', total: 2 }] },
-        { group_id: 'unknown', data: [{ id: 'maiming', total: 0 }] },
-        { group_id: 'total', data: [{ id: 'maiming', total: 3 }] }
+        {
+          group_id: 'boys',
+          data: [
+            { id: 'maiming', total: { count: 1, query: %w[child_types=boys] + common_query } }
+          ]
+        },
+        {
+          group_id: 'girls',
+          data: [
+            { id: 'maiming', total: { count: 2, query: %w[child_types=girls] + common_query } }
+          ]
+        },
+        {
+          group_id: 'unknown',
+          data: [
+            { id: 'maiming', total: { count: 0, query: %w[child_types=unknown] + common_query } }
+          ]
+        },
+        {
+          group_id: 'total',
+          data: [
+            { id: 'maiming', total: { count: 3, query: common_query } }
+          ]
+        }
       ]
     )
   end

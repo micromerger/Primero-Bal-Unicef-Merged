@@ -5,25 +5,38 @@ import { cx } from "@emotion/css";
 
 import ActionButton from "../../action-button";
 import { useApp } from "../../application";
-import { useI18n } from "../../i18n";
+import useSystemStrings, { DASHBOARD } from "../../application/use-system-strings";
 import { buildFilter, buildItemLabel } from "../utils";
 import { ROUTES } from "../../../config";
 import dashboardsCss from "../styles.css";
 
 import css from "./styles.css";
 
-function IndicatorItem({ titleHasModule, item, query, count, countClasses, labelClasses, highlight = false }) {
-  const i18n = useI18n();
+function IndicatorItem({
+  titleHasModule,
+  item,
+  customLabel,
+  query,
+  count,
+  countClasses,
+  labelClasses,
+  highlight = false
+}) {
+  const { label } = useSystemStrings(DASHBOARD);
   const { approvalsLabels } = useApp();
   const dispatch = useDispatch();
 
   const handleClick = () => {
+    if (!query?.size) {
+      return;
+    }
+
     dispatch(push({ pathname: ROUTES.cases, search: buildFilter(query) }));
   };
 
-  const defaultLabel = i18n.t(["dashboard", titleHasModule ? item.split(".")?.[0] : item].join("."));
+  const defaultLabel = label(["dashboard", titleHasModule ? item.split(".")?.[0] : item].join("."));
 
-  const itemLabel = buildItemLabel(item, approvalsLabels, defaultLabel, titleHasModule);
+  const itemLabel = customLabel || buildItemLabel(item, approvalsLabels, defaultLabel, titleHasModule);
 
   const numberClasses =
     countClasses || cx({ [dashboardsCss.zero]: !count, [css.itemButtonNumber]: true, [css.highlight]: highlight });
@@ -57,6 +70,7 @@ IndicatorItem.displayName = "IndicatorItem";
 IndicatorItem.propTypes = {
   count: PropTypes.number,
   countClasses: PropTypes.object,
+  customLabel: PropTypes.string,
   highlight: PropTypes.bool,
   item: PropTypes.object,
   labelClasses: PropTypes.object,

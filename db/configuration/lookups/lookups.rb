@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 Lookup.create_or_update!(
   unique_id: 'lookup-location-type',
   name_en: 'Location Type',
@@ -1050,6 +1048,19 @@ Lookup.create_or_update!(
     { id: 'through_teacher', display_text: 'Through teacher' },
     { id: 'through_aid', display_text: 'Through aid' },
     { id: 'through_specialized_center', display_text: 'Through Specialized Center' },
+    { id: 'other', display_text: 'Other' }
+  ].map(&:with_indifferent_access)
+)
+
+Lookup.create_or_update!(
+  unique_id: 'lookup-reasons-referral-failure',
+  name_en: 'Reasons for Referral Failure',
+  lookup_values_en: [
+    { id: 'client_refused_services', display_text: 'Client refused services' },
+    { id: 'lack_of_capacity', display_text: 'Lack of capacity' },
+    { id: 'services_no_longer_needed', display_text: 'Services no longer needed' },
+    { id: 'unable_to_contact_client', display_text: 'Unable to contact client' },
+    { id: 'unable_to_contact_referred_to_organization', display_text: 'Unable to contact referred-to organization' },
     { id: 'other', display_text: 'Other' }
   ].map(&:with_indifferent_access)
 )

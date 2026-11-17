@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # TODO: Refactor this!!! Write some tests!
 
 # Class for Ability
@@ -14,7 +12,7 @@ class Ability
     alias_user_actions
     @user = user
     @permitted_form_fields_service = PermittedFormFieldsService.instance
-    can_index
+    can_index(user)
     can_access_self(user)
     can_search(user)
     can_read_reports
@@ -24,8 +22,10 @@ class Ability
     initialize_permissions(user)
     configure_exports
     baseline_permissions
+    configure_record_transitions
     configure_record_attachments
     configure_flags
+    configure_associated_family
   end
   # rubocop:enable Metrics/MethodLength
 
@@ -118,9 +118,17 @@ class Ability
     end
   end
 
-  def metadata_permissions
-    [FormSection, Field, Location, Lookup, PrimeroProgram, PrimeroModule].each do |resource|
-      can :manage, resource
+  def metadata_permissions(permission)
+    actions = permission.action_symbols
+
+    if actions.include?(Permission::MANAGE_RESTRICTED.to_sym)
+      [FormSection, Field, Lookup].each do |resource|
+        can %i[read write], resource
+      end
+    else
+      [FormSection, Field, Location, Lookup, PrimeroProgram, PrimeroModule].each do |resource|
+        can :manage, resource
+      end
     end
   end
 
@@ -178,8 +186,42 @@ class Ability
       PermittedAttachmentService.permitted_to_read?(user, instance, @permitted_form_fields_service)
     end
 
-    can(%i[create destroy], Attachment) do |instance|
+    can(%i[create destroy write], Attachment) do |instance|
       PermittedAttachmentService.permitted_to_write?(user, instance, @permitted_form_fields_service)
+    end
+  end
+
+  def configure_record_transitions
+    # This is only relevant for updates to ongoing transitions
+    [Assign, Transfer, TransferRequest].each do |transition_class|
+      can(:update, transition_class) do |instance|
+        can?(:read, instance.record)
+      end
+    end
+
+    configure_referral_update
+    configure_referral_destroy
+  end
+
+  def configure_referral_destroy
+    can(:destroy, Referral) do |instance|
+      if can?(:remove_assigned_users, instance.record)
+        (instance.remote? || !instance.recipient?(user)) && user.permitted_to_access_referral?(instance)
+      else
+        false
+      end
+    end
+  end
+
+  def configure_referral_update
+    can(:update, Referral) do |instance|
+      if instance.remote?
+        instance.in_progress? && can?(:accept_or_reject_referral, instance.record) &&
+          user.permitted_to_access_referral?(instance)
+      else
+        instance.recipient?(user) && user.permitted_to_access_referral?(instance) &&
+          can?(:receive_referral, instance.record)
+      end
     end
   end
 
@@ -198,11 +240,12 @@ class Ability
     alias_action destroy: :delete
   end
 
-  def can_index
+  def can_index(user)
     can [:index], SystemSettings
     can :index, FormSection
     can [:index], Lookup
-    can [:index], Location
+    can [:index], Location unless user.permission_by_permission_type?(Permission::METADATA,
+                                                                      Permission::MANAGE_RESTRICTED)
     can :index, Report
   end
 
@@ -259,7 +302,7 @@ class Ability
     when Permission::AGENCY
       agency_permissions(permission)
     when Permission::METADATA
-      metadata_permissions
+      metadata_permissions(permission)
     when Permission::SYSTEM
       system_permissions
     when Permission::TRACING_REQUEST
@@ -277,6 +320,14 @@ class Ability
     [Child, TracingRequest, Incident, RegistryRecord, Family].each do |model|
       configure_flag(model)
       resolve_flag(model)
+    end
+  end
+
+  def configure_associated_family
+    return unless user.permission_by_permission_type?(Permission::FAMILY, Permission::SEARCH_AND_SELECT_FAMILY_RECORD)
+
+    can(:read, Family) do |instance|
+      user.permitted_to_access_record?(instance)
     end
   end
 end

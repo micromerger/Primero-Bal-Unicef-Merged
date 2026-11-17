@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 import { object, string } from "yup";
 
@@ -24,10 +22,13 @@ export const form = ({
   i18n,
   isBulkTransfer,
   providedConsent,
+  hasPendingTransfer = false,
   recordType,
   recordModuleID,
   setDisabled
 }) => {
+  const fieldDisabled = consent => hasPendingTransfer || !(consent || providedConsent);
+
   return fromJS([
     FormSectionRecord({
       unique_id: "transfers_form",
@@ -42,6 +43,8 @@ export const form = ({
           watchedInputs: [TRANSFER_FIELD],
           handleWatchedInputs: ({ [TRANSFER_FIELD]: consent }) => {
             setDisabled(!!consent);
+
+            return { disabled: hasPendingTransfer };
           }
         }),
         FieldRecord({
@@ -56,14 +59,14 @@ export const form = ({
           name: REMOTE_SYSTEM_FIELD,
           type: TICK_FIELD,
           watchedInputs: [TRANSFER_FIELD],
-          handleWatchedInputs: ({ [TRANSFER_FIELD]: consent }) => ({ disabled: !(consent || providedConsent) })
+          handleWatchedInputs: ({ [TRANSFER_FIELD]: consent }) => ({ disabled: fieldDisabled(consent) })
         }),
         FieldRecord({
           display_name: i18n.t("transfer.consent_from_individual_label"),
           name: CONSENT_INDIVIDUAL_FIELD,
           type: TICK_FIELD,
           watchedInputs: [TRANSFER_FIELD],
-          handleWatchedInputs: ({ [TRANSFER_FIELD]: consent }) => ({ disabled: !(consent || providedConsent) })
+          handleWatchedInputs: ({ [TRANSFER_FIELD]: consent }) => ({ disabled: fieldDisabled(consent) })
         }),
         FieldRecord({
           name: AGENCY_FIELD,
@@ -73,7 +76,7 @@ export const form = ({
           option_strings_source_id_key: "unique_id",
           clearDependentValues: [TRANSITIONED_TO_FIELD],
           watchedInputs: [TRANSFER_FIELD],
-          handleWatchedInputs: ({ [TRANSFER_FIELD]: consent }) => ({ disabled: !(consent || providedConsent) })
+          handleWatchedInputs: ({ [TRANSFER_FIELD]: consent }) => ({ disabled: fieldDisabled(consent) })
         }),
         FieldRecord({
           name: LOCATION_FIELD,
@@ -83,7 +86,7 @@ export const form = ({
           clearDependentValues: [TRANSITIONED_TO_FIELD],
           watchedInputs: [TRANSFER_FIELD],
           extraSelectorOptions: { usePlacename: false },
-          handleWatchedInputs: ({ [TRANSFER_FIELD]: consent }) => ({ disabled: !(consent || providedConsent) })
+          handleWatchedInputs: ({ [TRANSFER_FIELD]: consent }) => ({ disabled: fieldDisabled(consent) })
         }),
         FieldRecord({
           name: TRANSITIONED_TO_FIELD,
@@ -100,14 +103,14 @@ export const form = ({
           ],
           type: SELECT_FIELD,
           option_strings_source: OPTION_TYPES.TRANSFER_TO_USERS,
-          handleWatchedInputs: ({ [TRANSFER_FIELD]: consent }) => ({ disabled: !(consent || providedConsent) })
+          handleWatchedInputs: ({ [TRANSFER_FIELD]: consent }) => ({ disabled: fieldDisabled(consent) })
         }),
         FieldRecord({
           name: NOTES_FIELD,
           display_name: i18n.t("transfer.notes_label"),
           type: TEXT_AREA,
           watchedInputs: [TRANSFER_FIELD],
-          handleWatchedInputs: ({ [TRANSFER_FIELD]: consent }) => ({ disabled: !(consent || providedConsent) })
+          handleWatchedInputs: ({ [TRANSFER_FIELD]: consent }) => ({ disabled: fieldDisabled(consent) })
         })
       ]
     })

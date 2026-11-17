@@ -1,12 +1,8 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Class to export an Indicator
 # rubocop:disable Metrics/ClassLength
 class Exporters::GroupedIndicatorExporter < Exporters::IndicatorExporter
-  include Writexlsx::Utility
-
   GROUPED_CHART_WIDTH = 566
   GROUPED_BY = { month: 'month', year: 'year', quarter: 'quarter', week: 'week' }.freeze
 
@@ -67,6 +63,7 @@ class Exporters::GroupedIndicatorExporter < Exporters::IndicatorExporter
     write_grouped_table_header
     return if values.blank?
 
+    write_relevant_field
     write_grouped_headers
     write_indicator_options
     write_grouped_indicator_data
@@ -87,11 +84,26 @@ class Exporters::GroupedIndicatorExporter < Exporters::IndicatorExporter
   end
 
   def write_indicator_options
-    display_texts = indicator_options.map { |option| option['display_text'] }
-    display_texts.each_with_index do |display_text, index|
-      cell_format = display_text == display_texts.last ? formats[:bold_black_blue_bottom_border] : formats[:bold_black]
-      worksheet.write(current_row + index, 0, display_text, cell_format)
+    indicator_options.each_with_index do |option, index|
+      row_index = current_row + index
+      next write_option_separator(option, row_index) if option['separator'] == true
+
+      cell_format = formats[:bold_black]
+      cell_format = formats[:bold_black_blue_bottom_border] if option == indicator_options.last
+
+      worksheet.write_string(row_index, 0, option['display_text'], cell_format)
     end
+  end
+
+  def write_option_separator(option, row_index)
+    worksheet.merge_range(
+      row_index,
+      0,
+      row_index,
+      columns_number * subitems_size,
+      option['display_text'],
+      formats[:string_bold_blue]
+    )
   end
 
   def subitems_size
@@ -132,19 +144,19 @@ class Exporters::GroupedIndicatorExporter < Exporters::IndicatorExporter
   def write_week_header(start_index, group)
     translated_group = translate_group(group)
     if subitems_size == 1
-      worksheet.write(current_row, start_index, translated_group, formats[:bold_blue])
+      worksheet.write_string(current_row, start_index, translated_group, formats[:bold_blue])
     else
       worksheet.merge_range(
         current_row, start_index,
         current_row, start_index + subitems_size - 1,
-        translated_group, formats[:bold_blue_align]
+        translated_group, formats[:string_bold_blue_align]
       )
     end
   end
 
   def write_year_header(start_index, year)
     if subitems_size == 1
-      worksheet.write(current_row, start_index, year, formats[:bold_blue])
+      worksheet.write_number(current_row, start_index, year, formats[:bold_blue])
     else
       worksheet.merge_range(
         current_row, start_index,
@@ -168,7 +180,7 @@ class Exporters::GroupedIndicatorExporter < Exporters::IndicatorExporter
       translated_group = translate_group(group)
       group_header_label = header_include_year? ? "#{parent_group}-#{translated_group}" : translated_group
       if subitems_size == 1
-        worksheet.write(current_row, start_index + group_index, group_header_label, formats[:bold_blue])
+        worksheet.write_string(current_row, start_index + group_index, group_header_label, formats[:bold_blue])
       else
         write_group_subcolumn_header(start_index, group_index, group_header_label)
       end
@@ -179,7 +191,7 @@ class Exporters::GroupedIndicatorExporter < Exporters::IndicatorExporter
     worksheet.merge_range(
       current_row, calculate_position(start_index, group_index * subitems_size),
       current_row, calculate_position(start_index, ((group_index + 1) * subitems_size) - 1),
-      group_header_label, formats[:bold_blue]
+      group_header_label, formats[:string_bold_blue]
     )
   end
 
@@ -212,6 +224,8 @@ class Exporters::GroupedIndicatorExporter < Exporters::IndicatorExporter
 
   def write_columns_data(group_data, initial_index, group_index)
     indicator_options.each_with_index do |option, option_index|
+      next if option['separator'] == true
+
       cell_format = option == indicator_options.last ? formats[:blue_bottom_border] : formats[:black]
       write_column_data(
         {
@@ -226,7 +240,7 @@ class Exporters::GroupedIndicatorExporter < Exporters::IndicatorExporter
     if subcolumn_options.present?
       write_indicators_subcolumns_data(params)
     else
-      worksheet.write(
+      worksheet.write_number(
         current_row + params[:option_index],
         params[:initial_index] + params[:group_index],
         grouped_subcolumn_total(params[:group_data], params[:option]),
@@ -237,7 +251,7 @@ class Exporters::GroupedIndicatorExporter < Exporters::IndicatorExporter
 
   def write_indicators_subcolumns_data(params)
     subcolumn_options.each_with_index do |subcolumn, subcolumn_index|
-      worksheet.write(
+      worksheet.write_number(
         grouped_subcolumn_row(params[:option_index]),
         grouped_subcolumn_column(params[:initial_index], params[:group_index], subcolumn_index),
         grouped_subcolumn_value(params[:group_data], params[:option], subcolumn),
@@ -272,8 +286,8 @@ class Exporters::GroupedIndicatorExporter < Exporters::IndicatorExporter
       start_index = start_index_header(parent_group, parent_group_index)
 
       indicators_subcolums_per_group(parent_group).each_with_index do |subcolumn, subcolumn_index|
-        worksheet.write(current_row, calculate_position(start_index, subcolumn_index),
-                        build_label(subcolumn), formats[:bold_blue])
+        worksheet.write_string(current_row, calculate_position(start_index, subcolumn_index),
+                               build_label(subcolumn), formats[:bold_blue])
       end
     end
 
@@ -284,31 +298,6 @@ class Exporters::GroupedIndicatorExporter < Exporters::IndicatorExporter
     return GROUPED_CHART_WIDTH if columns_number < 3
 
     GROUPED_CHART_WIDTH + (columns_number * EXCEL_COLUMN_WIDTH)
-  end
-
-  def build_series
-    colors = Exporters::ManagedReportExporter::CHART_COLORS.values
-    options_size = subcolumn_options.present? ? indicator_options.size + 1 : indicator_options.size
-    header_row = current_row - options_size
-    categories_row = header_row - 1
-    if subcolumn_options.present?
-      subcolumn_options_to_series(colors, categories_row, header_row)
-    else
-      options_to_series(colors, categories_row, header_row)
-    end
-  end
-
-  def subcolumn_options_to_series(colors, categories_row, header_row)
-    indicator_options.map.with_index do |option, option_index|
-      series_data = generate_series_data(categories_row, header_row, option_index)
-      {
-        name: option['display_text'],
-        fill: { color: colors.at(option_index) },
-        categories: series_categories(series_data),
-        values: series_values(series_data),
-        points: [{ fill: { color: colors.at(option_index) } }]
-      }
-    end
   end
 
   def generate_series_data(categories_row, header_row, option_index)
@@ -325,55 +314,11 @@ class Exporters::GroupedIndicatorExporter < Exporters::IndicatorExporter
     grouped_by_year? ? parent_groups : groups.values.flatten
   end
 
-  def series_categories(series_data)
-    categories = series_data[:categories].map do |category|
-      "#{quote_sheetname(worksheet.name)}!#{xl_range(*category)}"
-    end.join(',')
-    return "=(#{categories})" unless series_data[:categories].size == 1
-
-    categories
-  end
-
-  def series_values(series_data)
-    values = series_data[:values].map do |value|
-      "#{quote_sheetname(worksheet.name)}!#{xl_range(*value)}"
-    end.join(',')
-
-    return "=(#{values})" unless series_data[:values].size == 1
-
-    values
-  end
-
-  def options_to_series(colors, categories_row, header_row)
-    indicator_options.each_with_index.map do |option, index|
-      row_value = serie_row_value(header_row, index)
-      end_column = serie_end_column(index)
-      {
-        name: option['display_text'], fill: { color: colors.at(index) },
-        categories: [worksheet.name, categories_row, categories_row, 1, end_column],
-        values: [worksheet.name, row_value, row_value, serie_start_column, end_column],
-        points: [{ fill: { color: colors.at(index) } }]
-      }
-    end
-  end
-
-  def serie_start_column
-    subcolumn_options.present? ? subcolumn_options.size : 1
-  end
-
-  def serie_end_column(index)
-    end_column = subcolumn_options.present? ? subcolumn_options.size : columns_number
-    subcolumn_options.present? ? subcolumn_options.size * (index + 1) : end_column
-  end
-
-  def serie_row_value(header_row, index)
-    row_value = header_row + index
-    row_value += 1 if subcolumn_options.present?
-    row_value
-  end
-
   def grouped_subcolumn_total(group_data, option)
-    group_data.find { |elem| elem['id'] == option['id'] }&.dig('total') || 0
+    total = group_data.find { |elem| elem['id'] == option['id'] }&.dig('total')
+    return total['count'] if total.is_a?(Hash)
+
+    total || 0
   end
 
   def grouped_subcolumn_value(group_data, option, subcolumn)

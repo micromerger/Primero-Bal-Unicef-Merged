@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ManagedReports::Indicators::IncidentTimeofday do
@@ -103,23 +101,23 @@ describe ManagedReports::Indicators::IncidentTimeofday do
 
     Incident.new_with_user(
       @self_user,
-      { incident_date: Date.new(2020, 8, 12), incident_timeofday: 'morning' }
+      { incident_date: Date.new(2020, 8, 12), incident_timeofday: 'morning', consent_reporting: 'true' }
     ).save!
     Incident.new_with_user(
       @group_user,
-      { incident_date: Date.new(2021, 9, 8), incident_timeofday: 'afternoon' }
+      { incident_date: Date.new(2021, 9, 8), incident_timeofday: 'afternoon', consent_reporting: 'true' }
     ).save!
     Incident.new_with_user(
       @agency_user,
-      { incident_date: Date.new(2021, 9, 10), incident_timeofday: 'evening_night' }
+      { incident_date: Date.new(2021, 9, 10), incident_timeofday: 'evening_night', consent_reporting: 'true' }
     ).save!
     Incident.new_with_user(
       @all_user,
-      { incident_date: Date.new(2020, 9, 12), incident_timeofday: 'afternoon' }
+      { incident_date: Date.new(2020, 9, 12), incident_timeofday: 'afternoon', consent_reporting: 'true' }
     ).save!
     Incident.new_with_user(
       @all_user,
-      { incident_date: Date.new(2022, 10, 8), incident_timeofday: 'unknown' }
+      { incident_date: Date.new(2022, 10, 8), incident_timeofday: 'unknown', consent_reporting: 'true' }
     ).save!
   end
 
@@ -193,8 +191,8 @@ describe ManagedReports::Indicators::IncidentTimeofday do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'year'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2022-10-10'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2022-10-10')
             )
           }
         ).data
@@ -220,8 +218,8 @@ describe ManagedReports::Indicators::IncidentTimeofday do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'month'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2022-10-10'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2022-10-10')
             )
           }
         ).data
@@ -256,8 +254,8 @@ describe ManagedReports::Indicators::IncidentTimeofday do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2022-10-10'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2022-10-10')
             )
           }
         ).data

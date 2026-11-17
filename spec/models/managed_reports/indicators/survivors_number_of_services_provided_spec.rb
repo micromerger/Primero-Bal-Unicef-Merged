@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ManagedReports::Indicators::SurvivorsNumberOfServicesProvided do
@@ -105,46 +103,31 @@ describe ManagedReports::Indicators::SurvivorsNumberOfServicesProvided do
       @self_user,
       incident_date: Date.new(2021, 2, 12),
       service_safehouse_referral: 'service_provided_by_your_agency',
-      health_medical_referral_subform_section:
-        [
-          { unique_id: '001', service_medical_referral: 'service_provided_by_your_agency' },
-          { unique_id: '002', service_medical_referral: 'service_provided_by_your_agency' }
-        ]
+      consent_reporting: 'true',
+      service_medical_referral: 'service_provided_by_your_agency'
     ).save!
     Incident.new_with_user(
       @group_user,
       incident_date: Date.new(2021, 1, 8),
       service_safehouse_referral: 'service_provided_by_your_agency',
-      psychosocial_counseling_services_subform_section:
-        [
-          { unique_id: '001', service_psycho_referral: 'service_provided_by_your_agency' }
-        ]
+      consent_reporting: 'true',
+      service_psycho_referral: 'service_provided_by_your_agency'
     ).save!
     Incident.new_with_user(
       @agency_user,
       incident_date: Date.new(2020, 10, 10),
       service_safehouse_referral: 'service_provided_by_your_agency',
-      legal_assistance_services_subform_section:
-        [
-          { unique_id: '001', service_legal_referral: 'service_provided_by_your_agency' }
-        ]
+      consent_reporting: 'true',
+      service_legal_referral: 'service_provided_by_your_agency'
     ).save!
     Incident.new_with_user(
       @all_user,
       incident_date: Date.new(2020, 10, 10),
       service_safehouse_referral: 'service_provided_by_your_agency',
-      police_or_other_type_of_security_services_subform_section:
-        [
-          { unique_id: '001', service_police_referral: 'service_provided_by_your_agency' }
-        ],
-      livelihoods_services_subform_section:
-        [
-          { unique_id: '001', service_livelihoods_referral: 'service_provided_by_your_agency' }
-        ],
-      child_protection_services_subform_section:
-        [
-          { unique_id: '001', service_protection_referral: 'service_provided_by_your_agency' }
-        ]
+      consent_reporting: 'true',
+      service_police_referral: 'service_provided_by_your_agency',
+      service_livelihoods_referral: 'service_provided_by_your_agency',
+      service_protection_referral: 'service_provided_by_your_agency'
     ).save!
   end
 
@@ -153,7 +136,7 @@ describe ManagedReports::Indicators::SurvivorsNumberOfServicesProvided do
 
     expect(data).to match_array(
       [
-        { 'id' => 'service_medical_referral', 'total' => 2 },
+        { 'id' => 'service_medical_referral', 'total' => 1 },
         { 'id' => 'service_legal_referral', 'total' => 1 },
         { 'id' => 'service_livelihoods_referral', 'total' => 1 },
         { 'id' => 'service_police_referral', 'total' => 1 },
@@ -164,13 +147,44 @@ describe ManagedReports::Indicators::SurvivorsNumberOfServicesProvided do
     )
   end
 
+  describe 'when legacy service data is stored in subforms' do
+    before do
+      Incident.new_with_user(
+        @self_user,
+        incident_date: Date.new(2021, 2, 12),
+        consent_reporting: 'true',
+        health_medical_referral_subform_section:
+          [
+            { unique_id: '001', service_medical_referral: 'service_provided_by_your_agency' },
+            { unique_id: '002', service_medical_referral: 'service_provided_by_your_agency' }
+          ]
+      ).save!
+    end
+
+    it 'ignores subform values and only counts the top-level fields' do
+      data = ManagedReports::Indicators::SurvivorsNumberOfServicesProvided.build.data
+
+      expect(data).to match_array(
+        [
+          { 'id' => 'service_medical_referral', 'total' => 1 },
+          { 'id' => 'service_legal_referral', 'total' => 1 },
+          { 'id' => 'service_livelihoods_referral', 'total' => 1 },
+          { 'id' => 'service_police_referral', 'total' => 1 },
+          { 'id' => 'service_protection_referral', 'total' => 1 },
+          { 'id' => 'service_psycho_referral', 'total' => 1 },
+          { 'id' => 'service_safehouse_referral', 'total' => 4 }
+        ]
+      )
+    end
+  end
+
   describe 'records in scope' do
     it 'returns owned records for a self scope' do
       data = ManagedReports::Indicators::SurvivorsNumberOfServicesProvided.build(@self_user).data
 
       expect(data).to match_array(
         [
-          { 'id' => 'service_medical_referral', 'total' => 2 },
+          { 'id' => 'service_medical_referral', 'total' => 1 },
           { 'id' => 'service_legal_referral', 'total' => 0 },
           { 'id' => 'service_livelihoods_referral', 'total' => 0 },
           { 'id' => 'service_police_referral', 'total' => 0 },
@@ -218,7 +232,7 @@ describe ManagedReports::Indicators::SurvivorsNumberOfServicesProvided do
 
       expect(data).to match_array(
         [
-          { 'id' => 'service_medical_referral', 'total' => 2 },
+          { 'id' => 'service_medical_referral', 'total' => 1 },
           { 'id' => 'service_legal_referral', 'total' => 1 },
           { 'id' => 'service_livelihoods_referral', 'total' => 1 },
           { 'id' => 'service_police_referral', 'total' => 1 },
@@ -239,8 +253,8 @@ describe ManagedReports::Indicators::SurvivorsNumberOfServicesProvided do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'year'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2022-10-10'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2022-10-10')
             )
           }
         ).data
@@ -262,7 +276,7 @@ describe ManagedReports::Indicators::SurvivorsNumberOfServicesProvided do
               group_id: 2021,
               data:
                 [
-                  { 'id' => 'service_medical_referral', 'total' => 2 },
+                  { 'id' => 'service_medical_referral', 'total' => 1 },
                   { 'id' => 'service_psycho_referral', 'total' => 1 },
                   { 'id' => 'service_safehouse_referral', 'total' => 2 }
                 ]
@@ -281,8 +295,8 @@ describe ManagedReports::Indicators::SurvivorsNumberOfServicesProvided do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'month'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2021-03-31'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2021-03-31')
             )
           }
         ).data
@@ -314,7 +328,7 @@ describe ManagedReports::Indicators::SurvivorsNumberOfServicesProvided do
             {
               group_id: '2021-02',
               data: [
-                { 'id' => 'service_medical_referral', 'total' => 2 },
+                { 'id' => 'service_medical_referral', 'total' => 1 },
                 { 'id' => 'service_safehouse_referral', 'total' => 1 }
               ]
             },
@@ -332,8 +346,8 @@ describe ManagedReports::Indicators::SurvivorsNumberOfServicesProvided do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2021-03-31'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2021-03-31')
             )
           }
         ).data
@@ -356,7 +370,7 @@ describe ManagedReports::Indicators::SurvivorsNumberOfServicesProvided do
               group_id: '2021-Q1',
               data:
                 [
-                  { 'id' => 'service_medical_referral', 'total' => 2 },
+                  { 'id' => 'service_medical_referral', 'total' => 1 },
                   { 'id' => 'service_psycho_referral', 'total' => 1 },
                   { 'id' => 'service_safehouse_referral', 'total' => 2 }
                 ]

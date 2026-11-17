@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Describes records that can have flags applied to them.
 module Flaggable
   extend ActiveSupport::Concern
@@ -19,6 +17,7 @@ module Flaggable
     date_flag = date.presence || Date.today
     flag = Flag.new(flagged_by: user_name, message:, date: date_flag, created_at: DateTime.now)
     flags << flag
+
     flag
   end
 
@@ -27,20 +26,23 @@ module Flaggable
     save! && flag
   end
 
-  def remove_flag(id, user_name, unflag_message)
-    flag = flags.find_by(id:)
-    return unless flag.present?
+  def update_flag(id, user_name, params)
+    flag = flags.find(id)
 
-    flag.unflag_message = unflag_message
-    flag.unflagged_date = Date.today
-    flag.unflagged_by = user_name
-    flag.removed = true
-    flag.save!
+    if params[:unflag_message].present?
+      flag.mark_removed(user_name, params[:unflag_message])
+    else
+      flag.updated_by = user_name
+      flag.assign_attributes(params)
+    end
+
     flag
   end
 
-  def remove_flag!(id, user_name, unflag_message)
-    flag = remove_flag(id, user_name, unflag_message)
+  def update_flag!(id, user_name, params)
+    flag = update_flag(id, user_name, params)
+    flag.save!
+
     save! && flag
   end
 

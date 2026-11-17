@@ -1,16 +1,15 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe RecordActionWebpushNotifier do
   before(:each) do
     clean_data(
       Alert, FormSection, PrimeroModule, PrimeroProgram, UserGroup,
-      WebpushSubscription, User, Agency, Role, Child, Transition
+      WebpushSubscription, UserGroup, User, Agency, Role, Child, Transition
     )
     Rails.configuration.x.webpush.enabled = true
+    allow(ENV).to receive(:fetch).and_call_original
     allow(ENV).to receive(:fetch).with('PRIMERO_MESSAGE_SECRET').and_return('aVnNTxSI1EZmiG1dW6Z_I9fbQCbZB3Po')
     SystemSettings.stub(:current).and_return(
       SystemSettings.new(
@@ -43,11 +42,11 @@ describe RecordActionWebpushNotifier do
   end
 
   let(:role) do
-    create(:role, is_manager: true, modules: [primero_module])
+    create(:role, is_manager: true, primero_modules: [primero_module])
   end
 
   let(:role2) do
-    create(:role, is_manager: true, modules: [primero_module], group_permission: Permission::ALL)
+    create(:role, is_manager: true, primero_modules: [primero_module], group_permission: Permission::ALL)
   end
 
   let(:user) do
@@ -62,8 +61,14 @@ describe RecordActionWebpushNotifier do
                   email: 'user2@primero.dev', receive_webpush: true, settings: notification_settings)
   end
 
+  let(:user_group) do
+    UserGroup.create!(unique_id: 'shared-group')
+  end
+
   let(:manager1) do
-    create(:user, role:, email: 'manager1@primero.dev', send_mail: false, user_name: 'manager1')
+    create(
+      :user, role:, email: 'manager1@primero.dev', send_mail: false, user_name: 'manager1', user_groups: [user_group]
+    )
   end
 
   let(:manager2) do
@@ -75,7 +80,8 @@ describe RecordActionWebpushNotifier do
       user_name: 'manager2',
       receive_webpush: true,
       locale: 'en',
-      settings: notification_settings
+      settings: notification_settings,
+      user_groups: [user_group]
     )
   end
 

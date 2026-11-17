@@ -1,50 +1,67 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ManagedReports::Indicators::IndividualViolationType do
   before do
     clean_data(Incident, Violation, IndividualVictim)
 
-    incident = Incident.create!(data: { incident_date: Date.new(2021, 5, 23),
-                                        date_of_first_report: Date.new(2021, 5, 13),
-                                        status: 'open' })
+    incident = Incident.create!(
+      data: {
+        incident_date: Date.new(2021, 5, 23),
+        date_of_first_report: Date.new(2021, 5, 13),
+        status: 'open'
+      }
+    )
+
+    incident2 = Incident.create!(
+      data: {
+        incident_date: Date.new(2021, 5, 28),
+        date_of_first_report: Date.new(2021, 5, 18),
+        status: 'closed'
+      }
+    )
 
     violation1 = Violation.create!(
-      data: { type: 'killing', ctfmr_verified: 'verified',
-              violation_tally: { 'boys': 2, 'girls': 0, 'unknown': 2, 'total': 4 },
-              ctfmr_verified_date: Date.new(2021, 5, 13) },
+      data: {
+        type: 'killing', ctfmr_verified: 'verified', ctfmr_verified_date: Date.new(2021, 5, 13),
+        violation_tally: { 'boys' => 2, 'girls' => 0, 'unknown' => 2, 'total' => 4 }
+      },
       incident_id: incident.id
     )
 
     violation1.individual_victims = [
-      IndividualVictim.create!(
-        data: {
-          individual_age: 9
-        }
-      ),
-
-      IndividualVictim.create!(
-        data: {
-          individual_age: 2
-        }
-      )
+      IndividualVictim.create!(data: { individual_age: 9 }),
+      IndividualVictim.create!(data: { individual_age: 2 })
     ]
 
     violation2 = Violation.create!(
-      data: { type: 'attack_on_schools', violation_tally: { 'boys': 2, 'girls': 0, 'unknown': 2, 'total': 4 } },
+      data: { type: 'attack_on_schools', violation_tally: { 'boys' => 2, 'girls' => 0, 'unknown' => 2, 'total' => 4 } },
       incident_id: incident.id
     )
 
     violation2.individual_victims = [
-      IndividualVictim.create!(
-        data: {
-          individual_age: 10,
-          individual_sex: 'unknown'
-        }
-      )
+      IndividualVictim.create!(data: { individual_age: 10, individual_sex: 'unknown' })
+    ]
+
+    violation3 = Violation.create!(
+      data: { type: 'attack_on_schools', violation_tally: { 'boys' => 2, 'girls' => 1, 'unknown' => 2, 'total' => 5 } },
+      incident_id: incident2.id
+    )
+
+    violation3.individual_victims = [
+      IndividualVictim.create!(data: { individual_age: 8, individual_sex: 'unknown' })
+    ]
+
+    violation4 = Violation.create!(
+      data: {
+        type: 'deprivation_liberty', violation_tally: { 'boys' => 2, 'girls' => 0, 'unknown' => 1, 'total' => 3 }
+      },
+      incident_id: incident.id
+    )
+
+    violation4.individual_victims = [
+      IndividualVictim.create!(data: { individual_age: 7, individual_sex: 'unknown' })
     ]
   end
 
@@ -55,8 +72,8 @@ describe ManagedReports::Indicators::IndividualViolationType do
         'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
         'incident_date' => SearchFilters::DateRange.new(
           field_name: 'incident_date',
-          from: '2021-04-01',
-          to: '2022-06-10'
+          from: Date.parse('2021-04-01'),
+          to: Date.parse('2022-06-10')
         )
       }
     ).data
@@ -78,8 +95,8 @@ describe ManagedReports::Indicators::IndividualViolationType do
           'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
           'date_of_first_report' => SearchFilters::DateRange.new(
             field_name: 'date_of_first_report',
-            from: '2021-04-01',
-            to: '2022-06-10'
+            from: Date.parse('2021-04-01'),
+            to: Date.parse('2022-06-10')
           )
         }
       ).data
@@ -102,8 +119,8 @@ describe ManagedReports::Indicators::IndividualViolationType do
           'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
           'ctfmr_verified_date' => SearchFilters::DateRange.new(
             field_name: 'ctfmr_verified_date',
-            from: '2021-04-01',
-            to: '2022-06-10'
+            from: Date.parse('2021-04-01'),
+            to: Date.parse('2022-06-10')
           )
         }
       ).data

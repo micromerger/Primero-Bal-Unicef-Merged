@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe Api::V2::FlagsOwnersController, type: :request do
@@ -14,7 +12,7 @@ describe Api::V2::FlagsOwnersController, type: :request do
     @primero_module.save(validate: false)
     permission_case = Permission.new(resource: Permission::CASE, actions: [Permission::READ, Permission::WRITE])
     permission_read_flags = Permission.new(resource: Permission::DASHBOARD, actions: [Permission::DASH_FLAGS])
-    @role = Role.new(permissions: [permission_case, permission_read_flags], modules: [@primero_module])
+    @role = Role.new(permissions: [permission_case, permission_read_flags], primero_modules: [@primero_module])
     @role.save(validate: false)
     @group1 = UserGroup.create!(name: 'Group1')
     @agency1 = Agency.create!(name: 'Agency One', agency_code: 'agency1')
@@ -54,7 +52,7 @@ describe Api::V2::FlagsOwnersController, type: :request do
     @case1.add_flag('This is a flag', Date.today, 'faketest')
     @case3.add_flag('This is a flag', Date.today - 1.days, 'faketest')
     @flag_to_remove = @case1.add_flag('This is test flag 3', Date.today - 2.days, 'faketest')
-    @case1.remove_flag(@flag_to_remove.id, 'faketest', 'Resolved Flag')
+    @case1.update_flag(@flag_to_remove.id, 'faketest', { unflag_message: 'Resolved Flag' }).save!
     @tracing_request1.add_flag('This is a flag TR', Date.today, 'faketest')
     @incident1.add_flag('This is a flag IN', Date.today, 'faketest')
     @incident2.add_flag('This is a flag IN', Date.today, 'faketest')

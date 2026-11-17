@@ -1,13 +1,11 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Service to handle deletion of data for a specific model and its associations
 # rubocop:disable Metrics/ClassLength
 class ModelDeletionService < ValueObject
   UUID_REFERENCED_MODELS = [
-    Alert, Attachment, Trace, Violation, SearchableIdentifier, SearchableValue,
-    SearchableDatetime, SearchableNumeric, SearchableBoolean
+    Alert, Attachment, Signature, Trace, Violation, SearchableIdentifier, SearchableValue,
+    SearchableDatetime, SearchableNumeric, SearchableBoolean, RegistryAssociation
   ].freeze
 
   attr_accessor :model_class

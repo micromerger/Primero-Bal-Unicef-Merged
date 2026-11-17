@@ -1,4 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
 import { mapEntriesToRecord } from "../../../libs";
 import { FieldRecord } from "../../record-form/records";
 
@@ -70,6 +69,34 @@ describe("<IndexFilters>/utils - transformFieldTooltips", () => {
           display_name: {
             en: "Short ID GBV",
             es: "ID Corto GBV"
+          },
+          required: true,
+          module_ids: ["primeromodule-gbv"],
+          parent_form: "case"
+        },
+        6: {
+          name: "disabled_field",
+          type: "text_field",
+          editable: true,
+          disabled: true,
+          visible: false,
+          display_name: {
+            en: "Disabled Field",
+            es: "Campo deshabilitado"
+          },
+          required: true,
+          module_ids: ["primeromodule-gbv"],
+          parent_form: "case"
+        },
+        7: {
+          name: "hidden_field",
+          type: "text_field",
+          editable: true,
+          disabled: false,
+          visible: false,
+          display_name: {
+            en: "Hidden Field",
+            es: "Campo oculto"
           },
           required: true,
           module_ids: ["primeromodule-gbv"],

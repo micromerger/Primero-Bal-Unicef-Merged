@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 export const NAME = "RecordOwner";
 
 export const FIELDS = [
@@ -31,7 +29,7 @@ export const FIELDS = [
   {
     // TODO: When the endpoint for user is ready, change the type to select_box and add option_strings_source: "User"
     name: "assigned_user_names",
-    type: "text_field",
+    type: "textarea",
     visible: true
   },
   {
@@ -75,6 +73,11 @@ export const FIELDS = [
   },
   {
     name: "last_updated_by",
+    type: "text_field",
+    visible: true
+  },
+  {
+    name: "identified_by",
     type: "text_field",
     visible: true
   }

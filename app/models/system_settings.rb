@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # This model encapsulates system-wide configuration settings.
 # These are selected at system bootstrap time,
 # and will not be configured by the system administrator.
@@ -15,26 +13,52 @@ class SystemSettings < ApplicationRecord
 
   TIMEFRAME_HOURS_TO_ASSIGN = 3
   TIMEFRAME_HOURS_TO_ASSIGN_HIGH = 1
+  DAYS_SINCE_REFERRAL_STATUS_CHANGED = 14
+  DEFAULT_REGISTRY_FIELD_NAMES = %w[registry_id_display name].freeze
+  DEFAULT_REGISTRY_FIELD_OPTIONS = {
+    collapsed_field_names: DEFAULT_REGISTRY_FIELD_NAMES,
+    preview_field_names: DEFAULT_REGISTRY_FIELD_NAMES,
+    searchable_field_names: DEFAULT_REGISTRY_FIELD_NAMES
+  }.with_indifferent_access.freeze
+  DEFAULT_REGISTRY_OPTIONS = {
+    RegistryRecord::REGISTRY_TYPE_FARMER => DEFAULT_REGISTRY_FIELD_OPTIONS,
+    RegistryRecord::REGISTRY_TYPE_COMMITTEE => DEFAULT_REGISTRY_FIELD_OPTIONS,
+    RegistryRecord::REGISTRY_TYPE_FOSTER_CARE => DEFAULT_REGISTRY_FIELD_OPTIONS,
+    RegistryRecord::REGISTRY_TYPE_PROVIDER => DEFAULT_REGISTRY_FIELD_OPTIONS
+  }.with_indifferent_access.freeze
 
   store_accessor(:system_options, :due_date_from_appointment_date,
                  :show_alerts, :code_of_conduct_enabled, :timeframe_hours_to_assign,
                  :timeframe_hours_to_assign_high, :duplicate_field_to_form,
                  :maximum_users, :maximum_users_warning, :maximum_attachments_per_record,
-                 :primero_promote_config, :field_labels_i18n)
+                 :primero_promote_config, :exclude_user_groups_from_configuration,
+                 :field_labels_i18n, :maximum_attachments_space,
+                 :maximum_attachments_space_warning, :registration_streams,
+                 :registration_streams_link_labels_i18n, :registration_streams_consent_text_i18n,
+                 :reporting_location_i18n, :days_since_referral_status_changed,
+                 :phone_formats, :default_phone_format, :registration_streams_thankyou_message_i18n,
+                 :registration_streams_title_i18n, :public_locations_file)
 
-  localize_properties %i[welcome_email_text approvals_labels field_labels]
-  localize_jsonb_properties %i[field_labels]
+  localize_properties %i[welcome_email_text approvals_labels field_labels registration_streams_link_labels
+                         registration_streams_consent_text]
+  localize_jsonb_properties %i[field_labels registration_streams_link_labels
+                               registration_streams_title registration_streams_thankyou_message
+                               registration_streams_consent_text registration_streams_title]
 
   has_one_attached :location_file
+  has_one_attached :unused_fields_report_file
 
   validate :validate_reporting_location,
            if: ->(system_setting) { system_setting.reporting_location_config.present? }
-
-  after_initialize :set_version
-  before_save :set_version
   validate :validate_maximum_users
   validate :validate_maximum_users_warning
   validate :validate_maximum_users_values, if: :maximum_users_fields_present?
+  validate :validate_maximum_attachments_space
+  validate :validate_maximum_attachments_space_warning
+  validate :validate_maximum_attachments_space_values, if: :maximum_attachments_space_fields_present?
+
+  after_initialize :set_version
+  before_save :set_version
 
   def name
     I18n.t('system_settings.label')
@@ -46,8 +70,16 @@ class SystemSettings < ApplicationRecord
     system_name || Rails.application.routes.default_url_options[:host]
   end
 
+  def registry_options
+    super.presence || DEFAULT_REGISTRY_OPTIONS
+  end
+
   def registry_types
-    system_options&.[]('registry_types')
+    registry_options.keys
+  end
+
+  def registry_type_default
+    super.presence || RegistryRecord::REGISTRY_TYPE_PROVIDER
   end
 
   def set_version
@@ -128,6 +160,10 @@ class SystemSettings < ApplicationRecord
     super || TIMEFRAME_HOURS_TO_ASSIGN_HIGH
   end
 
+  def days_since_referral_status_changed
+    super || DAYS_SINCE_REFERRAL_STATUS_CHANGED
+  end
+
   def validate_maximum_users
     return if maximum_users.blank? || (maximum_users.is_a?(Integer) && maximum_users.positive?)
 
@@ -155,12 +191,58 @@ class SystemSettings < ApplicationRecord
     super || Attachment::DEFAULT_MAX_ATTACHMENTS
   end
 
+  def validate_maximum_attachments_space
+    if maximum_attachments_space.blank? || (
+      maximum_attachments_space.is_a?(Integer) && maximum_attachments_space.positive?)
+      return
+    end
+
+    errors.add(:maximum_attachments_space, 'errors.models.system_setting.allocated_space_integer')
+  end
+
+  def validate_maximum_attachments_space_warning
+    if maximum_attachments_space_warning.blank? || (
+        maximum_attachments_space_warning.is_a?(Integer) && maximum_attachments_space_warning.positive?)
+      return
+    end
+
+    errors.add(:maximum_attachments_space_warning, 'errors.models.system_setting.allocated_space_integer')
+  end
+
+  def validate_maximum_attachments_space_values
+    return if maximum_attachments_space >= maximum_attachments_space_warning
+
+    errors.add(:base, 'errors.models.system_setting.allocated_space_warning_greater_than_hard_limit')
+  end
+
+  def maximum_attachments_space_fields_present?
+    maximum_attachments_space.present? && maximum_attachments_space_warning.present? &&
+      maximum_attachments_space.is_a?(Integer) && maximum_attachments_space_warning.is_a?(Integer)
+  end
+
   def primero_promote_config
     super || []
   end
 
   def create_case_from_referral?
     Role.create_case_from_referral?
+  end
+
+  def total_attachment_file_size
+    Rails.cache.fetch('total_attachment_file_size', expires_in: 30.minutes) do
+      Attachment.joins(file_attachment: :blob).sum('active_storage_blobs.byte_size').to_i
+    end
+  end
+
+  def total_attachment_file_size_per_user
+    user_count = User.standard.count.to_f
+    user_count = 1.0 unless user_count.positive?
+
+    (total_attachment_file_size / user_count).to_i
+  end
+
+  def registration_streams
+    system_options['registration_streams']&.map { |rs| RegistrationStream.new(rs) } || []
   end
 
   class << self
@@ -172,6 +254,15 @@ class SystemSettings < ApplicationRecord
 
     def reset
       @current = nil
+    end
+
+    def find_registration_stream_by_id(id)
+      current&.registration_streams&.find { |rs| rs.unique_id == id }
+    end
+
+    def registration_stream_forms(id)
+      sys = SystemSettings.current
+      sys&.registration_streams&.find { |rs| rs.unique_id == id }&.permitted_forms
     end
 
     def locked_for_configuration_update?
@@ -190,6 +281,18 @@ class SystemSettings < ApplicationRecord
       sys = SystemSettings.current
       selected_primary_range = primary_range || sys&.primary_age_range
       sys&.age_ranges&.[](selected_primary_range) || AgeRange::DEFAULT_AGE_RANGES
+    end
+
+    def maximum_attachments_space
+      current&.maximum_attachments_space.to_i
+    end
+
+    def maximum_attachments_space_warning
+      current&.maximum_attachments_space_warning.to_i
+    end
+
+    def total_attachment_file_size
+      current.total_attachment_file_size.to_i
     end
   end
 end

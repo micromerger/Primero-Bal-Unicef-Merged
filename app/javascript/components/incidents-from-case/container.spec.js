@@ -1,9 +1,10 @@
-import { mountedComponent, screen } from "test-utils";
+import { mountedComponent, screen, within } from "test-utils";
 import { fromJS } from "immutable";
 
 import { RECORD_TYPES } from "../../config";
 import { FieldRecord } from "../record-form/records";
 import { mapEntriesToRecord } from "../../libs";
+import { PrimeroModuleRecord } from "../application/records";
 
 import IncidentFromCase from "./container";
 
@@ -104,6 +105,42 @@ describe("<IncidentFromCase /> - Component", () => {
 
   it("render a ActionButton", () => {
     expect(screen.getByText("buttons.new")).toBeInTheDocument();
+  });
+
+  describe("when the current user has a pending referral", () => {
+    const pendingProps = { ...props, record: props.record.set("referred_users_pending", fromJS(["user_1"])) };
+    const pendingState = initialState.setIn(["user", "username"], "user_1");
+
+    const mountPending = () => {
+      mountedComponent(<IncidentFromCase {...pendingProps} />, pendingState);
+
+      return within(screen.getAllByTestId("incident-from-case").at(-1)).getByRole("button", { name: /buttons.new/ });
+    };
+
+    it("disables the new incident button", () => {
+      expect(mountPending()).toBeDisabled();
+    });
+
+    it("labels the new incident button with the referral restriction tooltip", () => {
+      expect(mountPending().parentElement).toHaveAttribute("aria-label", "referral.pending_restriction");
+    });
+  });
+
+  it("renders the overridden incidents label in the header", () => {
+    const stateWithFieldLabels = initialState.setIn(["user", "modules"], fromJS(["primeromodule-gbv"])).setIn(
+      ["application", "modules"],
+      fromJS([
+        PrimeroModuleRecord({
+          unique_id: "primeromodule-gbv",
+          name: "GBV",
+          field_labels: { "incidents.label": { en: "Monitoring Reports" } }
+        })
+      ])
+    );
+
+    mountedComponent(<IncidentFromCase {...props} />, stateWithFieldLabels);
+
+    expect(screen.getByText("Monitoring Reports")).toBeInTheDocument();
   });
 
   it("should render the alerts", () => {

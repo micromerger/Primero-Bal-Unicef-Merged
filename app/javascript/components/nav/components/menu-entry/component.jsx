@@ -1,31 +1,58 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { ListItem, ListItemText, ListItemIcon } from "@mui/material";
 import { NavLink } from "react-router-dom";
 import { isEqual } from "lodash";
 import { cx } from "@emotion/css";
+import { fromJS } from "immutable";
 
 import ListIcon from "../../../list-icon";
 import Jewel from "../../../jewel";
 import css from "../../styles.css";
 import DisableOffline from "../../../disable-offline";
-import { getPermissions } from "../../../user/selectors";
+import { getCurrentUserGroupPermission, getPermissions } from "../../../user/selectors";
 import { ConditionalWrapper, useMemoizedSelector } from "../../../../libs";
 import { useApp } from "../../../application";
 import { setDialog } from "../../../action-dialog";
 import { LOGOUT_DIALOG, NAV_SETTINGS } from "../../constants";
 import { ROUTES } from "../../../../config";
 import useSystemStrings, { NAVIGATION } from "../../../application/use-system-strings";
+import { getDefaultFilters, filtersToQueryString } from "../../../record-list/utils";
 
 function Component({ closeDrawer, menuEntry, mobileDisplay, jewelCount, username }) {
-  const { disabledApplication, online, useContainedNavStyle } = useApp();
+  const { disabledApplication, online, useContainedNavStyle, modules, userModules } = useApp();
 
   const dispatch = useDispatch();
   const { label } = useSystemStrings(NAVIGATION);
 
-  const { to, divider, icon, name, disableOffline, disabled, validateWithUserPermissions,validateWithUserPermissionscustom, resources } = menuEntry;
+  const {
+    to,
+    divider,
+    icon,
+    name,
+    disableOffline,
+    disabled,
+    validateWithUserPermissions,
+    validateWithUserPermissionscustom,
+    resources,
+    groupPermissions
+  } = menuEntry;
+
+  let linkTo = to;
+  const FILTERABLE_ROUTES = [
+    ROUTES.cases,
+    ROUTES.incidents,
+    ROUTES.tracing_requests,
+    ROUTES.registry_records,
+    ROUTES.families
+  ];
+
+  if (FILTERABLE_ROUTES.includes(to) && modules?.size > 1) {
+    const filters = getDefaultFilters({ queryParams: {}, metadata: fromJS({}), modules, userModules });
+    const queryString = filtersToQueryString(filters);
+
+    linkTo = `${to}?${queryString}`;
+  }
 
   const jewel = jewelCount ? (
     <Jewel
@@ -44,7 +71,7 @@ function Component({ closeDrawer, menuEntry, mobileDisplay, jewelCount, username
     ...(!disabledApplication &&
       !disabled && {
         component: NavLink,
-        to,
+        to: linkTo,
         activeClassName: cx(css.navActive, { [css.contained]: useContainedNavStyle }),
         onClick: closeDrawer,
         disabled: disabledApplication
@@ -58,6 +85,7 @@ function Component({ closeDrawer, menuEntry, mobileDisplay, jewelCount, username
   };
 
   const userPermissions = useMemoizedSelector(state => getPermissions(state), isEqual);
+  const userGroupPermission = useMemoizedSelector(state => getCurrentUserGroupPermission(state));
 
   const userRecordTypes = [...userPermissions.keys()];
   const navItemName = name === "username" ? username : label(name);
@@ -77,11 +105,16 @@ function Component({ closeDrawer, menuEntry, mobileDisplay, jewelCount, username
     </li>
   );
 
-  if (typeof validateWithUserPermissions !== "undefined") {
-    return validateWithUserPermissions &&
-      (userRecordTypes.includes(to.replace("/", "")) || userRecordTypes.includes(resources))
-      ? renderNavAction
-      : null;
+  if (
+    validateWithUserPermissions === true &&
+    !userRecordTypes.includes(to.replace("/", "")) &&
+    !userRecordTypes.includes(resources)
+  ) {
+    return null;
+  }
+
+  if (Array.isArray(groupPermissions) && !groupPermissions.includes(userGroupPermission)) {
+    return null;
   }
   if (validateWithUserPermissionscustom) {
   const resourceKey = resources || to.replace("/", "");

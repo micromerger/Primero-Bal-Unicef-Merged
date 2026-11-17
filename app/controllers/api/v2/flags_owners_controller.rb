@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # API to fetch the list of flags given a user
 class Api::V2::FlagsOwnersController < ApplicationApiController
   include Api::V2::Concerns::Pagination
@@ -16,7 +14,7 @@ class Api::V2::FlagsOwnersController < ApplicationApiController
   private
 
   def query_scope
-    current_user.record_query_scope(model_class, params[:id_search])
+    current_user.record_query_scope(model_class)
   end
 
   def record_types

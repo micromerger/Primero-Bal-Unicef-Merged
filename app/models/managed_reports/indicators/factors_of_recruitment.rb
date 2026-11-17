@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # An indicator that returns the factor of recruitment of violation type Recruitment
 class ManagedReports::Indicators::FactorsOfRecruitment < ManagedReports::SqlReportIndicator
   class << self
@@ -9,14 +7,15 @@ class ManagedReports::Indicators::FactorsOfRecruitment < ManagedReports::SqlRepo
       'factors_of_recruitment'
     end
 
-    # rubocop:disable Metrics/MethodLength
     # rubocop:disable Metrics/AbcSize
     # rubocop:disable Metrics/CyclomaticComplexity
     # rubocop:disable Metrics/PerceivedComplexity
     def sql(current_user, params = {})
-      %{
-        select name, json_object_agg(key, sum) as data
-        #{group_id_alias(params['grouped_by'])&.dup&.prepend(', ')}
+      <<~SQL
+        select
+          name,
+          json_object_agg(key, sum) as data
+          #{group_id_alias(params['grouped_by'])&.dup&.prepend(', ')}
         from (
           select
           jsonb_array_elements(CAST(violations."data" ->> 'factors_of_recruitment' as jsonb)) as name,
@@ -28,6 +27,8 @@ class ManagedReports::Indicators::FactorsOfRecruitment < ManagedReports::SqlRepo
           from violations violations
           inner join incidents incidents
             on incidents.id = violations.incident_id
+            AND incidents.srch_status = 'open'
+            AND incidents.srch_record_state = TRUE
             #{user_scope_query(current_user, 'incidents')&.prepend('and ')}
           cross join json_each_text((violations."data"->>'violation_tally')::JSON)
           where violations.data->>'violation_tally' is not null
@@ -37,15 +38,15 @@ class ManagedReports::Indicators::FactorsOfRecruitment < ManagedReports::SqlRepo
           #{date_range_query(params['ctfmr_verified_date'], 'violations')&.prepend('and ')}
           #{equal_value_query(params['ctfmr_verified'], 'violations')&.prepend('and ')}
           #{equal_value_query(params['type'], 'violations')&.prepend('and ')}
+          #{equal_value_query(params['has_late_verified_violations'], 'incidents')&.prepend('and ')}
           group by name, key
           #{group_id_alias(params['grouped_by'])&.dup&.prepend(', ')}
         ) as factors_data
         group by name
         #{group_id_alias(params['grouped_by'])&.dup&.prepend(', ')}
         order by name
-      }
+      SQL
     end
-    # rubocop:enable Metrics/MethodLength
     # rubocop:enable Metrics/AbcSize
     # rubocop:enable Metrics/CyclomaticComplexity
     # rubocop:enable Metrics/PerceivedComplexity

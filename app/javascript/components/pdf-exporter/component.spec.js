@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { createRef } from "react";
 import { fromJS } from "immutable";
 
@@ -96,5 +94,10 @@ describe("<PdfExporter />", () => {
     mountedFormComponent(<PdfExporter {...props} includeAllFormsWhenEmpty={false} />);
 
     expect(screen.queryByText(/Approved by Manager/i)).not.toBeInTheDocument();
+  });
+
+  it("does not fail when no forms are selected", () => {
+    mountedFormComponent(<PdfExporter {...props} includeAllFormsWhenEmpty={false} formsSelectedField="test" />);
+    expect(screen.getAllByText("exports.printed").at(0)).toBeInTheDocument();
   });
 });

@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import clone from "lodash/clone";
 
 import actions from "./actions";
@@ -17,6 +15,11 @@ describe("<RecordForm /> - Actions", () => {
       "FETCH_AGENCIES_STARTED",
       "FETCH_AGENCIES_SUCCESS",
       "FETCH_AGENCIES",
+      "FETCH_USERS_IDENTIFIED",
+      "FETCH_USERS_IDENTIFIED_STARTED",
+      "FETCH_USERS_IDENTIFIED_SUCCESS",
+      "FETCH_USERS_IDENTIFIED_FAILURE",
+      "FETCH_USERS_IDENTIFIED_FINISHED",
       "RECORD_FORMS_FAILURE",
       "RECORD_FORMS_FINISHED",
       "RECORD_FORMS_STARTED",

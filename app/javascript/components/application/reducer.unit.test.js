@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { Map, fromJS } from "immutable";
 
 import { GROUP_PERMISSIONS, ACTIONS } from "../permissions";
@@ -88,6 +86,7 @@ describe("Application - Reducers", () => {
         }
       ],
       defaultLocale: "en",
+      auditLog: undefined,
       baseLanguage: "en",
       primeroVersion: "2.0.0.1",
       reportingLocationConfig: {
@@ -96,6 +95,7 @@ describe("Application - Reducers", () => {
         admin_level_map: { 1: ["province"], 2: ["district"] },
         label_keys: ["district"]
       },
+      fieldLabels: {},
       incidentReportingLocationConfig: {
         admin_level: 2,
         field_key: "owned_by_location",
@@ -137,7 +137,8 @@ describe("Application - Reducers", () => {
       },
       codesOfConduct,
       systemOptions,
-      exportRequirePassword: true
+      exportRequirePassword: true,
+      termsOfUseAgencySign: true
     });
 
     const action = {
@@ -231,7 +232,8 @@ describe("Application - Reducers", () => {
               ar: "GBV Closure-AR"
             }
           },
-          system_options: systemOptions
+          system_options: systemOptions,
+          terms_of_use_agency_sign: true
         }
       }
     };

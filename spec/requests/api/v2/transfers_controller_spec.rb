@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe Api::V2::TransfersController, type: :request do
@@ -25,14 +23,25 @@ describe Api::V2::TransfersController, type: :request do
         Permission::ACCEPT_OR_REJECT_TRANSFER, Permission::RECEIVE_TRANSFER
       ]
     )
-    @role = Role.new(permissions: [@permission_transfer_case], modules: [@primero_module])
+    @role = Role.new(permissions: [@permission_transfer_case], primero_modules: [@primero_module])
     @role.save(validate: false)
     @role_accept_or_reject = Role.new(
       permissions: [@permission_accept_or_reject_transfer],
-      modules: [@primero_module],
+      primero_modules: [@primero_module],
       group_permission: Permission::GROUP
     )
     @role_accept_or_reject.save(validate: false)
+
+    @system_role = Role.new(
+      permissions: [@permission_transfer_case], primero_modules: [@primero_module], user_category: Role::CATEGORY_SYSTEM
+    )
+    @system_role.save(validate: false)
+
+    @maintenance_role = Role.new(
+      permissions: [@permission_transfer_case], primero_modules: [@primero_module], user_category: Role::CATEGORY_MAINTENANCE
+    )
+    @maintenance_role.save(validate: false)
+
     @group1 = UserGroup.create!(name: 'Group1')
     @user1 = User.new(user_name: 'user1', role: @role, user_groups: [@group1])
     @user1.save(validate: false)
@@ -41,6 +50,10 @@ describe Api::V2::TransfersController, type: :request do
     @user2.save(validate: false)
     @user3 = User.new(user_name: 'user3', role: @role_accept_or_reject, user_groups: [@group2])
     @user3.save(validate: false)
+    @user4 = User.new(user_name: 'user4', role: @system_role, user_groups: [@group1])
+    @user4.save(validate: false)
+    @user5 = User.new(user_name: 'user5', role: @maintenance_role, user_groups: [@group2])
+    @user5.save(validate: false)
     @case = Child.create(
       data: {
         name: 'Test', owned_by: 'user1',
@@ -137,6 +150,18 @@ describe Api::V2::TransfersController, type: :request do
     end
   end
 
+  describe 'POST /api/v2/case/:id/transfers with a pending transition' do
+    it 'returns 403 and does not transfer the record' do
+      @case.update_column(:data, @case.data.merge('referred_users_pending' => %w[user1]))
+
+      sign_in(@user1)
+      post("/api/v2/cases/#{@case.id}/transfers", params: { data: { transitioned_to: 'user2' } })
+
+      expect(response).to have_http_status(403)
+      expect(@case.transitions.where(type: 'Transfer')).to be_empty
+    end
+  end
+
   describe 'POST /api/v2/case/transfers' do
     before :each do
       @case2 = Child.create(
@@ -165,6 +190,25 @@ describe Api::V2::TransfersController, type: :request do
       expect(json['data'][1]['status']).to eq(Transition::STATUS_INPROGRESS)
 
       expect(audit_params['action']).to eq('bulk_transfer')
+    end
+
+    it 'excludes the records where the user has a pending transfer' do
+      role_group = Role.new(
+        permissions: [@permission_transfer_case], primero_modules: [@primero_module],
+        group_permission: Permission::GROUP
+      )
+      role_group.save(validate: false)
+      user6 = User.new(user_name: 'user6', role: role_group, user_groups: [@group1])
+      user6.save(validate: false)
+      Transfer.create!(transitioned_by: 'user1', transitioned_to: 'user6', record: @case)
+
+      sign_in(user6)
+      params = { data: { ids: [@case.id, @case2.id], transitioned_to: 'user2', notes: 'Test Notes' } }
+      post('/api/v2/cases/transfers', params:)
+
+      expect(response).to have_http_status(200)
+      expect(json['data'].map { |transition| transition['record_id'] }).to eq([@case2.id.to_s])
+      expect(@case.transfers.where(transitioned_to: 'user2')).to be_empty
     end
   end
 
@@ -240,6 +284,29 @@ describe Api::V2::TransfersController, type: :request do
       @case.reload
       expect(@case.owned_by).to eq('user1')
       expect(@case.assigned_user_names).not_to include('user2')
+    end
+
+    it 'cant accept a transfer for a record a user cannot access' do
+      group = UserGroup.create!(name: 'GroupHacker')
+      hacker = User.new(user_name: 'hacker', role: @role_accept_or_reject, user_groups: [group])
+      hacker.save(validate: false)
+      case_owned_by_hacker = Child.create(
+        data: {
+          name: 'Test', owned_by: 'hacker',
+          disclosure_other_orgs: true, consent_for_services: true,
+          module_id: @primero_module.unique_id
+        }
+      )
+
+      sign_in(hacker)
+      params = {
+        data: {
+          status: 'accepted'
+        }
+      }
+      patch("/api/v2/cases/#{case_owned_by_hacker.id}/transfers/#{@transfer1.id}", params:)
+
+      expect(response).to have_http_status(403)
     end
   end
 

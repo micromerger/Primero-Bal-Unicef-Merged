@@ -1,13 +1,11 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Represents a transition of record ownership  from one user to another
 # without any system workflows.
 class Assign < Transition
   MAX_BULK_RECORDS = 100
 
-  attr_accessor :from_bulk_export
+  attr_accessor :notify_user
 
   def perform
     return if transitioned_to_user.nil?
@@ -29,6 +27,6 @@ class Assign < Transition
   end
 
   def should_notify?
-    !from_bulk_export && super
+    notify_user && super
   end
 end

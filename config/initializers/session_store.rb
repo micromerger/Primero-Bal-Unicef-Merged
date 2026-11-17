@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 Rails.application.reloader.to_prepare do
   ActionDispatch::Session::ActiveRecordStore.session_class = Session
 end
@@ -15,5 +13,6 @@ else
                                          key: '_app_session',
                                          expire_after: native_session_timeout.minute,
                                          same_site: 'Lax'
-  ActiveRecord::SessionStore::Session.serializer = :null
 end
+# Make sure that this is set to :null so that the Session objects are searchable
+ActiveRecord::SessionStore::Session.serializer = :null

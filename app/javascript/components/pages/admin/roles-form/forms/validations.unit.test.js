@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import Validations from "./validations";
 
 describe("pages/admin/<RolesForm>/forms - Validations", () => {
@@ -10,5 +8,6 @@ describe("pages/admin/<RolesForm>/forms - Validations", () => {
 
     expect(typeof validations.fields.name).toEqual("object");
     expect(typeof validations.fields.permissions).toEqual("object");
+    expect(typeof validations.fields.module_unique_ids).toEqual("object");
   });
 });

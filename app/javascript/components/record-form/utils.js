@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 /* eslint-disable camelcase, no-param-reassign, no-shadow, func-names, no-use-before-define, no-lonely-if */
 import { isEmpty, transform, isObject, isEqual, find, pickBy, identity, pick } from "lodash";
 import { isDate, format } from "date-fns";
@@ -32,7 +30,8 @@ import {
   SELECT_FIELD,
   DATE_FIELD,
   TICK_FIELD,
-  TALLY_FIELD
+  TALLY_FIELD,
+  SIGNATURE_FIELD
 } from "./constants";
 import { valuesWithHiddenAttribute } from "./form/subforms/subform-field-array/utils";
 import { RECORD_FORM_PERMISSION } from "./form/constants";
@@ -165,6 +164,10 @@ export const getFieldDefaultValue = field => {
     return [];
   }
 
+  if (field.type === SIGNATURE_FIELD) {
+    return {};
+  }
+
   if (field.type === SELECT_FIELD && field.multi_select) {
     try {
       if (field.selected_value) {
@@ -221,9 +224,13 @@ export const constructInitialValues = formMap => {
     : {};
 };
 
-export const getRedirectPath = (mode, params, fetchFromCaseId) => {
+export const getRedirectPath = ({ mode, params, fetchFromCaseId, redirectTo }) => {
   if (fetchFromCaseId) {
     return `/${RECORD_PATH.cases}/${fetchFromCaseId}`;
+  }
+
+  if (redirectTo) {
+    return redirectTo;
   }
 
   return mode.isNew ? "" : `/${params.recordType}/${params.id}`;

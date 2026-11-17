@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { METHODS, RECORD_PATH } from "../../../../config";
 import { ENQUEUE_SNACKBAR, generate, SNACKBAR_VARIANTS } from "../../../notifier";
 import { CLEAR_DIALOG } from "../../../action-dialog";
@@ -30,7 +28,8 @@ describe("<UsersForm /> - Action Creators", () => {
     const expectedAction = {
       type: actions.FETCH_USER,
       api: {
-        path: `${RECORD_PATH.users}/10`
+        path: `${RECORD_PATH.users}/10`,
+        params: { activity_stats: true }
       }
     };
 

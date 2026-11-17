@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe Transitionable do
@@ -27,11 +25,12 @@ describe Transitionable do
         Permission::READ
       ]
     )
-    @role = Role.new(permissions: [permission_case], modules: [@module_cp])
+    @role = Role.new(permissions: [permission_case], primero_modules: [@module_cp])
     @role.save(validate: false)
-    @role_case_incident = Role.new(permissions: [permission_case, permission_incident_assign], modules: [@module_cp])
+    @role_case_incident = Role.new(permissions: [permission_case, permission_incident_assign],
+                                   primero_modules: [@module_cp])
     @role_case_incident.save(validate: false)
-    @role_incident = Role.new(permissions: [permission_incident], modules: [@module_cp])
+    @role_incident = Role.new(permissions: [permission_incident], primero_modules: [@module_cp])
     @role_incident.save(validate: false)
     @group1 = UserGroup.create!(name: 'Group1')
     @user1 = User.new(user_name: 'user1', role: @role_case_incident, user_groups: [@group1])
@@ -129,12 +128,54 @@ describe Transitionable do
       @referral2.accept!
       @referral3.reject!(@user4)
       @referral4.accept!
-      @referral4.done!(@user4)
+      @referral4.done!(@user4, { success_status: Referral::REFERRAL_SUCCESSFUL })
       [@referral1, @referral2, @referral3, @referral4].each(&:save!)
     end
 
     it 'should return the users with referrals' do
       expect(@case.referred_users).to match_array(%w[user2 user3])
+    end
+  end
+
+  describe 'referred_users_pending' do
+    before :each do
+      Referral.create!(transitioned_by: 'user1', transitioned_to: 'user2', record: @case)
+      Referral.create!(transitioned_by: 'user1', record: @case, remote: true)
+      @case.reload
+    end
+
+    it 'returns the users with pending referrals' do
+      expect(@case.referred_users_pending).to eq(%w[user2])
+    end
+
+    it 'does not include external referrals' do
+      expect(@case.referred_users_pending).not_to include(nil)
+    end
+  end
+
+  describe 'pending_transition_for?' do
+    before :each do
+      Referral.create!(transitioned_by: 'user1', transitioned_to: 'user2', record: @case)
+      Transfer.create!(transitioned_by: 'user1', transitioned_to: 'user3', record: @case)
+      accepted = Referral.create!(transitioned_by: 'user1', transitioned_to: 'user4', record: @case)
+      accepted.accept!
+      @case.reload
+    end
+
+    it 'is true for the recipient of a pending referral' do
+      expect(@case.pending_transition_for?(@user2)).to be true
+    end
+
+    it 'is true for the recipient of a pending transfer' do
+      expect(@case.pending_transition_for?(@user3)).to be true
+    end
+
+    it 'is false for the recipient of an accepted referral' do
+      expect(@case.pending_transition_for?(@user4)).to be false
+    end
+
+    it 'is false for a user without transitions' do
+      expect(@case.pending_transition_for?(@user5)).to be false
     end
   end
 
@@ -148,15 +189,32 @@ describe Transitionable do
           Permission::REFERRAL, Permission::RECEIVE_REFERRAL
         ]
       )
+      permissions_limited = Permission.new(
+        resource: Permission::CASE,
+        actions: [Permission::READ]
+      )
 
       @agency = Agency.create!(name: 'Agency 1', agency_code: 'agency1')
-      @role_self = Role.new(permissions: [permissions], modules: [@module_cp], group_permission: Permission::SELF)
+      @role_self = Role.new(permissions: [permissions], primero_modules: [@module_cp],
+                            group_permission: Permission::SELF)
       @role_self.save(validate: false)
-      @role_group = Role.new(permissions: [permissions], modules: [@module_cp], group_permission: Permission::GROUP)
+      @role_group = Role.new(permissions: [permissions], primero_modules: [@module_cp],
+                             group_permission: Permission::GROUP)
       @role_group.save(validate: false)
-      @role_agency = Role.new(permissions: [permissions], modules: [@module_cp], group_permission: Permission::AGENCY)
+
+      @role_group_limited = Role.new(
+        permissions: [permissions_limited], primero_modules: [@module_cp], group_permission: Permission::GROUP
+      )
+      @role_group_limited.save(validate: false)
+      @role_agency = Role.new(permissions: [permissions], primero_modules: [@module_cp],
+                              group_permission: Permission::AGENCY)
       @role_agency.save(validate: false)
-      @role_all = Role.new(permissions: [permissions], modules: [@module_cp], group_permission: Permission::ALL)
+      @role_agency_limited = Role.new(
+        permissions: [permissions_limited], primero_modules: [@module_cp], group_permission: Permission::AGENCY
+      )
+      @role_agency_limited.save(validate: false)
+      @role_all = Role.new(permissions: [permissions], primero_modules: [@module_cp], group_permission: Permission::ALL)
+
       @role_all.save(validate: false)
 
       @user_self = User.new(user_name: 'user1', role: @role_self, user_groups: [@group1])
@@ -167,6 +225,10 @@ describe Transitionable do
       @user_all.save(validate: false)
       @user_agency = User.create(user_name: 'user4', role: @role_agency, agency: @agency)
       @user_agency.save(validate: false)
+      @user_group_limited = User.create(user_name: 'user5', role: @role_group_limited, user_groups: [@group2, @group1])
+      @user_group_limited.save(validate: false)
+      @user_agency_limited = User.create(user_name: 'user6', role: @role_agency_limited, agency: @agency)
+      @user_agency_limited.save(validate: false)
 
       @case2 = Child.create(data: {
                               name: 'Test', owned_by: 'user2',
@@ -199,7 +261,21 @@ describe Transitionable do
         expect(transitions.ids).to include(@referral1.id, @referral2.id, @referral3.id)
       end
 
-      it 'is not the record owner' do
+      it 'is not the record owner but can see referral' do
+        transitions = @case2.referrals_for_user(@user_self)
+        expect(transitions.size).to eq(3)
+        expect(transitions.ids).to match_array([@referral4.id, @referral5.id, @referral6.id])
+      end
+
+      it 'is not the record owner and cannot view referral' do
+        permissions = Permission.new(resource: Permission::CASE, actions: [Permission::READ])
+        role_self_without_view = Role.new(
+          permissions: [permissions], primero_modules: [@module_cp], group_permission: Permission::SELF
+        )
+        role_self_without_view.save(validate: false)
+        @user_self.role = role_self_without_view
+        @user_self.save(validate: false)
+
         transitions = @case2.referrals_for_user(@user_self)
         expect(transitions.size).to eq(1)
         expect(transitions.ids).to include(@referral4.id)
@@ -218,6 +294,23 @@ describe Transitionable do
         expect(transitions.size).to eq(2)
         expect(transitions.ids).to include(@referral7.id, @referral8.id)
       end
+
+      describe 'no permission to view referrals' do
+        it 'should not see any referrals' do
+          referrals = @case.referrals_for_user(@user_group_limited)
+          expect(referrals.size).to eq(0)
+        end
+
+        before do
+          allow(@user_group).to receive(:can_view_referrals?).and_return(false)
+        end
+
+        it 'should only referrals where user is the transitioned_to' do
+          referrals = @case.referrals_for_user(@user_group)
+          expect(referrals.size).to eq(1)
+          expect(referrals.ids).to include(@referral2.id)
+        end
+      end
     end
 
     describe 'when group permission for the user is "agency"' do
@@ -231,6 +324,23 @@ describe Transitionable do
         transitions = @case3.referrals_for_user(@user_agency)
         expect(transitions.size).to eq(2)
         expect(transitions.ids).to include(@referral8.id, @referral9.id)
+      end
+
+      describe 'no permission to view referrals' do
+        it 'should not see any referrals' do
+          referrals = @case3.referrals_for_user(@user_agency_limited)
+          expect(referrals.size).to eq(0)
+        end
+
+        before do
+          allow(@user_agency).to receive(:can_view_referrals?).and_return(false)
+        end
+
+        it 'should only referrals where user is the transitioned_to' do
+          referrals = @case3.referrals_for_user(@user_agency)
+          expect(referrals.size).to eq(1)
+          expect(referrals.ids).to include(@referral9.id)
+        end
       end
     end
 
@@ -254,8 +364,8 @@ describe Transitionable do
       referral1
       referral2.accept!
       referral3.accept!
-      referral3.done!(@user5)
-      referral4.revoke!(@user5)
+      referral3.done!(@user5, { success_status: Referral::REFERRAL_SUCCESSFUL })
+      referral4.revoke!(@user5, { success_status: Referral::REFERRAL_SUCCESSFUL })
       referral5.reject!(@user5)
     end
 

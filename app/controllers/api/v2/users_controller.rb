@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Users CRUD API
 class Api::V2::UsersController < ApplicationApiController
   include Api::V2::Concerns::Pagination
@@ -12,13 +10,16 @@ class Api::V2::UsersController < ApplicationApiController
   before_action :load_extended, only: %i[index show]
   after_action :welcome, only: %i[create]
   after_action :identity_sync, only: %i[create update]
+  skip_after_action :write_audit_log, only: %i[send_emails]
 
   def index
     authorize! :index, User
-    filters = params.permit(:user_name, :agency, :location, :services, :user_group_ids, :query, disabled: {}).to_h
-    results = PermittedUsersService.new(current_user).find_permitted_users(
-      filters.compact, pagination, order_params
-    )
+    filters = params.permit(:user_name, :services, :user_group_ids, :ids,
+                            :query, last_access: %i[from to], last_case_viewed: %i[from to],
+                                    last_case_updated: %i[from to], disabled: [], user_group_ids: [],
+                                    role_id: [], agency: [], location: []).to_h
+    results = PermittedUsersService.new(current_user, include_activity_stats?)
+                                   .find_permitted_users(filters.compact, pagination, order_params)
 
     @users = results[:users]
     @total = results[:total]
@@ -65,6 +66,7 @@ end
     authorize! :disable, @user if @user_params.include?('disabled')
     authorize! :edit_user, @user
     validate_json!(User::USER_FIELDS_SCHEMA, user_params)
+    stamp_terms_if_accepted
     @user.update_with_properties(@user_params)
     @user.save!
     keep_user_signed_in
@@ -73,6 +75,19 @@ end
   def destroy
     authorize! :enable_disable_record, User
     @user.destroy!
+  end
+
+  def update_bulk
+    authorize! :disable_multiple, User
+    PermittedUsersService.new(current_user, include_activity_stats?)
+                         .bulk_disable_users(users_bulk_params)
+    render :index
+  end
+
+  def send_emails
+    authorize! :send_email_multiple, User
+    BulkUserEmailJob.perform_later(current_user.id, users_send_emails_params)
+    render :send_emails, status: 200
   end
 
   protected
@@ -85,8 +100,30 @@ end
     @user_params ||= params.require(:data).permit(User.permitted_api_params(current_user, @user))
   end
 
+  def users_bulk_params
+    params.require(:data).permit(:disabled, :agency, :user_group_ids, :query,
+                                 ids: [],
+                                 last_access: %i[from to],
+                                 last_case_viewed: %i[from to],
+                                 last_case_updated: %i[from to]).to_h
+  end
+
+  def users_send_emails_params
+    params.require(:data).require(:subject)
+    params.require(:data).require(:message)
+    params.require(:data).permit(:subject, :message, :agency, :query,
+                                 ids: [], user_group_ids: [], disabled: [], role_id: [], agency: [],
+                                 last_access: %i[from to],
+                                 last_case_viewed: %i[from to],
+                                 last_case_updated: %i[from to]).to_h
+  end
+
   def load_user
-    @user = User.includes(:role, :user_groups).joins(:role).find(params[:id])
+    user_id = params[:id] || params[:user_id]
+    @user = User.with_audit_dates_if(include_activity_stats?)
+                .includes(:role, :user_groups, :agency)
+                .joins(:role)
+                .find(user_id)
   end
 
   def load_extended
@@ -103,5 +140,16 @@ end
 
   def keep_user_signed_in
     bypass_sign_in(@user) if @user.saved_change_to_encrypted_password? && current_user == @user
+  end
+
+  def include_activity_stats?
+    params[:activity_stats].to_s == 'true'
+  end
+
+  def stamp_terms_if_accepted
+    return unless @user_params[:accept_terms_of_use]
+
+    @user_params[:terms_of_use_accepted_on] = DateTime.now
+    @user_params.delete(:accept_terms_of_use)
   end
 end

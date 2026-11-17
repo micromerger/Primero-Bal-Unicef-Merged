@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 export { default as dashboardType } from "./dashboard-type";
 export { default as toData1D } from "./to-data-1d";
 export { default as toListTable } from "./to-list-table";
@@ -12,3 +10,6 @@ export { default as teamSharingTable } from "./team-sharing-table";
 export { default as toCasesBySocialWorkerTable } from "./to-cases-by-social-worker-table";
 export { default as toCasesToAssignTable } from "./to-cases-to-assign-table";
 export { default as filterIndicatorsByKey } from "./filter-indicators-by-key";
+export { default as updateApprovals } from "./update-approvals";
+export { default as permittedDashboardNames } from "./permitted-dashboard-names";
+export { default as toOptionsOverviewBox } from "./to-options-overview-box";

@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import {
   ENABLED_FOR_ONE_MANY,
   ENABLED_FOR_ONE,
@@ -18,7 +16,9 @@ import {
   APPROVAL_TYPE,
   REQUEST_TYPE,
   MARK_FOR_OFFLINE_DIALOG,
-  LINK_INCIDENT_TO_CASE_DIALOG
+  LINK_INCIDENT_TO_CASE_DIALOG,
+  ATTRIBUTE_CASE_DIALOG,
+  BULK_FLAG_DIALOG
 } from "../constants";
 import { RECORD_TYPES, RECORD_PATH } from "../../../config";
 import Notes from "../notes";
@@ -30,7 +30,9 @@ import AddService from "../add-service";
 import RequestApproval from "../request-approval";
 import Exports from "../exports";
 import MarkForOffline from "../mark-for-offline";
+import BulkFlag from "../bulk-flag";
 import LinkIncidentToCase from "../link-incident-to-case";
+import ActionAttribute from "../set-attribute";
 
 import filterActions from "./filter-actions";
 
@@ -50,13 +52,16 @@ export default ({
   canShowExports,
   canTransfer,
   canMarkForOffline,
+  canBulkFlag,
   canLinkIncidentToCase,
+  canAttributeCase,
   enableState,
   handleDialogClick,
   hasIncidentSubform,
   hasServiceSubform,
   i18n,
   isIdSearch,
+  label = key => i18n.t(key),
   isShow,
   openState,
   record,
@@ -65,7 +70,7 @@ export default ({
   showListActions,
   handleCreateIncident
 }) => {
-  const formRecordType = i18n.t(`forms.record_types.${RECORD_TYPES[recordType]}`);
+  const formRecordType = label(`forms.record_types.${RECORD_TYPES[recordType]}`);
 
   return {
     actions: [
@@ -84,7 +89,7 @@ export default ({
         enabledFor: ENABLED_FOR_ONE_MANY_ALL,
         name: `${i18n.t("buttons.reassign")} ${formRecordType}`,
         recordListAction: true,
-        recordType: [RECORD_PATH.cases, RECORD_PATH.incidents]
+        recordType: [RECORD_PATH.cases, RECORD_PATH.incidents, RECORD_PATH.families]
       },
       {
         action: () => handleDialogClick(TRANSFER_DIALOG),
@@ -99,7 +104,7 @@ export default ({
         condition: Boolean(hasIncidentSubform) && showListActions && canAddIncident,
         disableOffline: true,
         enabledFor: ENABLED_FOR_ONE,
-        name: i18n.t("actions.incident_details_from_case"),
+        name: label("actions.incident_details_from_case"),
         recordListAction: true,
         recordType: RECORD_PATH.cases,
         showOnSearchResultPage: true,
@@ -113,7 +118,7 @@ export default ({
         disableOffline: false,
         enabledFor: ENABLED_FOR_ONE,
         enabledOnSearch: false,
-        name: i18n.t("actions.incident_from_case"),
+        name: label("actions.incident_from_case"),
         recordListAction: false,
         recordType: RECORD_PATH.cases
       },
@@ -172,6 +177,17 @@ export default ({
         showOnSearchResultPage: true
       },
       {
+        action: () => handleDialogClick(BULK_FLAG_DIALOG),
+        condition: canBulkFlag,
+        disableOffline: true,
+        enabledFor: ENABLED_FOR_ONE_MANY_ALL,
+        name: i18n.t("buttons.flag_records"),
+        recordListAction: true,
+        recordType: RECORD_PATH.cases,
+        disableRecordShowPage: true,
+        showOnSearchResultPage: true
+      },
+      {
         action: id => {
           handleDialogClick(id, true);
         },
@@ -191,9 +207,20 @@ export default ({
         disableOffline: true,
         enabledFor: ENABLED_FOR_ONE_MANY_ALL,
         id: LINK_INCIDENT_TO_CASE_DIALOG,
-        name: i18n.t("incident.link_incident_to_case"),
+        name: label("incident.link_incident_to_case"),
         recordListAction: true,
         recordType: RECORD_PATH.incidents
+      },
+      {
+        action: id => {
+          handleDialogClick(id, true);
+        },
+        condition: canAttributeCase,
+        disableOffline: true,
+        id: ATTRIBUTE_CASE_DIALOG,
+        name: i18n.t("actions.attribute"),
+        enabledFor: ENABLED_FOR_ONE,
+        recordType: RECORD_PATH.cases
       }
     ].filter(filterActions({ recordType, showListActions, isIdSearch, record })),
     dialogs: {
@@ -255,9 +282,17 @@ export default ({
         component: MarkForOffline,
         ability: canMarkForOffline
       },
+      [BULK_FLAG_DIALOG]: {
+        component: BulkFlag,
+        ability: canBulkFlag
+      },
       [LINK_INCIDENT_TO_CASE_DIALOG]: {
         component: LinkIncidentToCase,
         ability: canLinkIncidentToCase
+      },
+      [ATTRIBUTE_CASE_DIALOG]: {
+        component: ActionAttribute,
+        ability: canAttributeCase
       }
     }
   };

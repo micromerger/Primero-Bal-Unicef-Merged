@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 export const TEXT_FIELD = "text_field";
 export const TEXT_AREA = "textarea";
 export const FORM_MODE_SHOW = "show";
@@ -29,16 +27,20 @@ export const DIALOG_TRIGGER = "dialog_trigger";
 export const HIDDEN_FIELD = "hidden";
 export const LINK_FIELD = "link_field";
 export const TALLY_FIELD = "tally_field";
+export const SIGNATURE_FIELD = "signature";
+export const REGISTRY_FIELD = "registry";
 
 export const OPTION_TYPES = {
   AGENCY: "Agency",
   AGENCY_CURRENT_USER: "AgencyCurrentUser",
+  AGE_RANGES: "AgeRanges",
   LOCATION: "Location",
   MODULE: "Module",
   USER_MODULE: "UserModule",
   FORM_GROUP: "FormGroup",
   LOOKUPS: "Lookups",
   USER: "User",
+  USER_IDENTIFIED: "UserIdentified",
   REPORTING_LOCATIONS: "ReportingLocation",
   USER_GROUP: "UserGroup",
   USER_GROUP_PERMITTED: "UserGroupPermitted",

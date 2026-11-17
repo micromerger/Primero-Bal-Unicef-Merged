@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { forwardRef, useImperativeHandle, useRef } from "react";
 import PropTypes from "prop-types";
 import { Typography } from "@mui/material";
@@ -95,9 +93,10 @@ const Component = forwardRef(
     const filteredByFields = formsSelectedSelector ? formSelectorResults?.toJS() : userSelectedForms;
 
     const allForms = includeAllFormsWhenEmpty ? forms : [];
-    const selectedForms = filteredByFields?.length
-      ? forms.filter(form => filteredByFields.includes(form.unique_id))
-      : allForms;
+
+    const selectedForms = (
+      filteredByFields?.length ? filteredByFields.map(id => forms.find(form => form.unique_id === id)) : allForms
+    ).filter(form => form);
 
     const logos = getLogosToRender(
       agenciesWithLogosEnabled,
@@ -166,11 +165,17 @@ const Component = forwardRef(
         </div>
         <div ref={html} className={css.container}>
           {customFormProps && isRemote && (
-            <RenderTable title={title} fields={customFormFields} data={fromJS(watchedValues)} />
+            <RenderTable
+              recordType={params.recordType}
+              title={title}
+              fields={customFormFields}
+              data={fromJS(watchedValues)}
+            />
           )}
           {selectedForms?.map(form => (
             <RenderTable
               key={`selected-${form.unique_id}`}
+              recordType={params.recordType}
               title={i18n.getI18nStringFromObject(form.name)}
               fields={form.fields}
               data={data}

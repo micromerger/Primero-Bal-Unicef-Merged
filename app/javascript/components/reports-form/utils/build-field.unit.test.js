@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 
 import { buildField, buildLocationFields, buildMinimumLocationField } from "./build-field";
@@ -102,16 +100,20 @@ describe("<ReportForm>/utils/build-field", () => {
       const i18n = { locale: "en", t: value => value };
 
       const expected = [
-        { ...locationField, id: "owned_by_location0", display_text: "Owner's Location (location.base_types.country)" },
         {
           ...locationField,
-          id: "owned_by_location1",
+          id: "loc:owned_by_location0",
+          display_text: "Owner's Location (location.base_types.country)"
+        },
+        {
+          ...locationField,
+          id: "loc:owned_by_location1",
           display_text: "Owner's Location (location.base_types.city)",
           visible: true
         },
         {
           ...locationField,
-          id: "owned_by_location2",
+          id: "loc:owned_by_location2",
           display_text: "Owner's Location (location.base_types.district)",
           visible: true
         }

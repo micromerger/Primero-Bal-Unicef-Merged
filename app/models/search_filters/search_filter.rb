@@ -1,18 +1,18 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Superclass for all SearchFilter objects that transform API query parameters into sql queries
 class SearchFilters::SearchFilter < ValueObject
   OPERATORS = %w[= > < >= <=].freeze
 
-  attr_accessor :field_name, :json_column, :table_name
+  attr_accessor :field_name, :json_column, :table_name, :column_name
 
   def initialize(args = {})
     super(args)
     @safe_operator = OPERATORS.include?(args[:operator]) ? args[:operator] : '='
+    self.field_name = args[:field_name] || ''
     self.json_column = args[:json_column] || 'data'
     self.table_name = args[:table_name] || ''
+    self.column_name = args[:column_name]
   end
 
   def safe_json_column

@@ -1,13 +1,11 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Concern for Cases Transition Subreport Exporter
 class Exporters::CasesTransitionSubreportExporter < Exporters::SubreportExporter
   include Exporters::Concerns::RecordFilterInsightParams
 
   def params_list
-    view_by_param +  date_range_values_param + filter_by_date_param + status_param +
+    view_by_param + date_range_values_param + filter_by_date_param + status_param +
       by_param + user_group_param + agency_param + referral_transfer_status_param
   end
 

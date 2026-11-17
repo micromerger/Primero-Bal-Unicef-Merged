@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 json.data do
   json.array! @identity_providers do |identity_provider|
     json.id identity_provider.id
@@ -16,6 +14,8 @@ json.data do
     json.user_domain identity_provider.user_domain
     json.domain_hint identity_provider.domain_hint
     json.redirect_uri identity_provider.redirect_uri
+    json.skip_oidc_prompt identity_provider.skip_oidc_prompt
+    json.oidc_prompt identity_provider.oidc_prompt
   end
 end
 json.metadata do

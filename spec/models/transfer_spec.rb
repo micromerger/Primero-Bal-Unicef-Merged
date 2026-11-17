@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe Transfer do
@@ -16,7 +14,7 @@ describe Transfer do
       resource: Permission::CASE,
       actions: [Permission::READ, Permission::WRITE, Permission::CREATE, Permission::RECEIVE_TRANSFER]
     )
-    @role = Role.new(permissions: [permission_case], modules: [@module_cp])
+    @role = Role.new(permissions: [permission_case], primero_modules: [@module_cp])
     @role.save(validate: false)
     @group1 = UserGroup.create!(name: 'Group1')
     @agency1 = Agency.create!(name: 'Agency One', agency_code: 'agency1')
@@ -378,6 +376,7 @@ describe Transfer do
 
       it 'removes the transitioned_to from assigned_user_names if the referral is done' do
         @referral.status = Transition::STATUS_DONE
+        @referral.success_status = Referral::REFERRAL_SUCCESSFUL
         @referral.save!
 
         @rejected_transfer.reject!(@user1)

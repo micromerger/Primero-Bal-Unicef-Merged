@@ -1,14 +1,14 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import reject from "lodash/reject";
 import isEmpty from "lodash/isEmpty";
 
-import { TOTAL_KEY } from "../constants";
+import { QUERY_KEY, TOTAL_KEY } from "../constants";
 
 import getObjectArrayPath from "./get-object-array-path";
 
 export default (totalLabel, object) =>
   reject(
-    getObjectArrayPath(totalLabel, object).map(keys => keys.filter(key => key !== TOTAL_KEY && key !== totalLabel)),
+    getObjectArrayPath(totalLabel, object).map(keys =>
+      keys.filter(key => ![TOTAL_KEY, totalLabel, QUERY_KEY].includes(key))
+    ),
     isEmpty
   );

@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 
 import buildChatValues from "./build-chart-values";
@@ -12,6 +10,7 @@ describe("<InsightsSubReport />/utils/buildChatValues", () => {
         getLookupValue: (_key, value) => value.get("id"),
         localizeDate: value => value,
         valueKey: "key",
+        labels: { total: "Total" },
         value: fromJS([
           { id: "option_1", total: 5 },
           { id: "option_2", total: 10 }
@@ -122,6 +121,7 @@ describe("<InsightsSubReport />/utils/buildChatValues", () => {
         isGrouped: true,
         valueKey: "age",
         ageRanges: ["0 - 5", "6 - 11", "12 - 17", "18+"],
+        labels: {},
         value: fromJS([
           {
             group_id: 2022,

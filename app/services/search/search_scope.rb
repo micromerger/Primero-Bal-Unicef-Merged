@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # A class that applies a scope in a SQL Query
 class Search::SearchScope < ValueObject
   attr_accessor :scope, :user_scope, :module_scope
@@ -27,12 +25,14 @@ class Search::SearchScope < ValueObject
   def user_scope_filter
     return unless user_scope.present?
 
-    if user_scope['user'].present?
-      self_scope_filter
-    elsif user_scope['agency'].present?
+    if user_scope['agency'].present?
       agency_scope_filter
     elsif user_scope['group'].present?
       group_scope_filter
+    elsif user_scope['identified'].present?
+      identified_scope_filter
+    else
+      self_scope_filter
     end
   end
 
@@ -51,6 +51,12 @@ class Search::SearchScope < ValueObject
   def group_scope_filter
     SearchFilters::TextList.new(
       field_name: 'associated_user_groups', values: user_scope['group']
+    )
+  end
+
+  def identified_scope_filter
+    SearchFilters::TextValue.new(
+      field_name: 'identified_by', value: user_scope['identified']
     )
   end
 

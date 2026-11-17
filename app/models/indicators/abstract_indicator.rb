@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # rubocop:disable Style/ClassAndModuleChildren
 module Indicators
   # Abstract Class for Indicator
@@ -15,11 +13,13 @@ module Indicators
     # scope_to_transferred: Records where the user is transferred.
     # scope_to_not_last_update: Records where the user was not last to update.
     # scope_to_transferred_groups: Records transferred to the user's user group.
+    # scope_to_assigned: Records where the user was assigned via transitions.
     # exclude_zeros: Do not include result with zeroes.
     # rubocop:enable Style/ClassAndModuleChildren
     attr_accessor :name, :record_model, :scope, :scope_to_owner, :scope_to_referred,
                   :scope_to_transferred, :scope_to_not_last_update, :scope_to_owned_by_groups,
-                  :scope_to_transferred_groups
+                  :scope_to_transferred_groups, :scope_to_assigned, :scope_to_referred_users_accepted,
+                  :scope_to_referred_users_pending
 
     class << self
       def type
@@ -63,7 +63,10 @@ module Indicators
         with_scope_to_not_last_update(user) +
         with_scope_referred_to_users(user) +
         with_scope_transferred_to_users(user) +
-        with_scope_transferred_to_user_groups(user)
+        with_scope_transferred_to_user_groups(user) +
+        with_scope_to_assigned(user) +
+        with_scope_to_referred_users_pending(user) +
+        with_scope_to_referred_users_accepted(user)
     end
 
     def with_scope_to_owner(user)
@@ -106,8 +109,37 @@ module Indicators
       [SearchFilters::TextList.new(field_name: 'transferred_to_user_groups', values: user.user_group_unique_ids)]
     end
 
+    def with_scope_to_assigned(user)
+      return [] unless scope_to_assigned
+
+      [SearchFilters::TransitionValue.new(field_name: 'Assign', value: user.user_name)]
+    end
+
+    def with_scope_to_referred_users_pending(user)
+      return [] unless scope_to_referred_users_pending
+
+      [SearchFilters::TextValue.new(field_name: 'referred_users_pending', value: user.user_name)]
+    end
+
+    def with_scope_to_referred_users_accepted(user)
+      return [] unless scope_to_referred_users_accepted
+
+      [SearchFilters::TextValue.new(field_name: 'referred_users_accepted', value: user.user_name)]
+    end
+
     def filters(user)
-      query_scope(user) + scope
+      query_scope(user) + scope + module_scope(user, scope)
+    end
+
+    # Filters the indicator by the user's role modules, unless it already sets its own module_id.
+    def module_scope(user, own_filters)
+      return [] if own_filters.any? { |filter| filter.field_name == 'module_id' }
+
+      module_ids = user.modules_for_record_type(record_model.parent_form).map(&:unique_id)
+      return [] if module_ids.blank?
+      return [SearchFilters::TextValue.new(field_name: 'module_id', value: module_ids.first)] if module_ids.size == 1
+
+      [SearchFilters::TextList.new(field_name: 'module_id', values: module_ids)]
     end
 
     def scope_query_strings

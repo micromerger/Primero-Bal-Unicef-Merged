@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS, List } from "immutable";
 
 const subColumLookupValues = (subColumnLookups, valueKey) => {
@@ -17,9 +15,8 @@ export default ({
   ageRanges,
   indicatorsSubcolumns,
   indicatorSubColumnKeys,
-  totalText,
   includeAllSubColumns = true,
-  incompleteDataLabel
+  labels
 }) => {
   let lookupValues = subColumLookupValues(subColumnLookups, valueKey);
 
@@ -36,7 +33,7 @@ export default ({
       lookupValues = lookupValues.concat(
         missingSubColumns.map(id => {
           if (id === "incomplete_data") {
-            return { id, display_text: incompleteDataLabel };
+            return { id, display_text: labels.incompleteData };
           }
 
           return { id, display_text: id };
@@ -45,7 +42,7 @@ export default ({
     }
 
     if (hasTotalColumn) {
-      lookupValues = lookupValues.concat({ id: "total", display_text: totalText });
+      lookupValues = lookupValues.concat({ id: "total", display_text: labels.total });
     }
 
     return lookupValues;
@@ -57,11 +54,11 @@ export default ({
     const hasIncompleteData = (indicatorSubColumnKeys || []).includes("incomplete_data");
 
     if (hasIncompleteData) {
-      ageRangeOptions = ageRangeOptions.concat({ id: "incomplete_data", display_text: incompleteDataLabel });
+      ageRangeOptions = ageRangeOptions.concat({ id: "incomplete_data", display_text: labels.incompleteData });
     }
 
     if (hasTotalColumn) {
-      ageRangeOptions = ageRangeOptions.concat({ id: "total", display_text: totalText });
+      ageRangeOptions = ageRangeOptions.concat({ id: "total", display_text: labels.total });
     }
 
     return ageRangeOptions;

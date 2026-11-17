@@ -1,12 +1,14 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Create, approve, or deny an approval request
 class Api::V2::ApprovalsController < Api::V2::RecordResourceController
+  include Api::V2::Concerns::PendingTransitionRestriction
+
   before_action :approval_params, only: [:update]
 
   def update
+    authorize! :read, @record
+    authorize_pending_transition!(@record)
     approval = Approval.get!(params[:id], @record, current_user, @approval_params)
     authorize! approval_permission, @model_class
     authorize! :self_approve, @model_class if self_approve?

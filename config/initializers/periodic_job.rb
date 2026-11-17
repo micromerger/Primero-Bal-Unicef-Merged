@@ -1,17 +1,23 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Check or initialize Primero PeriodicJobs
 
 return unless Rails.env.production?
+
+require "#{Rails.root}/app/services/health_check_service.rb"
+require "#{Rails.root}/app/jobs/periodic_job.rb"
+Dir["#{Rails.root}/app/schedules/*.rb"].each(&method(:require))
+
 return unless HealthCheckService.database_accessible? && ActiveRecord::Base.connection.table_exists?(:delayed_jobs)
 
 Rails.logger.info('Setting up PeriodicJobs')
 
-jobs = %w[ArchiveBulkExports RecalculateAge]
+jobs = %w[ArchiveBulkExports RecalculateAge GenerateUnusedFieldsReport]
 jobs << 'OptimizeSolr' if Rails.configuration.solr_enabled
 jobs << 'SessionCleanup' unless Rails.configuration.x.idp.use_identity_provider
+if ActiveRecord::Type::Boolean.new.cast(ENV.fetch('PRIMERO_ALLOW_SELF_REGISTRATION', false)) == true
+  jobs << 'CleanupUnverifiedUsers'
+end
 
 jobs.each do |job_name|
   next if Delayed::Job.where('handler LIKE :job_class', job_class: "%job_class: #{job_name}%").exists?

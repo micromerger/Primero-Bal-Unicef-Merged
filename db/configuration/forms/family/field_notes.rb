@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 field_notes_subform_fields = [
   Field.new(name: 'note_date',
             type: 'date_field',
@@ -41,7 +39,7 @@ notes_fields = [
   Field.new(name: 'notes_section',
             type: 'subform',
             editable: true,
-            subform_section: field_notes_subform_section,
+            subform: field_notes_subform_section,
             display_name_en: 'Notes',
             subform_sort_by: 'notes_date')
 ]

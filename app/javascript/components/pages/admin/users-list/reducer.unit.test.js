@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 
 import { DEFAULT_METADATA } from "../../../../config";
@@ -76,6 +74,142 @@ describe("<UsersList /> - Reducers", () => {
 
     const action = {
       type: actions.CLEAR_METADATA
+    };
+
+    const newState = reducer(fromJS({}), action);
+
+    expect(newState).toEqual(expected);
+  });
+
+  it("should handle DISABLE_USERS_STARTED", () => {
+    const expected = fromJS({
+      disableUsers: {
+        loading: true,
+        errors: false
+      }
+    });
+
+    const action = {
+      type: actions.DISABLE_USERS_STARTED
+    };
+
+    const newState = reducer(fromJS({}), action);
+
+    expect(newState).toEqual(expected);
+  });
+
+  it("should handle DISABLE_USERS_SUCCESS", () => {
+    const expected = fromJS({
+      disableUsers: {
+        loading: false,
+        errors: false
+      }
+    });
+
+    const action = {
+      type: actions.DISABLE_USERS_SUCCESS
+    };
+
+    const newState = reducer(fromJS({}), action);
+
+    expect(newState).toEqual(expected);
+  });
+
+  it("should handle DISABLE_USERS_FAILURE", () => {
+    const expected = fromJS({
+      disableUsers: {
+        loading: false,
+        errors: true
+      }
+    });
+
+    const action = {
+      type: actions.DISABLE_USERS_FAILURE
+    };
+
+    const newState = reducer(fromJS({}), action);
+
+    expect(newState).toEqual(expected);
+  });
+
+  it("should handle DISABLE_USERS_FINISHED", () => {
+    const expected = fromJS({
+      disableUsers: {
+        loading: false,
+        errors: false
+      }
+    });
+
+    const action = {
+      type: actions.DISABLE_USERS_FINISHED
+    };
+
+    const newState = reducer(fromJS({}), action);
+
+    expect(newState).toEqual(expected);
+  });
+
+  it("should handle SEND_EMAILS_STARTED", () => {
+    const expected = fromJS({
+      sendEmails: {
+        loading: true,
+        errors: false
+      }
+    });
+
+    const action = {
+      type: actions.SEND_EMAILS_STARTED
+    };
+
+    const newState = reducer(fromJS({}), action);
+
+    expect(newState).toEqual(expected);
+  });
+
+  it("should handle SEND_EMAILS_SUCCESS", () => {
+    const expected = fromJS({
+      sendEmails: {
+        loading: false,
+        errors: false
+      }
+    });
+
+    const action = {
+      type: actions.SEND_EMAILS_SUCCESS
+    };
+
+    const newState = reducer(fromJS({}), action);
+
+    expect(newState).toEqual(expected);
+  });
+
+  it("should handle SEND_EMAILS_FAILURE", () => {
+    const expected = fromJS({
+      sendEmails: {
+        loading: false,
+        errors: true
+      }
+    });
+
+    const action = {
+      type: actions.SEND_EMAILS_FAILURE
+    };
+
+    const newState = reducer(fromJS({}), action);
+
+    expect(newState).toEqual(expected);
+  });
+
+  it("should handle SEND_EMAILS_FINISHED", () => {
+    const expected = fromJS({
+      sendEmails: {
+        loading: false,
+        errors: false
+      }
+    });
+
+    const action = {
+      type: actions.SEND_EMAILS_FINISHED
     };
 
     const newState = reducer(fromJS({}), action);

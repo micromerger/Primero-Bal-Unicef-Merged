@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { endOfDay, subMonths } from "date-fns";
 import omit from "lodash/omit";
 
@@ -9,7 +7,9 @@ import { ageParser } from "./utils";
 
 const CUSTOM_FILTERS = {
   LAST_UPDATED_AT: "last_updated_at",
-  MY_CASES: "my_cases"
+  MY_CASES: "my_cases",
+  MY_FAMILIES: "my_families",
+  FAMILY_LINKED_TO_MY_CASES: "family_linked_to_my_cases"
 };
 
 const valueGetters = {
@@ -31,17 +31,38 @@ const customCheckBoxFilters = {
     ],
     fieldName
   }),
-  [CUSTOM_FILTERS.MY_CASES]: ({ i18n, user }) => ({
+  [CUSTOM_FILTERS.MY_CASES]: ({ user, label }) => ({
     options: [
       {
         id: `owned_by=${user}`,
         key: "owned_by",
-        display_name: i18n.t("cases.filter_by.my_cases")
+        display_name: label("my_cases", "cases.filter_by.my_cases")
       },
       {
         id: `assigned_user_names=${user}`,
         key: "assigned_user_names",
-        display_name: i18n.t("cases.filter_by.referred_cases")
+        display_name: label("referred_cases", "cases.filter_by.referred_cases")
+      },
+      {
+        id: `assign=${user}`,
+        key: "assign",
+        display_name: label("assigned_cases", "cases.filter_by.assigned_to_me")
+      }
+    ],
+    isObject: true,
+    fieldName: "or"
+  }),
+  [CUSTOM_FILTERS.MY_FAMILIES]: ({ user, label }) => ({
+    options: [
+      {
+        id: `owned_by=${user}`,
+        key: "owned_by",
+        display_name: label("my_families", "families.filter_by.my_families")
+      },
+      {
+        id: `assigned_user_names=${user}`,
+        key: "assigned_user_names",
+        display_name: label("family_linked_to_my_cases", "families.filter_by.family_linked_to_my_cases")
       }
     ],
     isObject: true,
@@ -90,7 +111,7 @@ const handleFilterChange = methods => {
   valueSetters[type || "basic"](methods);
 };
 
-const getFilterProps = ({ filter, user, i18n }) => {
+const getFilterProps = ({ filter, user, i18n, label }) => {
   const { field_name: fieldName, options, option_strings_source: optionStringsSource, isObject } = filter;
 
   switch (fieldName) {
@@ -100,7 +121,9 @@ const getFilterProps = ({ filter, user, i18n }) => {
         fieldName
       });
     case CUSTOM_FILTERS.MY_CASES:
-      return customCheckBoxFilters[CUSTOM_FILTERS.MY_CASES]({ i18n, user });
+      return customCheckBoxFilters[CUSTOM_FILTERS.MY_CASES]({ user, label });
+    case CUSTOM_FILTERS.MY_FAMILIES:
+      return customCheckBoxFilters[CUSTOM_FILTERS.MY_FAMILIES]({ user, label });
     default:
       return { options, fieldName, optionStringsSource, isObject };
   }

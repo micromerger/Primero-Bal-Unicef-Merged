@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { COMPARISON_OPERATORS, LOGICAL_OPERATORS, MATHEMATICAL_OPERATORS } from "../constants";
 import {
   eqOperator,
@@ -12,7 +10,8 @@ import {
   orOperator,
   notOperator,
   sumOperator,
-  avgOperator
+  avgOperator,
+  notBlankOperator
 } from "../operators";
 
 export default (operator, value, extra) => {
@@ -29,6 +28,8 @@ export default (operator, value, extra) => {
       return ltOperator(value);
     case COMPARISON_OPERATORS.IN:
       return inOperator(value);
+    case COMPARISON_OPERATORS.NOT_BLANK:
+      return notBlankOperator(value);
     case LOGICAL_OPERATORS.AND:
       return andOperator(value);
     case LOGICAL_OPERATORS.OR:

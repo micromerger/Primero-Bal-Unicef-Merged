@@ -1,9 +1,8 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
 import get from "lodash/get";
 import { useMemo } from "react";
 
 import { useI18n } from "../i18n";
-import { DATE_FORMAT, DATE_TIME_FORMAT } from "../../config";
+import { selectedDateFormat } from "../../libs/date-picker-localization";
 
 import { notVisible } from "./utils";
 import ErrorField from "./fields/error-field";
@@ -21,7 +20,9 @@ import TextInput from "./fields/text-input";
 import CheckboxInput from "./fields/checkbox-input";
 import AttachmentInput from "./fields/attachment-input";
 import RecordAttachmentInput from "./fields/record-attachment-input";
+import PhoneNumberInput from "./fields/phone-number-input";
 import Label from "./fields/label";
+import RegistryField from "./fields/registry-input";
 import {
   CHECK_BOX_FIELD,
   ERROR_FIELD,
@@ -39,8 +40,11 @@ import {
   DOCUMENT_FIELD,
   LINK_FIELD,
   PHOTO_RECORD_FIELD,
-  AUDIO_RECORD_FIELD
+  AUDIO_RECORD_FIELD,
+  SIGNATURE_FIELD,
+  REGISTRY_FIELD
 } from "./constants";
+import SignatureInput from "./fields/signature-input";
 
 export default (field, { checkErrors, errors, formMode, disableUnderline }) => {
   const {
@@ -53,6 +57,7 @@ export default (field, { checkErrors, errors, formMode, disableUnderline }) => {
     autoFocus,
     option_strings_source: optionStringsSource,
     option_strings_text: optionsStringsText,
+    transformOptions,
     options,
     password,
     multi_select: multiSelect,
@@ -64,6 +69,7 @@ export default (field, { checkErrors, errors, formMode, disableUnderline }) => {
     hint,
     disabled,
     inputClassname,
+    phone_number: isPhoneNumber,
     date_include_time: dateIncludeTime,
     selected_value: selectedValue,
     visible,
@@ -71,6 +77,7 @@ export default (field, { checkErrors, errors, formMode, disableUnderline }) => {
     tooltip,
     numeric,
     onChange,
+    onInputChange,
     disableClearable,
     onBlur,
     asyncOptions,
@@ -104,11 +111,23 @@ export default (field, { checkErrors, errors, formMode, disableUnderline }) => {
     showDisableOption,
     maxOptionsAllowed,
     optionFieldName,
-    additionalOptions
+    additionalOptions,
+    showFileUrl,
+    signature_provided_by_label: signatureProvidedByLabel,
+    warning
   } = field;
 
   const i18n = useI18n();
-  const error = errors ? get(errors, name) : undefined;
+  let error;
+
+  if (!errors) {
+    error = undefined;
+  } else if (type === DOCUMENT_FIELD) {
+    error = get(errors, `${name}_base64`) || get(errors, name);
+  } else {
+    error = get(errors, name);
+  }
+
   const errorsToCheck = checkErrors ? checkErrors.concat(fieldCheckErrors) : fieldCheckErrors;
 
   const optionSelector = watchedInputsValues => ({
@@ -121,7 +140,7 @@ export default (field, { checkErrors, errors, formMode, disableUnderline }) => {
     filterOptions: filterOptionSource && (optionsFromState => filterOptionSource(watchedInputsValues, optionsFromState))
   });
 
-  const dateFormat = dateIncludeTime ? DATE_TIME_FORMAT : DATE_FORMAT;
+  const dateFormat = selectedDateFormat(dateIncludeTime, i18n.locale);
 
   const renderError = () =>
     checkErrors?.size && errors
@@ -157,6 +176,7 @@ export default (field, { checkErrors, errors, formMode, disableUnderline }) => {
     name,
     placeholder,
     required,
+    warning,
     ...(disableUnderline && !multiSelect && { InputProps: { disableUnderline } })
   };
 
@@ -181,12 +201,14 @@ export default (field, { checkErrors, errors, formMode, disableUnderline }) => {
     numeric,
     onBlur,
     onChange,
+    onInputChange,
     onClick,
     onKeyPress,
     password,
     selectedValue,
     setOtherFieldValues,
     tooltip,
+    transformOptions,
     type,
     multipleLimitOne,
     renderDownloadButton,
@@ -194,10 +216,12 @@ export default (field, { checkErrors, errors, formMode, disableUnderline }) => {
     maxlength,
     showDefaultAction,
     showDeleteAction,
+    showFileUrl,
     showDisableOption,
     maxOptionsAllowed,
     optionFieldName,
-    additionalOptions
+    additionalOptions,
+    signatureProvidedByLabel
   };
 
   const Field = (fieldType => {
@@ -214,6 +238,8 @@ export default (field, { checkErrors, errors, formMode, disableUnderline }) => {
       case PHOTO_FIELD:
       case DOCUMENT_FIELD:
         return AttachmentInput;
+      case SIGNATURE_FIELD:
+        return SignatureInput;
       case LABEL_FIELD:
         return Label;
       case ERROR_FIELD:
@@ -234,8 +260,15 @@ export default (field, { checkErrors, errors, formMode, disableUnderline }) => {
         return HiddenInput;
       case LINK_FIELD:
         return LinkField;
-      default:
+      case REGISTRY_FIELD:
+        return RegistryField;
+      default: {
+        if (isPhoneNumber) {
+          return PhoneNumberInput;
+        }
+
         return TextInput;
+      }
     }
   })(type);
 

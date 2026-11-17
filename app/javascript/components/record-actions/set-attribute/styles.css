@@ -1,0 +1,12 @@
+.userText {
+  margin: 0;
+}
+
+.userList {
+  list-style: none;
+  padding: 0;
+}
+
+.userField {
+  font-weight: bold;
+}

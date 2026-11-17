@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Use Solr fuzzy search to find records similar to this record given some field citeria.
 # This is used for duplicate detection and matching of child tracing requests to child cases.
 class MatchingService
@@ -42,8 +40,6 @@ class MatchingService
     end
   end
 
-  # Disable cop, rubocop detect thresholded_search_result as hash but it is an array
-  # rubocop:disable Style/HashTransformValues
   def normalize_search_results(results)
     return {} unless results.present?
 
@@ -53,7 +49,6 @@ class MatchingService
       [id, { score:, likelihood: likelihood(score, average_score(results), thresholded_search_result.size) }]
     end
   end
-  # rubocop:enable Style/HashTransformValues
 
   def average_score(results)
     scores = results.values

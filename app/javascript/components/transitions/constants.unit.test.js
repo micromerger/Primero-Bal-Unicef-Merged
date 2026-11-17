@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import * as transitionsConstants from "./constants";
 
 describe("<Transitions /> - Constants", () => {
@@ -34,6 +32,13 @@ describe("<Transitions /> - Constants", () => {
       expect.arrayContaining(["transfer", "referral", "reassign"])
     );
     delete constants.TRANSITIONS_TYPES;
+
+    expect(constants).toHaveProperty("REFERRAL_SUCCESS_STATUS");
+    expect(typeof constants.REFERRAL_SUCCESS_STATUS).toEqual("object");
+    expect(Object.keys(constants.REFERRAL_SUCCESS_STATUS)).toEqual(
+      expect.arrayContaining(["successful", "not_successful"])
+    );
+    delete constants.REFERRAL_SUCCESS_STATUS;
 
     expect(Object.keys(constants)).toHaveLength(0);
   });

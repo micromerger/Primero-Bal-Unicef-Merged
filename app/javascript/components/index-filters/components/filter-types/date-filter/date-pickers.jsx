@@ -1,19 +1,18 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { useEffect } from "react";
 import { endOfDay, parseISO, startOfDay } from "date-fns";
 import { DatePicker, DateTimePicker } from "@mui/x-date-pickers";
 import { isString } from "formik";
+import isNil from "lodash/isNil";
 
-import { DATE_FORMAT, DATE_TIME_FORMAT, LOCALE_KEYS } from "../../../../../config";
+import { LOCALE_KEYS } from "../../../../../config";
 import { useI18n } from "../../../../i18n";
 import { toServerDateFormat } from "../../../../../libs";
 import NepaliCalendar from "../../../../nepali-calendar-input";
 import css from "../styles.css";
 import DateProvider from "../../../../../date-provider";
-import { dayOfWeekFormatter } from "../../../../../libs/date-picker-localization";
+import { dayOfWeekFormatter, selectedDateFormat } from "../../../../../libs/date-picker-localization";
 
-import { getDatesValue, getDateValue } from "./utils";
+import { getDatesValue, getDateValue, defaultDates } from "./utils";
 
 function Component({
   dateIncludeTime,
@@ -24,14 +23,19 @@ function Component({
   setInputValue,
   setMoreSectionFilters,
   setValue,
-  register
+  register,
+  selectedFieldDefaultValue = {}
 }) {
   const i18n = useI18n();
-  const pickerFormat = dateIncludeTime ? DATE_TIME_FORMAT : DATE_FORMAT;
+  const pickerFormat = selectedDateFormat(dateIncludeTime, i18n.locale);
 
   useEffect(() => {
     if (selectedField) {
       register(selectedField);
+      if (isNil(inputValue)) {
+        setValue(selectedField, selectedFieldDefaultValue || defaultDates());
+        setInputValue(selectedFieldDefaultValue || defaultDates());
+      }
     }
 
     return () => {
@@ -88,7 +92,7 @@ function Component({
         actionBar: {
           actions: ["clear", "accept"]
         },
-        textField: { InputLabelProps: { shrink: true }, fullWidth: true, clearable: true }
+        textField: { slotProps: { inputLabel: { shrink: true } }, fullWidth: true, clearable: true }
       }
     };
 

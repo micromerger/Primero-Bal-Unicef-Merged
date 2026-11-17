@@ -1,11 +1,10 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { Record, fromJS } from "immutable";
 
 export const FieldRecord = Record({
   autosum_total: true,
   collapse: null,
   date_include_time: false,
+  date_input: null,
   date_validation: null,
   disabled: null,
   display_conditions_record: undefined,
@@ -28,6 +27,7 @@ export const FieldRecord = Record({
   option_strings_text: null,
   order: null,
   parent_form: null,
+  phone_number: false,
   required: false,
   selected_value: null,
   show_on_minify_form: false,
@@ -41,7 +41,8 @@ export const FieldRecord = Record({
   type: "",
   visible: null,
   watchedInputs: null,
-  calculation: {}
+  calculation: {},
+  signature_provided_by_label: {}
 });
 
 export const FormSectionRecord = Record({

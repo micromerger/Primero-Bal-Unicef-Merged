@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # An indicator that returns the average cases per case worker
 class ManagedReports::Indicators::AverageCasesPerCaseWorker < ManagedReports::SqlReportIndicator
   class << self
@@ -21,6 +19,7 @@ class ManagedReports::Indicators::AverageCasesPerCaseWorker < ManagedReports::Sq
             COALESCE(srch_gender, 'incomplete_data') AS gender
           FROM cases
           WHERE srch_next_steps && '{a_continue_protection_assessment}'
+          AND srch_record_state = TRUE
           #{build_filter_query(current_user, params)&.prepend('AND ')}
         )
         SELECT

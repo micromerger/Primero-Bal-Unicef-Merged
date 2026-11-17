@@ -1,7 +1,5 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import PropTypes from "prop-types";
-import { differenceInYears, parseISO, isDate } from "date-fns";
+import { differenceInYears, parseISO, isDate, startOfMonth, lastDayOfYear } from "date-fns";
 import { InputAdornment } from "@mui/material";
 import { FastField, connect, getIn } from "formik";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
@@ -10,19 +8,22 @@ import isEmpty from "lodash/isEmpty";
 import { useCallback, useEffect, useRef } from "react";
 
 import { toServerDateFormat } from "../../../../libs";
-import { DATE_FORMAT, DATE_TIME_FORMAT, DEFAULT_DATE_VALUES } from "../../../../config";
+import { DEFAULT_DATE_VALUES } from "../../../../config";
 import { DATE_FIELD_NAME } from "../constants";
 import { NOT_FUTURE_DATE } from "../../constants";
+import { selectedDateFormat } from "../../../../libs/date-picker-localization";
+import { useI18n } from "../../../i18n";
 
 import DateFieldPicker from "./date-field-picker";
 
 function DateField({ displayName, name, helperText, mode = {}, formik, InputProps, formSection, ...rest }) {
   const fieldValue = useRef(null);
   const formInstance = useRef();
+  const i18n = useI18n();
 
   const allowedDefaultValues = Object.values(DEFAULT_DATE_VALUES);
 
-  const { date_include_time: dateIncludeTime, selected_value: selectedValue } = rest.field;
+  const { date_include_time: dateIncludeTime, selected_value: selectedValue, date_input: dateInput } = rest.field;
 
   const dateOfBirthMatches = name.match(/(.*)date_of_birth$/);
   const ageFieldName = isEmpty(dateOfBirthMatches) ? null : `${dateOfBirthMatches[1]}age`;
@@ -84,12 +85,28 @@ function DateField({ displayName, name, helperText, mode = {}, formik, InputProp
   }, [formInstance.current]);
 
   return (
-    <FastField {...fieldProps}>
+    <FastField key={i18n.locale} {...fieldProps}>
       {({ field, form }) => {
         const onChange = date => {
-          updateAgeField(form, date);
+          const convertedDate = (() => {
+            if (dateIncludeTime && !["year", "year-month"].includes(dateInput)) return date;
 
-          const formattedDate = date ? toServerDateFormat(date, { includeTime: dateIncludeTime }) : null;
+            if (dateInput === "year") {
+              return lastDayOfYear(date);
+            }
+
+            if (dateInput === "year-month") {
+              return startOfMonth(date);
+            }
+
+            return date;
+          })();
+
+          updateAgeField(form, convertedDate);
+
+          const formattedDate = convertedDate
+            ? toServerDateFormat(convertedDate, { includeTime: dateIncludeTime })
+            : null;
 
           return form.setFieldValue(name, formattedDate, false);
         };
@@ -102,7 +119,7 @@ function DateField({ displayName, name, helperText, mode = {}, formik, InputProp
               key
             )
           ),
-          format: dateIncludeTime ? DATE_TIME_FORMAT : DATE_FORMAT,
+          format: selectedDateFormat(dateIncludeTime, i18n.locale),
           dateIncludeTime,
           clearable: true,
           InputProps: {
@@ -130,6 +147,7 @@ function DateField({ displayName, name, helperText, mode = {}, formik, InputProp
             displayName={displayName}
             handleClearable={handleClearable}
             isShow={mode.isShow}
+            dateInput={dateInput}
           />
         );
       }}

@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe AuditLog do
-  before(:each) { clean_data(AuditLog, User, Role, Agency, Child) }
+  before(:each) do
+    clean_data(AuditLog, User, UserGroup, Role, Agency, FormSection, PrimeroModule, PrimeroProgram, Child)
+  end
 
   describe '.display_id' do
     let(:role) do
@@ -58,6 +58,80 @@ describe AuditLog do
     end
   end
 
+  describe '.last_login' do
+    let!(:role_standard) { create(:role, user_category: nil) }
+    let!(:role_non_standard) { create(:role, user_category: Role::CATEGORY_MAINTENANCE) }
+
+    let!(:user_with_standard_role)     { create(:user, role: role_standard) }
+    let!(:user_with_non_standard_role) { create(:user, role: role_non_standard) }
+
+    let(:other_action) { 'OTHER_ACTION' }
+
+    let!(:old_login_standard) do
+      AuditLog.create!(
+        record_type: 'User',
+        record_id: user_with_standard_role.id,
+        user: user_with_standard_role,
+        action: AuditLog::LOGIN,
+        timestamp: 2.days.ago
+      )
+    end
+
+    let!(:newer_login_standard) do
+      AuditLog.create!(
+        record_type: 'User',
+        record_id: user_with_standard_role.id,
+        user: user_with_standard_role,
+        action: AuditLog::LOGIN,
+        timestamp: 1.day.ago
+      )
+    end
+
+    let!(:login_non_standard_role) do
+      AuditLog.create!(
+        record_type: 'User',
+        record_id: user_with_non_standard_role.id,
+        user: user_with_non_standard_role,
+        action: AuditLog::LOGIN,
+        timestamp: Time.current
+      )
+    end
+
+    let!(:non_login_action) do
+      AuditLog.create!(
+        record_type: 'User',
+        record_id: user_with_standard_role.id,
+        user: user_with_standard_role,
+        action: AuditLog::FAILED_LOGIN,
+        timestamp: Time.current
+      )
+    end
+
+    it 'returns the most recent login audit log for users with a nil user_category role' do
+      result = described_class.last_login
+
+      expect(result).to eq(newer_login_standard)
+    end
+
+    it 'ignores audit logs with actions other than LOGIN' do
+      result = described_class.last_login
+
+      expect(result).not_to eq(non_login_action)
+    end
+
+    it 'ignores login logs for users whose role has a non-nil user_category' do
+      result = described_class.last_login
+
+      expect(result).not_to eq(login_non_standard_role)
+    end
+
+    it 'returns nil when there are no matching login logs' do
+      AuditLog.delete_all
+
+      expect(described_class.last_login).to be_nil
+    end
+  end
+
   describe '.enrich_audit_logs' do
     let!(:user_group) { UserGroup.create!(name: 'Primero CP') }
     let!(:child) do
@@ -106,10 +180,10 @@ describe AuditLog do
         action: 'view',
         resource_url: '',
         metadata: {
-          "role_id": 1,
-          "agency_id": 1,
-          "remote_ip": '127.0.0.1',
-          "user_name": 'random_user'
+          role_id: 1,
+          agency_id: 1,
+          remote_ip: '127.0.0.1',
+          user_name: 'random_user'
         }
       )
     end
@@ -119,6 +193,26 @@ describe AuditLog do
       expect(audit_log.metadata['agency_id']).to eq(1)
       expect(audit_log.metadata['remote_ip']).to eq('127.0.0.1')
       expect(audit_log.metadata['user_name']).to eq('random_user')
+    end
+  end
+
+  describe '#log_message' do
+    before do
+      allow(SystemSettings).to receive(:current).and_return(
+        instance_double(SystemSettings, approvals_labels: %w[assessment case_plan closure action_plan gbv_closure])
+      )
+    end
+
+    it 'uses the action key as the message prefix' do
+      audit_log = AuditLog.new(record_type: 'User', record_id: '1', action: 'show')
+
+      expect(audit_log.log_message[:prefix][:key]).to eq('logger.actions.show')
+    end
+
+    it 'uses the description key as the message prefix for bulk_email' do
+      audit_log = AuditLog.new(record_type: 'User', record_id: '1', action: AuditLog::BULK_EMAIL)
+
+      expect(audit_log.log_message[:prefix][:key]).to eq('logger.descriptions.bulk_email')
     end
   end
 end

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Superclass for all Record exporters
 class Exporters::BaseExporter
   EXPORTABLE_FIELD_TYPES = [
@@ -64,7 +62,7 @@ class Exporters::BaseExporter
 
   def intialize_services
     self.location_service = LocationService.instance
-    self.field_value_service = FieldValueService.new(location_service:)
+    self.field_value_service = FieldValueService.new(location_service:, system_settings: SystemSettings.current)
     self.record_data_service = RecordDataService.new
   end
 
@@ -78,7 +76,7 @@ class Exporters::BaseExporter
   end
 
   def establish_record_constraints(record)
-    if user.referred_to_record?(record)
+    if referred_to_record?(record)
       self.record_constraints = Exporters::Constraints::ExporterConstraints.new(
         record:, record_type:, user:, excluded_field_names: self.class.excluded_field_names, options:
       )
@@ -88,20 +86,18 @@ class Exporters::BaseExporter
     end
   end
 
+  def referred_to_record?(record)
+    return @referred_record_ids.include?(record.id) if @referred_record_ids
+
+    user&.referred_to_record?(record)
+  end
+
   def setup_export_constraints?
     true
   end
 
   def export_value(value, field)
-    if value.is_a?(Date) then I18n.l(value)
-    elsif value.is_a?(Time) then I18n.l(value, format: :with_time)
-    elsif value.is_a?(Array)
-      value.map { |v| export_value(v, field) }
-    elsif field
-      field_value_service.value(field, value, locale:)
-    else
-      value
-    end
+    field_value_service.value(field, value, locale:)
   end
 
   def complete
@@ -140,5 +136,30 @@ class Exporters::BaseExporter
     return [] unless setup_export_constraints?
 
     record_constraints&.field_names || export_constraints.field_names
+  end
+
+  def skip_attachments?
+    true
+  end
+
+  def preload_registry_records(records)
+    @registry_records_cache = {}
+    return unless records.present? && records.first.respond_to?(:registry_associations)
+
+    registry_record_ids = RegistryAssociation.where(
+      registry_associable_type: records.first.class.name,
+      registry_associable_id: records.map(&:id)
+    ).pluck(:registry_record_id)
+
+    @registry_records_cache = RegistryRecord.where(id: registry_record_ids).index_by(&:id)
+  end
+
+  private
+
+  def preload_referrals(records)
+    return unless user.present?
+    return if records.empty?
+
+    @referred_record_ids = user.referred_record_ids(records.map(&:id), records.first.class.name)
   end
 end

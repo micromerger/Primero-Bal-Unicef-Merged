@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ManagedReports::Indicators::IncidentWorkflowBySexAndAge do
@@ -127,7 +125,7 @@ describe ManagedReports::Indicators::IncidentWorkflowBySexAndAge do
     @case3.incidents = [incident3]
     @case3.save!
     @case4 = Child.new_with_user(
-      @all_user, {  registration_date: Date.new(2023, 4, 25), sex: 'female', age: 2, workflow: 'closed' }
+      @all_user, { registration_date: Date.new(2023, 4, 25), sex: 'female', age: 2, workflow: 'closed' }
     )
     @case4.incidents = [incident4, incident5, incident6]
     @case4.save!
@@ -211,8 +209,8 @@ describe ManagedReports::Indicators::IncidentWorkflowBySexAndAge do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'year'),
             'registration_date' => SearchFilters::DateRange.new(
               field_name: 'registration_date',
-              from: '2022-03-07',
-              to: '2022-03-10'
+              from: Date.parse('2022-03-07'),
+              to: Date.parse('2022-03-10')
             )
           }
         ).data
@@ -240,8 +238,8 @@ describe ManagedReports::Indicators::IncidentWorkflowBySexAndAge do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'month'),
             'registration_date' => SearchFilters::DateRange.new(
               field_name: 'registration_date',
-              from: '2022-02-15',
-              to: '2022-03-10'
+              from: Date.parse('2022-02-15'),
+              to: Date.parse('2022-03-10')
             )
           }
         ).data
@@ -270,8 +268,8 @@ describe ManagedReports::Indicators::IncidentWorkflowBySexAndAge do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
             'registration_date' => SearchFilters::DateRange.new(
               field_name: 'registration_date',
-              from: '2022-02-15',
-              to: '2022-03-30'
+              from: Date.parse('2022-02-15'),
+              to: Date.parse('2022-03-30')
             )
           }
         ).data
@@ -299,8 +297,8 @@ describe ManagedReports::Indicators::IncidentWorkflowBySexAndAge do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'week'),
             'registration_date' => SearchFilters::DateRange.new(
               field_name: 'registration_date',
-              from: '2023-04-17',
-              to: '2023-04-27'
+              from: Date.parse('2023-04-17'),
+              to: Date.parse('2023-04-27')
             )
           }
         ).data

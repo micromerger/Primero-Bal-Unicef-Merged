@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe PhoneticSearchService, search: true do
@@ -103,6 +101,18 @@ describe PhoneticSearchService, search: true do
         expect(search.records.first.name).to eq(record1.name)
       end
 
+      describe 'search options' do
+        it 'passes skip_attachments option to search query' do
+          expect(Search::IdentifierSearchQuery).to receive(:new).and_wrap_original do |original_method, *args|
+            query = original_method.call(*args)
+            expect(query).to receive(:build).with(true).and_call_original
+            query
+          end
+
+          PhoneticSearchService.search(Child, skip_attachments: true)
+        end
+      end
+
       it 'matches the not filter for true value' do
         filter = SearchFilters::Not.new(
           filter: SearchFilters::BooleanValue.new(field_name: 'urgent_protection_concern', value: true)
@@ -115,7 +125,7 @@ describe PhoneticSearchService, search: true do
     end
 
     describe 'searches with integer filters' do
-      let(:record1) { Child.create!(data: { name: 'Record 1', age: 5 }) }
+      let(:record1) { Child.create!(data: { name: 'Record 1', age: 5, individual_age: [3] }) }
       let(:record2) { Child.create!(data: { name: 'Record 2', age: 2 }) }
       let(:record3) { Child.create!(data: { name: 'Record 3' }) }
       let(:record4) { Child.create!(data: { name: 'Record 4', age: nil }) }
@@ -150,6 +160,14 @@ describe PhoneticSearchService, search: true do
 
         expect(search.total).to eq(1)
         expect(search.records.first.name).to eq(record2.name)
+      end
+
+      it 'matches the numeric range filter for json fields' do
+        filter = SearchFilters::NumericRange.new(field_name: 'individual_age', from: 0, to: 3)
+        search = PhoneticSearchService.search(Child, filters: [filter])
+
+        expect(search.total).to eq(1)
+        expect(search.records.first.name).to eq(record1.name)
       end
 
       it 'matches the numeric range list' do
@@ -650,6 +668,82 @@ describe PhoneticSearchService, search: true do
       expect(search.records.map(&:incident_id)).to match_array(
         [record1.incident_id, record2.incident_id]
       )
+    end
+  end
+
+  describe 'skip_attachments parameter' do
+    let(:record1) { Child.create!(data: { name: 'Record 1', sex: 'female' }) }
+    let(:record2) { Child.create!(data: { name: 'Record 2', sex: 'male' }) }
+
+    before do
+      clean_data(SearchableIdentifier, Child)
+      record1
+      record2
+    end
+
+    context 'when skip_attachments is true' do
+      it 'only loads alerts and active_flags' do
+        search = PhoneticSearchService.search(Child, skip_attachments: true)
+
+        # Verify the query only includes minimal relationships
+        includes_values = search.records.includes_values
+        expect(includes_values).to contain_exactly(:alerts, :active_flags)
+        expect(includes_values.any? { |v| v.is_a?(Hash) && v.key?(:attachments) }).to be false
+      end
+
+      it 'still returns correct search results' do
+        search = PhoneticSearchService.search(Child, skip_attachments: true)
+
+        expect(search.total).to eq(2)
+        expect(search.records.map(&:name)).to match_array([record1.name, record2.name])
+      end
+    end
+
+    context 'when skip_attachments is false' do
+      it 'loads all default relationships including attachments' do
+        search = PhoneticSearchService.search(Child, skip_attachments: false)
+
+        # Verify the query includes attachments
+        includes_values = search.records.includes_values
+        expect(includes_values).to include(:alerts, :active_flags)
+        expect(includes_values.any? { |v| v.is_a?(Hash) && v.key?(:attachments) }).to be true
+      end
+    end
+
+    context 'when skip_attachments is not provided' do
+      it 'defaults to loading all relationships' do
+        search = PhoneticSearchService.search(Child)
+
+        # Verify default behavior
+        includes_values = search.records.includes_values
+        expect(includes_values).to include(:alerts, :active_flags)
+        expect(includes_values.any? { |v| v.is_a?(Hash) && v.key?(:attachments) }).to be true
+      end
+    end
+  end
+
+  describe 'phone number search' do
+    before do
+      clean_data(SearchableIdentifier, Child)
+    end
+
+    let!(:record1) { Child.create!(data: { name: 'Record 1', telephone_current: '+13055550106' }) }
+    let!(:record2) { Child.create!(data: { name: 'Record 2', telephone_searchable_1: '+13055550178' }) }
+    let!(:record3) { Child.create!(data: { name: 'Record 3' }) }
+    let!(:record4) { Child.create!(data: { name: 'Record 4' }) }
+
+    it 'matches the phone number' do
+      search = PhoneticSearchService.search(Child, phone_number: 'true', query: '+13055550106')
+
+      expect(search.total).to eq(1)
+      expect(search.records.first.id).to eq(record1.id)
+    end
+
+    it 'matches the phone number in a searchable field' do
+      search = PhoneticSearchService.search(Child, phone_number: 'true', query: '+13055550178')
+
+      expect(search.total).to eq(1)
+      expect(search.records.first.id).to eq(record2.id)
     end
   end
 end

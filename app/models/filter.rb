@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # The value bag representing the list view filters, and the hardcoded set of these filters in Primero
 # rubocop:disable Metrics/ClassLength
 class Filter < ValueObject
@@ -414,6 +412,11 @@ class Filter < ValueObject
     option_strings_source: 'lookup-yes-no'
   )
 
+  MY_FAMILIES = Filter.new(
+    name: 'families.filter_by.my_families',
+    field_name: 'my_families'
+  )
+
   class << self
     def filters(user, record_type)
       filters = case record_type
@@ -456,10 +459,11 @@ class Filter < ValueObject
       }
     end
 
+    # rubocop:disable Metrics/AbcSize
     # rubocop:disable Metrics/MethodLength
     def case_filters(user)
       filters = []
-      filters << MODULE_ID if user.multiple_modules?
+      filters << MODULE_ID if include_module_id?
       filters << FLAGGED_CASE
       filters << SOCIAL_WORKER if user.manager?
       filters += [MY_CASES, WORKFLOW]
@@ -468,7 +472,14 @@ class Filter < ValueObject
       filters << DATE_CASE unless user.gbv_only? || user.mrm_only?
       filters << ENABLED
       filters += photo_filters(user)
+      filters += custom_case_filters(user)
       filters
+    end
+
+    def custom_case_filters(user)
+      user.modules.flat_map(&:custom_case_list_filters).uniq { |filter| filter['field_name'] }.map do |filter|
+        Filter.new(filter.symbolize_keys)
+      end
     end
 
     def user_based_filters(user)
@@ -488,6 +499,7 @@ class Filter < ValueObject
       filters += reporting_location_filters(user)
       filters
     end
+    # rubocop:enable Metrics/AbcSize
     # rubocop:enable Metrics/MethodLength
 
     def approvals_filters(user)
@@ -565,6 +577,7 @@ class Filter < ValueObject
     end
 
     # rubocop:disable Metrics/AbcSize
+    # rubocop:disable Metrics/MethodLength
     def incident_filters(user)
       filters = [FLAGGED_CASE] + violence_type_filter(user) + social_worker_filter(user)
       filters += agency_office_filter(user) + user_group_filter(user) + status_filters(user)
@@ -574,10 +587,12 @@ class Filter < ValueObject
       filters += [INCIDENT_DATE] + unaccompanied_filter(user)
       filters += perpetrator_category_filters(user) + armed_force_group_filters(user)
       filters << ENABLED
+      filters << MODULE_ID if include_module_id?
       filters += mrm_incident_filters if user.mrm?
       filters
     end
     # rubocop:enable Metrics/AbcSize
+    # rubocop:enable Metrics/MethodLength
 
     def mrm_incident_filters
       [
@@ -647,6 +662,7 @@ class Filter < ValueObject
 
     def tracing_request_filter(user)
       filters = []
+      filters << MODULE_ID if include_module_id?
       filters << FLAGGED_CASE
       filters << SOCIAL_WORKER if user.manager?
       filters << INQUIRY_DATE
@@ -659,6 +675,7 @@ class Filter < ValueObject
 
     def registry_record_filter(_user)
       filters = []
+      filters << MODULE_ID if include_module_id?
       filters << FLAGGED_CASE
       filters << REGISTRY_STATUS
       filters << ENABLED
@@ -669,7 +686,9 @@ class Filter < ValueObject
 
     def family_filter(_user)
       filters = []
+      filters << MODULE_ID if include_module_id?
       filters << FLAGGED_CASE
+      filters << MY_FAMILIES
       filters << FAMILY_STATUS
       filters << ENABLED
       filters << FAMILY_LOCATION_CURRENT
@@ -682,6 +701,10 @@ class Filter < ValueObject
     def visible?(field_name, filter_fields)
       field = filter_fields[field_name]
       field.present? && field.visible?
+    end
+
+    def include_module_id?
+      PrimeroModule.available_module_ids.size > 1
     end
   end
 
@@ -709,13 +732,13 @@ class Filter < ValueObject
   end
 
   def module_id_options(opts = {})
-    user_modules = opts[:user].modules_for_record_type(opts[:record_type])
-    self.options = user_modules.map do |primero_module|
-      {
-        id: primero_module.unique_id,
-        display_name: primero_module.name
-      }
-    end
+    modules = if PrimeroModule.available_module_ids.size > 1
+                PrimeroModule.all
+              else
+                opts[:user].modules_for_record_type(opts[:record_type])
+              end
+
+    self.options = modules.map { |primero_module| { id: primero_module.unique_id, display_name: primero_module.name } }
   end
 
   def owned_by_agency_id_options(opts = {})
@@ -752,16 +775,19 @@ class Filter < ValueObject
     end.inject(&:merge)
   end
 
+  # rubocop:disable Metrics/AbcSize
   def cases_by_date_options(opts = {})
     self.options = I18n.available_locales.map do |locale|
       locale_options = [registration_date_options(locale), assessment_requested_on_options(locale),
                         date_case_plan_options(locale), date_closure_options(locale), followup_date_options(locale),
-                        date_reunification_options(locale), tracing_date_options(locale), service_date_options(locale)]
+                        date_reunification_options(locale), tracing_date_options(locale), service_date_options(locale),
+                        reassigned_transferred_on_date_options(locale)]
       date_label = opts[:user].gbv? ? 'created_at' : 'date_of_creation'
       locale_options << created_at_options(locale, date_label)
       { locale => locale_options }
     end.inject(&:merge)
   end
+  # rubocop:enable Metrics/AbcSize
 
   def registration_date_options(locale)
     {
@@ -823,6 +849,13 @@ class Filter < ValueObject
     {
       id: 'service_implemented_day_times',
       display_name: I18n.t('children.selectable_date_options.service_implemented_day_time', locale:)
+    }
+  end
+
+  def reassigned_transferred_on_date_options(locale)
+    {
+      id: 'reassigned_transferred_on',
+      display_name: I18n.t('children.selectable_date_options.reassigned_transferred_on', locale:)
     }
   end
 

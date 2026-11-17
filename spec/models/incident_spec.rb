@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 require 'will_paginate'
 
@@ -302,7 +300,7 @@ describe Incident do
     end
 
     it 'should be set from user' do
-      User.stub(:find_by_user_name).with('mj').and_return(double(organization: double(unique_id: 'UNICEF')))
+      User.stub(:find_by_user_name).with('mj').and_return(double(agency: double(unique_id: 'UNICEF')))
       incident = Incident.create 'description' => 'My Test Incident Description', :created_by => 'mj'
 
       incident.created_organization.should == 'UNICEF'
@@ -676,6 +674,7 @@ describe Incident do
               'name' => 'violation1',
               'type' => 'recruitment',
               'unique_id' => '8dccaf74-e9aa-452a-9b58-dc365b1062a2',
+              'is_late_verification' => false,
               'violation_tally' => { 'boys' => 3, 'girls' => 1, 'total' => 4, 'unknown' => 0 }
             }
           ],
@@ -685,6 +684,7 @@ describe Incident do
           'attack_on_schools' => [],
           'military_use' => [],
           'denial_humanitarian_access' => [],
+          'deprivation_liberty' => [],
           'sources' => [
             { 'name' => 'source1', 'unique_id' => '7742b9db-2db2-4421-bff7-9aae6272fc4a',
               'violations_ids' => ['8dccaf74-e9aa-452a-9b58-dc365b1062a2'] }
@@ -706,6 +706,7 @@ describe Incident do
               'violations_ids' => '8dccaf74-e9aa-452a-9b58-dc365b1062a2' }
           ]
         }
+
       expect(incident.incident_code).to eq('987654')
       expect(incident.associations_as_data('user')).to eq(incident_associations_as_data)
     end
@@ -864,6 +865,23 @@ describe Incident do
                                           incident_date: '2024-10-08' })
 
       expect(incident.incident_date_derived).to eq(Date.new(2024, 10, 8))
+    end
+  end
+
+  describe 'searchable cp_incident_violence_type' do
+    before do
+      clean_data(Incident)
+    end
+
+    it 'is a searchable field' do
+      expect(Incident.searchable_field_name?('cp_incident_violence_type')).to be true
+      expect(Incident.searchable_field_name?('cp_sexual_violence_type')).to be false
+    end
+
+    it 'sets the srch_cp_incident_violence_type column' do
+      incident = Incident.create!(data: { cp_incident_violence_type: 'physical_violence' })
+
+      expect(incident.reload.srch_cp_incident_violence_type).to eq('physical_violence')
     end
   end
 

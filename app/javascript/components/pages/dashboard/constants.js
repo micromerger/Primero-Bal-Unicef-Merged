@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 export const NAME = "Dashboard";
 
 export const DASHBOARD_NAMES = Object.freeze({
@@ -16,6 +14,7 @@ export const DASHBOARD_NAMES = Object.freeze({
   CASE_INCIDENT_OVERVIEW: "dashboard.dash_case_incident_overview",
   CASE_OVERVIEW: "dashboard.case_overview",
   ACTION_NEEDED_NEW_UPDATED: "dashboard.action_needed_new_updated",
+  ACTION_NEEDED_IDENTIFIED: "dashboard.action_needed_identified",
   ACTION_NEEDED_NEW_REFERRALS: "dashboard.action_needed_new_referrals",
   ACTION_NEEDED_NEW_TRANSFER_AWAITING_ACCEPTANCE: "dashboard.action_needed_transfer_awaiting_acceptance",
   CASE_RISK: "dashboard.case_risk",
@@ -27,6 +26,7 @@ export const DASHBOARD_NAMES = Object.freeze({
   CASES_BY_TASK_OVERDUE_SERVICES: "dashboard.cases_by_task_overdue_services",
   GROUP_OVERVIEW: "dashboard.dash_group_overview",
   NATIONAL_ADMIN_SUMMARY: "dashboard.dash_national_admin_summary",
+  CASES_BY_INCIDENT_TYPE: "dashboard.dash_cases_by_incident_type",
   PERPETRATOR_ARMED_FORCE_GROUP_PARTY_NAMES: "dashboard.dash_perpetrator_armed_force_group_party_names",
   PROTECTION_CONCERNS: "dashboard.dash_protection_concerns",
   REPORTING_LOCATION: "dashboard.reporting_location",
@@ -42,6 +42,7 @@ export const DASHBOARD_NAMES = Object.freeze({
 });
 
 export const INDICATOR_NAMES = Object.freeze({
+  CASES_BY_INCIDENT_TYPE: "cases_by_incident_type",
   RISK_LEVEL: "risk_level",
   WORKFLOW_TEAM: "workflow_team",
   WORKFLOW: "workflow",
@@ -87,6 +88,7 @@ export const DASHBOARD_GROUP = Object.freeze({
   action_needed: "action_needed",
   overdue_tasks: "overdue_tasks",
   workflow: "workflow",
+  approvals_pending: "approvals_pending",
   approvals: "approvals",
   referrals_transfers: "referrals_transfers",
   shared_from_my_team: "shared_from_my_team",
@@ -102,16 +104,39 @@ export const DASHBOARD_GROUP = Object.freeze({
   flags: "flags"
 });
 
-export const DASHBOARD_NAMES_FOR_GROUP = Object.freeze({
+export const PERMISSION_FOR_DASHBOARD_NAME = Object.freeze({
+  reporting_location: "dash_reporting_location"
+});
+
+export const DASHBOARD_GROUPS_WITH_MODULES = Object.freeze({
+  [DASHBOARD_GROUP.approvals_pending]: [
+    "approvals_action_plan_pending",
+    "approvals_assessment_pending",
+    "approvals_case_plan_pending",
+    "approvals_closure_pending",
+    "approvals_gbv_closure_pending"
+  ],
+  [DASHBOARD_GROUP.approvals]: [
+    "approvals_action_plan",
+    "approvals_assessment",
+    "approvals_case_plan",
+    "approvals_closure",
+    "approvals_gbv_closure"
+  ]
+});
+
+export const DASHBOARD_GROUPS_WITHOUT_MODULES = Object.freeze({
   [DASHBOARD_GROUP.overview]: [
     "case_overview",
     "case_risk",
     "dash_group_overview",
     "dash_case_incident_overview",
-    "dash_national_admin_summary"
+    "dash_national_admin_summary",
+    "dash_cases_by_incident_type"
   ],
   [DASHBOARD_GROUP.action_needed]: [
     "action_needed_new_updated",
+    "action_needed_identified",
     "action_needed_new_referrals",
     "action_needed_transfer_awaiting_acceptance"
   ],
@@ -120,18 +145,6 @@ export const DASHBOARD_NAMES_FOR_GROUP = Object.freeze({
     "cases_by_task_overdue_case_plan",
     "cases_by_task_overdue_followups",
     "cases_by_task_overdue_services"
-  ],
-  [DASHBOARD_GROUP.approvals]: [
-    "approvals_action_plan_pending",
-    "approvals_assessment_pending",
-    "approvals_case_plan_pending",
-    "approvals_closure_pending",
-    "approvals_gbv_closure_pending",
-    "approvals_action_plan",
-    "approvals_assessment",
-    "approvals_case_plan",
-    "approvals_closure",
-    "approvals_gbv_closure"
   ],
   [DASHBOARD_GROUP.referrals_transfers]: [
     "dash_shared_with_me",

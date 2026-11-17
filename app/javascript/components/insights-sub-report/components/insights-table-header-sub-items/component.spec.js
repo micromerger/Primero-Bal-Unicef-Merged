@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { mountedComponent, screen } from "../../../../test-utils";
 
 import InsightsTableHeaderSubItems from "./component";
@@ -7,7 +5,7 @@ import InsightsTableHeaderSubItems from "./component";
 describe("<InsightsTableHeaderSubItems />", () => {
   const props = {
     addEmptyCell: true,
-    groupedSubItemcolumns: {
+    groupedSubItemColumns: {
       "2021-Q2": ["boys", "girls", "unknown", "total"],
       "2021-Q3": ["boys", "girls", "unknown", "total"],
       "2021-Q4": ["boys", "girls", "unknown", "total"]

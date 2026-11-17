@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ManagedReport do
@@ -14,7 +12,7 @@ describe ManagedReport do
 
     it 'return a Hash of ManagedReport' do
       expect(managed_reports).to be_an_instance_of(Hash)
-      expect(managed_reports.size).to eq(18)
+      expect(managed_reports.size).to eq(21)
     end
 
     it 'should have gbv_statistics and violation keys' do
@@ -34,7 +32,10 @@ describe ManagedReport do
                                                    Permission::PROCESS_QUALITY_AVERAGE_CASES,
                                                    Permission::PROCESS_QUALITY_SUCCESSFUL_REFERRALS,
                                                    Permission::PROCESS_QUALITY_IMPLEMENTED_REFERRALS,
-                                                   Permission::CASE_CHARACTERISTICS])
+                                                   Permission::CASE_CHARACTERISTICS,
+                                                   Permission::CASE_MANAGEMENT_KPIS_REPORT,
+                                                   Permission::CASE_MANAGEMENT_KPIS_SERVICE_REFERRALS_REPORT,
+                                                   Permission::DISTRIBUTION_USERS_ROLE_REPORT])
     end
 
     it 'should return subreports of gbv_statistics' do
@@ -53,7 +54,7 @@ describe ManagedReport do
       expect(
         managed_reports[Permission::VIOLATION_REPORT].subreports
       ).to match_array(
-        %w[killing maiming detention sexual_violence attack_on_hospitals attack_on_schools
+        %w[killing maiming deprivation_liberty sexual_violence attack_on_hospitals attack_on_schools
            denial_humanitarian_access abduction recruitment military_use]
       )
     end
@@ -61,7 +62,7 @@ describe ManagedReport do
     it 'should return permitted_filters of violations' do
       expect(managed_reports[Permission::VIOLATION_REPORT].permitted_filters).to match_array(
         [
-          :ctfmr_verified, :verified_ctfmr_technical, :grouped_by,
+          :ctfmr_verified, :verified_ctfmr_technical, :grouped_by, :has_late_verified_violations,
           { ctfmr_verified_date: {}, date_of_first_report: {}, incident_date: {} }
         ]
       )

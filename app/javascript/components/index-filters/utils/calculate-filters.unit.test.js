@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 
 import calculateFilters from "./calculate-filters";
@@ -213,7 +211,7 @@ describe("<IndexFilters>/utils - calculateFilters", () => {
       locale: "en",
       more: false,
       moreSectionKeys: [],
-      queryParamsKeys: ["record_state", "protection_concerns", "page", "per"]
+      queryParams: { record_state: true, protection_concerns: ["concern1"], page: 1, per: 0 }
     };
 
     expect(calculateFilters(params)).toEqual(expected);

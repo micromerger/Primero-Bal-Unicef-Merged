@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import {
   ACTIVITY_LOGS,
   MANAGE,
@@ -9,9 +7,11 @@ import {
   READ_RECORDS,
   READ_REPORTS,
   SHOW_APPROVALS,
+  SHOW_ACCESS_LOG,
   SHOW_CHANGE_LOG,
   SHOW_EXPORTS,
   SHOW_TASKS,
+  SHOW_REFERRALS,
   ADMIN_RESOURCES,
   ADMIN_ACTIONS,
   VIEW_INCIDENTS_FROM_CASE,
@@ -21,9 +21,12 @@ import {
   READ_REGISTRY_RECORD,
   READ_FAMILY_RECORD,
   SHOW_USAGE_REPORTS,
-  VIEW_DASHBOARD
+  VIEW_DASHBOARD,
+  GROUP_PERMISSIONS,
+  VIEW_CASE_RELATIONSHIPS,
+  MANAGE_RESTRICTED
 } from "./components/permissions/constants";
-import getAdminResources from "./components/pages/admin/utils/get-admin-resources";
+import { checkPermissions } from "./components/permissions/utils";
 
 const API_BASE_PATH = "/api/v2";
 
@@ -109,6 +112,8 @@ const INCIDENT_CASE_ID_FIELD = "incident_case_id";
 const INCIDENT_CASE_ID_DISPLAY_FIELD = "case_id_display";
 const INCIDENT_SHORT_ID_FIELD = "short_id";
 const SERVICES_SUBFORM_FIELD = "services_section";
+const REFERRED_USERS_PENDING_FIELD = "referred_users_pending";
+const TRANSFERRED_TO_USERS_FIELD = "transferred_to_users";
 
 const CONSENT_GIVEN_FIELD_BY_MODULE = Object.freeze({
   [MODULES.CP]: ["consent_for_services", "disclosure_other_orgs"],
@@ -169,6 +174,8 @@ const SUMMARY = "summary";
 
 const SUMMARY_INCIDENT_MRM = "mrm_summary_page";
 
+const ACCESS_LOGS = "access_logs";
+
 const TRANSITION_TYPE = [TRANSFERS_ASSIGNMENTS, REFERRAL];
 
 const RECORD_INFORMATION = [APPROVALS, RECORD_OWNER, REFERRAL, TRANSFERS_ASSIGNMENTS];
@@ -189,6 +196,7 @@ const ROUTES = {
   configurations: "/admin/configurations",
   admin_configurations_new: "/admin/configurations/new",
   code_of_conduct: "/code_of_conduct",
+  terms_of_use: "/terms_of_use",
   admin_code_of_conduct: "/admin/code_of_conduct",
   contact_information: "/admin/contact_information",
   dashboard: "/dashboards",
@@ -197,12 +205,18 @@ const ROUTES = {
   forms: "/admin/forms",
   forms_new: "/admin/forms/new",
   incidents: "/incidents",
+  intake_new: "/intake/:id/new",
+  intake_thankyou: "/intake/:id/thankyou",
+  intake: "/intake",
   login: "/login",
   login_idp_redirect: "/login/:id",
   logout: "/logout",
+  self_registration: "/registration",
+  self_registration_success: "/registration/success",
   lookups: "/admin/lookups",
   lookups_new: "/admin/lookups/new",
   matches: "/matches",
+  my_case: "/my_case",
   not_authorized: "/not-authorized",
   reports: "/reports",
   reports_new: "/reports/new",
@@ -230,6 +244,8 @@ const PERMITTED_URL = [
   ROUTES.login,
   ROUTES.login_redirect,
   ROUTES.login_idp_redirect,
+  ROUTES.self_registration,
+  ROUTES.self_registration_success,
   ROUTES.logout,
   ROUTES.not_authorized,
   ROUTES.password_reset,
@@ -239,12 +255,18 @@ const PERMITTED_URL = [
   ROUTES.incidents,
   ROUTES.newdashboard,
   ROUTES.registry_records,
-  ROUTES.families,
   ROUTES.code_of_conduct,
-  ROUTES.password_reset_request
+  ROUTES.terms_of_use,
+  ROUTES.password_reset_request,
+  ROUTES.intake_new,
+  ROUTES.intake_thankyou
 ];
 
+const SKIP_LOGIN_REDIRECTION_ROUTES = [ROUTES.intake];
+
 const DATE_FORMAT = "dd-MMM-yyyy";
+
+const DATE_FORMAT_FALLBACK = "dd-MM-yyyy";
 
 const DATE_FORMAT_NE = "DD-MM-YYYY";
 
@@ -257,6 +279,8 @@ const API_DATE_TIME_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
 const TRANSITIONS_DATE_FORMAT = "MMM dd,yyyy";
 
 const DATE_TIME_FORMAT = "dd-MMM-yyyy HH:mm";
+
+const DATE_TIME_FORMAT_FALLBACK = "dd-MM-yyyy HH:mm";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -280,15 +304,20 @@ const LOOKUPS = {
   protection_concerns: "lookup-protection-concerns",
   followup_type: "lookup-followup-type",
   reporting_locations: "ReportingLocation",
+  locations: "Location",
   gbv_violence_type: "lookup-gbv-sexual-violence-type",
   cp_violence_type: "lookup-cp-violence-type",
   gender: "lookup-gender",
   gender_unknown: "lookup-gender-unknown",
+  gender_unknown_mixed: "lookup-gender-mixed",
   legitimate_basis: "lookup-legitimate-basis",
   legitimate_basis_explanations: "lookup-legitimate-basis-explanations",
   verification_status: "lookup-verification-status",
   violation_type: "lookup-violation-type",
-  armed_force_group_or_other_party: "lookup-armed-force-group-or-other-party"
+  armed_force_group_or_other_party: "lookup-armed-force-group-or-other-party",
+  yes_no: "lookup-yes-no",
+  registry_type: "lookup-registry-type",
+  reasons_referral_failure: "lookup-reasons-referral-failure"
 };
 
 const ADMIN_NAV = [
@@ -323,17 +352,17 @@ const ADMIN_NAV = [
       {
         to: "/forms",
         label: "settings.navigation.forms",
-        permission: MANAGE,
+        permission: MANAGE_RESTRICTED,
         recordType: RESOURCES.metadata
       },
       {
         to: "/lookups",
         label: "settings.navigation.lookups",
-        permission: MANAGE,
+        permission: MANAGE_RESTRICTED,
         recordType: RESOURCES.metadata
       }
     ],
-    permission: MANAGE,
+    permission: MANAGE_RESTRICTED,
     recordType: RESOURCES.metadata
   },
   { to: "/locations", label: "settings.navigation.locations", permission: MANAGE, recordType: RESOURCES.metadata },
@@ -370,9 +399,13 @@ const ADMIN_NAV = [
 ];
 
 const APPLICATION_NAV = (permissions, userId) => {
-  const adminResources = getAdminResources(permissions);
-  const adminForm = adminResources[0] || ADMIN_RESOURCES.contact_information;
-  const adminSettingsOption = `/admin/${adminForm === RESOURCES.metadata ? RESOURCES.forms : adminForm}`;
+  const flatAdminNav = ADMIN_NAV.flatMap(nav => nav.items || [nav]);
+  const firstAccessibleNav = flatAdminNav.find(item =>
+    checkPermissions(permissions.get(item.recordType), item.permission)
+  );
+  const adminSettingsOption = firstAccessibleNav
+    ? `/admin${firstAccessibleNav.to}`
+    : `/admin/${RESOURCES.contact_information}`;
 
   return [
     {
@@ -382,11 +415,11 @@ const APPLICATION_NAV = (permissions, userId) => {
       validateWithUserPermissions: true
     },
     {
-name:"navigation.newdashboard", 
+name:"navigation.newdashboard",
 to: ROUTES.newdashboard,
-icon:"insights", 
-resources: RESOURCES.dashboards, 
-actions: VIEW_DASHBOARD, 
+icon:"insights",
+resources: RESOURCES.dashboards,
+actions: VIEW_DASHBOARD,
 validateWithUserPermissionscustom:true
 },
     {
@@ -412,7 +445,22 @@ validateWithUserPermissionscustom:true
       jewelCount: "case",
       resources: RESOURCES.cases,
       actions: READ_RECORDS,
-      validateWithUserPermissions: true
+      validateWithUserPermissions: true,
+      groupPermissions: [
+        GROUP_PERMISSIONS.ALL,
+        GROUP_PERMISSIONS.GROUP,
+        GROUP_PERMISSIONS.AGENCY,
+        GROUP_PERMISSIONS.SELF
+      ]
+    },
+    {
+      name: "navigation.my_case",
+      to: ROUTES.my_case,
+      icon: "cases",
+      resources: RESOURCES.cases,
+      actions: READ_RECORDS,
+      validateWithUserPermissions: true,
+      groupPermissions: [GROUP_PERMISSIONS.IDENTIFIED]
     },
     {
       name: "navigation.incidents",
@@ -549,6 +597,21 @@ const ALERTS_FOR = {
   referral: "referral"
 };
 
+const PENDING_TRANSITION_ALERTS = Object.freeze({
+  referral: {
+    pendingUsersField: REFERRED_USERS_PENDING_FIELD,
+    transitionFormUniqueId: REFERRAL,
+    messageKey: "case.messages.case_referral_pending_alert",
+    linkKey: "case.messages.pending_transition_link"
+  },
+  transfer: {
+    pendingUsersField: TRANSFERRED_TO_USERS_FIELD,
+    transitionFormUniqueId: TRANSFERS_ASSIGNMENTS,
+    messageKey: "case.messages.case_transfer_pending_alert",
+    linkKey: "case.messages.pending_transition_link"
+  }
+});
+
 const MAX_OFFLINE_ROWS_PER_PAGE = 50;
 
 const ROWS_PER_PAGE_OPTIONS = [20, 50, 75, 100];
@@ -606,12 +669,14 @@ const FAMILY_DETAILS_SUBFORM_ID = "family_details_section";
 
 const FORM_PERMISSION_ACTION = Object.freeze({
   [INCIDENT_FROM_CASE]: VIEW_INCIDENTS_FROM_CASE,
+  [ACCESS_LOGS]: SHOW_ACCESS_LOG,
   [CHANGE_LOGS]: SHOW_CHANGE_LOG,
   [APPROVALS]: SHOW_APPROVALS,
+  [REFERRAL]: SHOW_REFERRALS,
   [SUMMARY]: SHOW_SUMMARY,
   [REGISTRY_FROM_CASE]: READ_REGISTRY_RECORD,
   [FAMILY_FROM_CASE]: READ_FAMILY_RECORD,
-  [CASE_RELATIONSHIPS]: READ_RECORDS
+  [CASE_RELATIONSHIPS]: VIEW_CASE_RELATIONSHIPS
 });
 
 const VIOLATIONS_FORM = [
@@ -643,7 +708,8 @@ const VIOLATIONS_SUBFORM_UNIQUE_IDS = [
   "attack_on_hospitals",
   "attack_on_schools",
   "military_use",
-  "denial_humanitarian_access"
+  "denial_humanitarian_access",
+  "deprivation_liberty"
 ];
 
 const VIOLATION_FORMS_MAPPING = Object.freeze({
@@ -655,7 +721,8 @@ const VIOLATION_FORMS_MAPPING = Object.freeze({
   attack_on_hospitals: "attack_on_hospitals_violation_wrapper",
   attack_on_schools: "attack_on_schools_violation_wrapper",
   military_use: "military_use_violation_wrapper",
-  denial_humanitarian_access: "denial_humanitarian_access_violation_wrapper"
+  denial_humanitarian_access: "denial_humanitarian_access_violation_wrapper",
+  deprivation_liberty: "deprivation_liberty_violation_wrapper"
 });
 
 const VIOLATIONS_ASSOCIATIONS_UNIQUE_IDS = [
@@ -704,6 +771,12 @@ const CASE_CHARACTERISTICS_SUBREPORTS = ["case_protection_risk"];
 
 const VIOLENCE_TYPE_SUBREPORTS = ["cases_violence_type", "incidents_violence_type"];
 
+const CASE_MANAGEMENT_KPIS_SUBREPORTS = ["source_identification_referral"];
+
+const CASE_MANAGEMENT_KPIS_SERVICE_REFERRALS_SUBREPORTS = ["referred_appropriate_service"];
+
+const DISTRIBUTION_USERS_ROLE_SUBREPORTS = ["distribution_users_role"];
+
 const CHART_COLORS = Object.freeze({
   blue: "rgb(0, 147, 186)",
   grey: "rgb(89, 89, 82)",
@@ -745,7 +818,8 @@ const VIOLATION_VERIFICATION_STATUS = Object.freeze({
   verified: "verified",
   report_pending_verification: "report_pending_verification",
   not_mrm: "not_mrm",
-  verification_found_that_incident_did_not_occur: "verification_found_that_incident_did_not_occur"
+  verification_found_that_incident_did_not_occur: "verification_found_that_incident_did_not_occur",
+  reported_not_verified: "reported_not_verified"
 });
 
 const MAX_CONDITIONS = 4;
@@ -800,7 +874,10 @@ const POST_MESSAGES = {
   ATTEMPTS_SUBSCRIPTION_FAILED: "attempts_subscription_failed"
 };
 
+const MAXIMUM_ATTACHMENTS_PER_RECORD = 100;
+
 export {
+  MAXIMUM_ATTACHMENTS_PER_RECORD,
   API_BASE_PATH,
   PASSWORD_MIN_LENGTH,
   MAX_IMAGE_SIZE,
@@ -835,6 +912,8 @@ export {
   CODE_FIELD,
   INCIDENT_CASE_ID_FIELD,
   INCIDENT_CASE_ID_DISPLAY_FIELD,
+  REFERRED_USERS_PENDING_FIELD,
+  TRANSFERRED_TO_USERS_FIELD,
   INCIDENT_SHORT_ID_FIELD,
   CONSENT_GIVEN_FIELD_BY_MODULE,
   RECORD_PATH,
@@ -857,11 +936,13 @@ export {
   PERMITTED_URL,
   DATE_FORMAT,
   DATE_FORMAT_NE,
+  DATE_FORMAT_FALLBACK,
   MONTH_AND_YEAR_FORMAT,
   API_DATE_FORMAT,
   API_DATE_TIME_FORMAT,
   TRANSITIONS_DATE_FORMAT,
   DATE_TIME_FORMAT,
+  DATE_TIME_FORMAT_FALLBACK,
   ISO_DATE_REGEX,
   ISO_DATE_TIME_REGEX,
   CODE_OF_CONDUCT_DATE_FORMAT,
@@ -882,6 +963,7 @@ export {
   INPROGRESS,
   APPROVALS_TYPES,
   ALERTS_FOR,
+  PENDING_TRANSITION_ALERTS,
   MAX_OFFLINE_ROWS_PER_PAGE,
   ROWS_PER_PAGE_OPTIONS,
   OFFLINE_ROWS_PER_PAGE_OPTIONS,
@@ -939,5 +1021,10 @@ export {
   PROCESS_QUALITY_SUCCESSFUL_REFERRALS_SUBREPORTS,
   PROCESS_QUALITY_TOTAL_CASES_SUBREPORTS,
   PROCESS_QUALITY_IMPLEMENTED_REFERRALS_SUBREPORTS,
-  CASE_CHARACTERISTICS_SUBREPORTS
+  CASE_CHARACTERISTICS_SUBREPORTS,
+  CASE_MANAGEMENT_KPIS_SUBREPORTS,
+  CASE_MANAGEMENT_KPIS_SERVICE_REFERRALS_SUBREPORTS,
+  DISTRIBUTION_USERS_ROLE_SUBREPORTS,
+  ACCESS_LOGS,
+  SKIP_LOGIN_REDIRECTION_ROUTES
 };

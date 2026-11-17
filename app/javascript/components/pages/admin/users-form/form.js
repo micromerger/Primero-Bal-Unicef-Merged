@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 
 import { LOOKUPS } from "../../../../config";
@@ -11,7 +9,8 @@ import {
   TICK_FIELD,
   TEXT_FIELD,
   SELECT_FIELD,
-  OPTION_TYPES
+  OPTION_TYPES,
+  DATE_FIELD
 } from "../../../form";
 
 import {
@@ -49,7 +48,7 @@ const sharedUserFields = (
   hideOnAccountPage,
   onClickChangePassword,
   useIdentity,
-  { agencyReadOnUsers, currentRoleGroupPermission, userGroups, webPushConfigEnabled }
+  { agencyReadOnUsers, currentRoleGroupPermission, userGroups, webPushConfigEnabled, enforceTermsOfUse }
 ) => [
   {
     display_name: i18n.t("user.full_name"),
@@ -180,6 +179,17 @@ const sharedUserFields = (
         ? OPTION_TYPES.AGENCY_CURRENT_USER
         : OPTION_TYPES.AGENCY,
     watchedInputs: [FIELD_NAMES.AGENCY_ID],
+    ...(enforceTermsOfUse &&
+      !(agencyReadOnUsers || currentRoleGroupPermission !== GROUP_PERMISSIONS.ALL) && {
+        help_text: i18n.t("user.terms_of_use_warning"),
+        transformOptions: options => {
+          return options.map(option => ({
+            ...option,
+            disabled: option.terms_of_use_enabled && !option.terms_of_use_uploaded_at,
+            disabledMessage: i18n.t("errors.models.agency.no_signed_terms_of_use")
+          }));
+        }
+      }),
     visible: !hideOnAccountPage
   },
   {
@@ -224,7 +234,31 @@ const sharedUserFields = (
     help_text: i18n.t("user.receive_webpush.help_text"),
     visible: webPushConfigEnabled
   },
-  ...notificationPreferences(i18n, NOTIFIERS.receive_webpush, webPushConfigEnabled)
+  ...notificationPreferences(i18n, NOTIFIERS.receive_webpush, webPushConfigEnabled),
+  {
+    display_name: i18n.t("user.last_access"),
+    name: FIELD_NAMES.LAST_ACCESS,
+    type: DATE_FIELD,
+    visible: formMode.get("isShow") && !hideOnAccountPage,
+    date_include_time: true,
+    editable: false
+  },
+  {
+    display_name: i18n.t("user.last_case_viewed"),
+    name: FIELD_NAMES.LAST_CASE_VIEWED,
+    type: DATE_FIELD,
+    visible: formMode.get("isShow") && !hideOnAccountPage,
+    date_include_time: true,
+    editable: false
+  },
+  {
+    display_name: i18n.t("user.last_case_updated"),
+    name: FIELD_NAMES.LAST_CASE_UPDATED,
+    type: DATE_FIELD,
+    visible: formMode.get("isShow") && !hideOnAccountPage,
+    date_include_time: true,
+    editable: false
+  }
 ];
 
 const identityUserFields = (i18n, identityOptions) => [
@@ -254,14 +288,15 @@ export const form = (
   identityOptions,
   onClickChangePassword,
   hideOnAccountPage = false,
-  { agencyReadOnUsers, currentRoleGroupPermission, userGroups, webPushConfigEnabled } = {}
+  { agencyReadOnUsers, currentRoleGroupPermission, userGroups, webPushConfigEnabled, enforceTermsOfUse } = {}
 ) => {
   const useIdentity = useIdentityProviders && providers;
   const sharedFields = sharedUserFields(i18n, formMode, hideOnAccountPage, onClickChangePassword, useIdentity, {
     agencyReadOnUsers,
     currentRoleGroupPermission,
     userGroups,
-    webPushConfigEnabled
+    webPushConfigEnabled,
+    enforceTermsOfUse
   });
 
   const identityFields = identityUserFields(i18n, identityOptions);

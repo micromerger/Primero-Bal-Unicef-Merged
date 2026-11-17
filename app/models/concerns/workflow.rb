@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # NOTE: Currently this concern contains logic / fields specific to Child/Case.
 # Note: This is dependent on the Serviceable concern.  Serviceable must be included before Workflow
 # Concern for Workflow
@@ -23,7 +21,7 @@ module Workflow
     store_accessor :data, :workflow
     alias_method :workflow_status, :workflow
 
-    before_create :set_workflow_new
+    before_save :set_workflow_new, if: :new_record?
     before_save :calculate_workflow
   end
 
@@ -53,7 +51,7 @@ module Workflow
 
     return WORKFLOW_ASSESSMENT if workflow_assessment?
 
-    self.workflow
+    workflow
   end
 
   def workflow_case_reopened?

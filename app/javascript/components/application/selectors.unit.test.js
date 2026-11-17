@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 
 import { RECORD_TYPES, MODULES, RECORD_TYPES_PLURAL } from "../../config";
@@ -129,10 +127,12 @@ const stateWithRecords = fromJS({
     userGroups,
     roles,
     disabledApplication: true,
+    termsOfUseAgencySign: true,
     systemOptions: {
       maximum_users: 50,
       maximum_users_warning: 45,
-      maximum_attachments_per_record: 55
+      maximum_attachments_per_record: 55,
+      enforce_terms_of_use: true
     }
   }
 });
@@ -741,6 +741,64 @@ describe("Application - Selectors", () => {
       const result = selectors.getPhoneticSearchFields(stateWithRecords);
 
       expect(result).toEqual(expected);
+    });
+  });
+
+  describe("getEnforceTermsOfUse", () => {
+    it("should return enforce terms of use", () => {
+      const result = selectors.getEnforceTermsOfUse(stateWithRecords);
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe("getTermsOfUseAgencySign", () => {
+    it("should return terms of use agency sign", () => {
+      const result = selectors.getTermsOfUseAgencySign(stateWithRecords);
+
+      expect(result).toBe(true);
+    });
+  });
+  describe("getPendingTransitionToForm", () => {
+    const state = fromJS({
+      application: {
+        modules: [
+          {
+            unique_id: MODULES.CP,
+            options: { pending_transition_to_form: { referral: "basic_identity" } }
+          },
+          { unique_id: MODULES.GBV, options: {} }
+        ]
+      }
+    });
+
+    it("returns the configured forms for the module", () => {
+      expect(selectors.getPendingTransitionToForm(state, MODULES.CP)).toEqual(fromJS({ referral: "basic_identity" }));
+    });
+
+    it("returns an immutable map when the module options are stored as plain objects", () => {
+      const stateWithModuleRecords = fromJS({
+        application: {
+          modules: [
+            PrimeroModuleRecord({
+              unique_id: MODULES.CP,
+              options: { pending_transition_to_form: { referral: "basic_identity" } }
+            })
+          ]
+        }
+      });
+
+      expect(selectors.getPendingTransitionToForm(stateWithModuleRecords, MODULES.CP)).toEqual(
+        fromJS({ referral: "basic_identity" })
+      );
+    });
+
+    it("returns an empty map when the module has no configuration", () => {
+      expect(selectors.getPendingTransitionToForm(state, MODULES.GBV)).toEqual(fromJS({}));
+    });
+
+    it("returns an empty map when the module does not exist", () => {
+      expect(selectors.getPendingTransitionToForm(state, "primeromodule-unknown")).toEqual(fromJS({}));
     });
   });
 });

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe PermittedFieldService, search: true do
@@ -231,7 +229,7 @@ describe PermittedFieldService, search: true do
 
   it 'returns the permitted fields for id_search = true' do
     permitted_field_names = PermittedFieldService.new(
-      user, Child, nil, { action_name: nil, id_search: true }
+      user, Child, nil, nil, { action_name: nil, id_search: true }
     ).permitted_field_names
 
     expect((PermittedFieldService::ID_SEARCH_FIELDS - permitted_field_names).empty?).to be true
@@ -314,6 +312,126 @@ describe PermittedFieldService, search: true do
     expect(permitted_field_names).to include('transfer_status')
   end
 
+  describe 'incident_types' do
+    let(:cases_by_incident_type_role) do
+      Role.new_with_properties(
+        name: 'Cases By Incident Type Role',
+        unique_id: 'cases-by-incident-type-role',
+        group_permission: Permission::SELF,
+        permissions: [
+          Permission.new(resource: Permission::DASHBOARD, actions: [Permission::DASH_CASES_BY_INCIDENT_TYPE])
+        ]
+      )
+    end
+
+    let(:user_with_cases_by_incident_type) do
+      User.create!(
+        full_name: 'User With Cases By Incident Type',
+        user_name: 'user_with_cases_by_incident_type',
+        password: 'a12345632',
+        password_confirmation: 'a12345632',
+        email: 'test_user_incident_types@localhost.com',
+        agency_id: agency.id,
+        role: cases_by_incident_type_role,
+        services: ['Test type']
+      )
+    end
+
+    it 'returns the incident_types field permitted for a role with a cases_by_incident_type permission' do
+      permitted_field_names = PermittedFieldService.new(user_with_cases_by_incident_type, Child).permitted_field_names
+
+      expect(permitted_field_names).to include('incident_types')
+    end
+
+    it 'does not return the incident_types field for a role without a cases_by_incident_type permission' do
+      permitted_field_names = PermittedFieldService.new(user_with_risk_level, Child).permitted_field_names
+
+      expect(permitted_field_names).not_to include('incident_types')
+    end
+  end
+
+  describe 'transferred_to_users' do
+    let(:transfer_role) do
+      Role.new_with_properties(
+        name: 'Transfer Role',
+        unique_id: 'transfer-role',
+        group_permission: Permission::SELF,
+        permissions: [Permission.new(resource: Permission::CASE, actions: [Permission::TRANSFER])]
+      )
+    end
+
+    let(:user_with_transfer) do
+      User.create!(
+        full_name: 'User With Transfer',
+        user_name: 'user_with_transfer',
+        password: 'a12345632',
+        password_confirmation: 'a12345632',
+        email: 'user_with_transfer@localhost.com',
+        agency_id: agency.id,
+        role: transfer_role,
+        services: ['Test type']
+      )
+    end
+
+    it 'is permitted for a role with the transfer permission' do
+      permitted_field_names = PermittedFieldService.new(user_with_transfer, Child).permitted_field_names
+
+      expect(permitted_field_names).to include('transferred_to_users')
+    end
+
+    it 'is not permitted for a role without the transfer permission' do
+      permitted_field_names = PermittedFieldService.new(user, Child).permitted_field_names
+
+      expect(permitted_field_names).not_to include('transferred_to_users')
+    end
+
+    it 'is permitted for a role with the receive_transfer permission' do
+      user_with_transfer.role.update!(
+        permissions: [Permission.new(resource: Permission::CASE, actions: [Permission::RECEIVE_TRANSFER])]
+      )
+
+      permitted_field_names = PermittedFieldService.new(user_with_transfer, Child).permitted_field_names
+
+      expect(permitted_field_names).to include('transferred_to_users')
+    end
+  end
+
+  describe 'referred_users_pending' do
+    let(:receive_referral_role) do
+      Role.new_with_properties(
+        name: 'Receive Referral Role',
+        unique_id: 'receive-referral-role',
+        group_permission: Permission::SELF,
+        permissions: [Permission.new(resource: Permission::CASE, actions: [Permission::RECEIVE_REFERRAL])]
+      )
+    end
+
+    let(:user_with_receive_referral) do
+      User.create!(
+        full_name: 'User With Receive Referral',
+        user_name: 'user_with_receive_referral',
+        password: 'a12345632',
+        password_confirmation: 'a12345632',
+        email: 'user_with_receive_referral@localhost.com',
+        agency_id: agency.id,
+        role: receive_referral_role,
+        services: ['Test type']
+      )
+    end
+
+    it 'is permitted for a role with the receive_referral permission' do
+      permitted_field_names = PermittedFieldService.new(user_with_receive_referral, Child).permitted_field_names
+
+      expect(permitted_field_names).to include('referred_users_pending')
+    end
+
+    it 'is not permitted for a role without the receive_referral permission' do
+      permitted_field_names = PermittedFieldService.new(user, Child).permitted_field_names
+
+      expect(permitted_field_names).not_to include('referred_users_pending')
+    end
+  end
+
   describe 'MRM - Vioaltions forms and fields' do
     let(:mrm_form) do
       FormSection.create!(unique_id: 'A', name: 'A', parent_form: 'incident', form_group_id: 'm', fields: [mrm_field])
@@ -378,6 +496,16 @@ describe PermittedFieldService, search: true do
       permitted_field_names = PermittedFieldService.new(mrm_user, Incident).permitted_field_names(PrimeroModule::MRM)
       expect(permitted_field_names.include?('mrm_field')).to be true
     end
+
+    it 'permits filtering on MRM violation filter fields' do
+      allow(mrm_user).to receive(:module?).with(PrimeroModule::MRM).and_return(true)
+      permitted_field_names = PermittedFieldService.new(mrm_user, Incident).permitted_field_names(PrimeroModule::MRM)
+      expect(permitted_field_names).to include(
+        'verified_ghn_reported', 'child_role', 'weapon_type', 'facility_impact',
+        'facility_attack_type', 'abduction_purpose_single', 'military_use_type',
+        'types_of_aid_disrupted_denial'
+      )
+    end
   end
 
   describe 'Permitted Fields for Custom Modules' do
@@ -406,7 +534,7 @@ describe PermittedFieldService, search: true do
         name: 'Test Role 1',
         unique_id: 'test-role-1',
         group_permission: Permission::SELF,
-        modules: [custom_module],
+        primero_modules: [custom_module],
         permissions: [
           Permission.new(
             resource: Permission::CASE,
@@ -446,7 +574,6 @@ describe PermittedFieldService, search: true do
 
     it 'returns fields if user has permission' do
       permitted_field_names = PermittedFieldService.new(acm_user, Child).permitted_field_names
-      puts permitted_field_names
       expect(permitted_field_names.include?('acm_field')).to be true
     end
   end
@@ -490,7 +617,7 @@ describe PermittedFieldService, search: true do
         name: 'Test Role A',
         unique_id: 'test-role-a',
         group_permission: Permission::SELF,
-        modules: [primero_module_cp],
+        primero_modules: [primero_module_cp],
         permissions: [
           Permission.new(
             resource: Permission::CASE,
@@ -505,7 +632,7 @@ describe PermittedFieldService, search: true do
         name: 'Test Role B',
         unique_id: 'test-role-b',
         group_permission: Permission::SELF,
-        modules: [primero_module_cp],
+        primero_modules: [primero_module_cp],
         permissions: [
           Permission.new(
             resource: Permission::CASE,
@@ -557,7 +684,7 @@ describe PermittedFieldService, search: true do
         name: 'Permitted Attachments',
         unique_id: 'permitted_attachment_fields',
         group_permission: Permission::SELF,
-        modules: [primero_module_cp],
+        primero_modules: [primero_module_cp],
         permissions: [
           Permission.new(
             resource: Permission::CASE,
@@ -572,7 +699,7 @@ describe PermittedFieldService, search: true do
         name: 'Permitted View Photo',
         unique_id: 'permitted_view_photo_role',
         group_permission: Permission::SELF,
-        modules: [primero_module_cp],
+        primero_modules: [primero_module_cp],
         permissions: [
           Permission.new(
             resource: Permission::CASE,
@@ -608,6 +735,115 @@ describe PermittedFieldService, search: true do
       permitted_field_names = PermittedFieldService.new(preview_user, Child).permitted_field_names
 
       expect(permitted_field_names).to include('photo')
+    end
+  end
+
+  describe 'Permitted Fields for a user with Permision::IDENTIFIED scope' do
+    let(:record_information_form) do
+      FormSection.create!(
+        unique_id: 'record_information',
+        parent_form: 'case',
+        form_group_id: 'record_information',
+        name_en: 'Record Information',
+        description_en: 'Record Information',
+        fields: [
+          Field.create!(name: 'foo1', display_name_en: 'foo1', type: Field::TEXT_FIELD),
+          Field.create!(name: 'foo2', display_name_en: 'foo2', type: Field::TEXT_FIELD),
+          Field.create!(name: 'foo3', display_name_en: 'foo3', type: Field::TEXT_FIELD)
+        ]
+      )
+    end
+
+    let(:identified_role) do
+      Role.new_with_properties(
+        name: 'Test Role 1',
+        unique_id: 'test-role-1',
+        group_permission: Permission::IDENTIFIED,
+        permissions: [
+          Permission.new(
+            resource: Permission::CASE,
+            actions: [Permission::READ]
+          )
+        ],
+        form_section_read_write: { record_information_form.unique_id => 'rw' }
+      )
+    end
+
+    let(:identified_user) do
+      User.create!(
+        full_name: 'Identified User',
+        user_name: 'identified_user',
+        password: 'a12345632',
+        password_confirmation: 'a12345632',
+        email: 'identified_user@localhost.com',
+        agency_id: agency.id,
+        role: identified_role
+      )
+    end
+
+    it 'does not return record information fields' do
+      permitted_field_names = PermittedFieldService.new(identified_user, Child).permitted_field_names
+
+      expect(permitted_field_names.uniq).to match_array(
+        %w[
+          foo1 foo2 foo3 id status state case_status_reopened record_state incident_case_id source_case_display_id
+          module_id workflow identified_at identified_by identified_by_full_name
+        ]
+      )
+    end
+
+    it 'returns transferred_to_users when the identified role has the transfer permission' do
+      identified_transfer_role = Role.new_with_properties(
+        name: 'Identified Transfer Role',
+        unique_id: 'identified-transfer-role',
+        group_permission: Permission::IDENTIFIED,
+        permissions: [Permission.new(resource: Permission::CASE, actions: [Permission::READ, Permission::TRANSFER])],
+        form_section_read_write: { record_information_form.unique_id => 'rw' }
+      )
+      identified_user.update!(role: identified_transfer_role)
+
+      permitted_field_names = PermittedFieldService.new(identified_user, Child).permitted_field_names
+
+      expect(permitted_field_names).to include('transferred_to_users')
+    end
+
+    it 'returns referred_users_pending when the identified role has the receive_referral permission' do
+      identified_receive_referral_role = Role.new_with_properties(
+        name: 'Identified Receive Referral Role',
+        unique_id: 'identified-receive-referral-role',
+        group_permission: Permission::IDENTIFIED,
+        permissions: [
+          Permission.new(resource: Permission::CASE, actions: [Permission::READ, Permission::RECEIVE_REFERRAL])
+        ],
+        form_section_read_write: { record_information_form.unique_id => 'rw' }
+      )
+      identified_user.update!(role: identified_receive_referral_role)
+
+      permitted_field_names = PermittedFieldService.new(identified_user, Child).permitted_field_names
+
+      expect(permitted_field_names).to include('referred_users_pending')
+    end
+
+    it 'does not return identification fields for writes' do
+      permitted_field_names = PermittedFieldService.new(identified_user, Child).permitted_field_names(nil, true)
+
+      expect(permitted_field_names.uniq).to match_array(
+        %w[
+          foo1 foo2 foo3 id status state case_status_reopened record_state incident_case_id source_case_display_id
+          module_id workflow
+        ]
+      )
+    end
+
+    it 'does not return identification fields for updates' do
+      permitted_field_names = PermittedFieldService.new(identified_user, Child).permitted_field_names(nil, false, true)
+
+      expect(permitted_field_names.uniq).to match_array(
+        %w[
+          foo1 foo2 foo3 status state case_status_reopened record_state incident_case_id source_case_display_id
+          module_id workflow
+        ]
+      )
     end
   end
 

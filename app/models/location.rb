@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Represents an administrative level: country, state, province, township
 # rubocop:disable Metrics/ClassLength
 class Location < ApplicationRecord
@@ -60,7 +58,7 @@ class Location < ApplicationRecord
     end
 
     def permitted_api_params
-      %i[id code admin_level type parent_code disabled] + [placename: {}]
+      %i[id code admin_level type parent_code disabled] + [{ placename: {} }]
     end
 
     def inheritance_column

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Transform API query parameter field_name=YYYYMMDD..YYYMMDD into a sql query
 class SearchFilters::DateRange < SearchFilters::SearchFilter
   attr_accessor :field_name, :from, :to
@@ -43,8 +41,10 @@ class SearchFilters::DateRange < SearchFilters::SearchFilter
     ActiveRecord::Base.sanitize_sql_for_conditions(
       [
         %(
-          data->>:field_name IS NOT NULL AND EXISTS (
-            SELECT 1 FROM JSONB_ARRAY_ELEMENTS_TEXT(data->:field_name || CAST('[]' AS JSONB)) AS date_field
+          #{safe_json_column}->>:field_name IS NOT NULL AND EXISTS (
+            SELECT 1 FROM JSONB_ARRAY_ELEMENTS_TEXT(
+              #{safe_json_column}->:field_name || CAST('[]' AS JSONB)
+            ) AS date_field
             WHERE TO_TIMESTAMP(date_field, :date_format) >= TO_TIMESTAMP(:from, :date_format)
             AND TO_TIMESTAMP(date_field, :date_format) <= TO_TIMESTAMP(:to, :date_format)
           )

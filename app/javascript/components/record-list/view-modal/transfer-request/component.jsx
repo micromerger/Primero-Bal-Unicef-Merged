@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { createRef, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
@@ -45,7 +43,8 @@ function TransferRequest({ open, setOpen, currentRecord, caseId }) {
           {
             data: values
           },
-          i18n.t("request_transfer.success")
+          i18n.t("request_transfer.success"),
+          i18n.t("cases.request_approval_failure")
         )
       );
       setSubmitting(false);

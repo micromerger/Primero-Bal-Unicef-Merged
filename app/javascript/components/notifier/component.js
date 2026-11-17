@@ -1,11 +1,10 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useSnackbar } from "notistack";
 
 import { useApp } from "../application/use-app";
 import { useI18n } from "../i18n";
+import useSystemStrings, { PAGE } from "../application/use-system-strings";
 import { RECORD_TYPES } from "../../config";
 import useMemoizedSelector from "../../libs/use-memoized-selector";
 
@@ -24,12 +23,12 @@ const snackbarOptions = {
   autoHideDuration: 6000
 };
 
-const buildMessage = ({ online, messageFromQueue, message, messageKey, messageParams, recordType, i18n }) => {
+const buildMessage = ({ online, messageFromQueue, message, messageKey, messageParams, recordType, i18n, label }) => {
   const snackMessage = !online && messageFromQueue ? messageFromQueue : message;
 
   if ((online || !messageFromQueue) && messageKey) {
     const translatedRecordType = recordType ? i18n.t(`${RECORD_TYPES[recordType]}.label`) : "";
-    const translatedMessage = i18n.t(messageKey, { record_type: translatedRecordType, ...messageParams });
+    const translatedMessage = label(messageKey, undefined, { record_type: translatedRecordType, ...messageParams });
 
     if (/^\[missing/.test(translatedMessage)) {
       return messageKey;
@@ -43,6 +42,7 @@ const buildMessage = ({ online, messageFromQueue, message, messageKey, messagePa
 
 function Notifier() {
   const i18n = useI18n();
+  const { label } = useSystemStrings(PAGE);
   const dispatch = useDispatch();
   const { online } = useApp();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
@@ -93,7 +93,8 @@ function Notifier() {
         messageKey,
         messageParams,
         recordType,
-        i18n
+        i18n,
+        label
       });
 
       enqueueSnackbar(`${snackMessage}${messageDetailed ? `\n${messageDetailed}` : ""}`, {

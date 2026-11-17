@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { useRef, useEffect } from "react";
 import PropTypes from "prop-types";
 import { object, string } from "yup";
@@ -17,12 +15,14 @@ import { saveBulkAssignedUser } from "../../bulk-transtions/action-creators";
 import SearchableSelect from "../../../searchable-select";
 import { enqueueSnackbar } from "../../../notifier";
 import { useI18n } from "../../../i18n";
+import useSystemStrings, { PAGE } from "../../../application/use-system-strings";
 import { applyFilters } from "../../../index-filters/action-creators";
 import { filterUsers } from "../utils";
 import { useMemoizedSelector } from "../../../../libs";
 import { getFiltersValuesByRecordType } from "../../../index-filters/selectors";
 import { getMetadata } from "../../../record-list/selectors";
 import InternalAlert, { SEVERITY } from "../../../internal-alert";
+import PendingTransitionAlert from "../../pending-transition-alert";
 
 import { REASSIGN_FORM_NAME } from "./constants";
 import { searchableValue, buildDataAssign } from "./utils";
@@ -39,9 +39,12 @@ function ReassignForm({
   mode,
   selectedRecordsLength,
   currentRecordsSize,
-  formDisabled = false
+  formDisabled = false,
+  hasRecordOutOfScope = false,
+  pendingTransitionIds = []
 }) {
   const i18n = useI18n();
+  const { label } = useSystemStrings(PAGE);
   const dispatch = useDispatch();
   const location = useLocation();
   const queryParams = qs.parse(location.search.replace("?", ""));
@@ -150,23 +153,27 @@ function ReassignForm({
     innerRef: assignRef
   };
 
-  const internalAlert = formDisabled && (
-    <InternalAlert
-      items={fromJS([
-        {
-          message: i18n.t("reassign.incident_from_case_warning")
-        }
-      ])}
-      severity={SEVERITY.info}
-    />
-  );
+  const alert = hasRecordOutOfScope
+    ? i18n.t("reassign.out_of_scope_warning")
+    : label("reassign.incident_from_case_warning");
+  const showAlert = formDisabled || hasRecordOutOfScope;
 
   return (
     <Formik {...formProps}>
       {({ handleSubmit }) => {
         return (
           <Form onSubmit={handleSubmit}>
-            {internalAlert}
+            <PendingTransitionAlert pendingTransitionIds={pendingTransitionIds} />
+            {showAlert && (
+              <InternalAlert
+                items={fromJS([
+                  {
+                    message: alert
+                  }
+                ])}
+                severity={SEVERITY.info}
+              />
+            )}
             <div className={css.field}>
               <Field name="transitioned_to">
                 {({ field, form, ...other }) => {
@@ -206,7 +213,9 @@ ReassignForm.propTypes = {
   currentRecordsSize: PropTypes.number,
   formDisabled: PropTypes.bool,
   formik: PropTypes.object,
+  hasRecordOutOfScope: PropTypes.bool,
   mode: PropTypes.object,
+  pendingTransitionIds: PropTypes.array,
   record: PropTypes.object,
   recordType: PropTypes.string.isRequired,
   selectedIds: PropTypes.array,

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe FieldValueService do
@@ -316,6 +314,20 @@ describe FieldValueService do
     end
     it 'returns the translated agency name' do
       expect(FieldValueService.value(agency_field, 'agency1')).to eq('Agency One')
+    end
+
+    context 'when agencies is present' do
+      let(:agencies) { { 'agency1' => 'Cached Agency Name' } }
+      let(:service_with_agencies) do
+        service = FieldValueService.new
+        service.agencies = agencies
+        service
+      end
+
+      it 'uses the cache and does not query the database' do
+        expect(Agency).not_to receive(:find_by)
+        expect(service_with_agencies.value(agency_field, 'agency1')).to eq('Cached Agency Name')
+      end
     end
   end
 

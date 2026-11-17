@@ -1,0 +1,59 @@
+import { useEffect } from "react";
+
+import { useApp } from "../../application";
+
+function waitForRef(ref) {
+  return new Promise(resolve => {
+    const check = () => {
+      if (ref.current) return resolve(ref.current);
+      requestAnimationFrame(check);
+
+      return null;
+    };
+
+    check();
+  });
+}
+
+const configuration = {
+  turnstile: {
+    render: ({ el, captcha, setValue, isRHF }) => {
+      window.turnstile.render(el, {
+        sitekey: captcha.get("site_key"),
+        callback: token => {
+          setValue("captcha_token", token, isRHF ? { shouldValidate: false } : false);
+        },
+        "error-callback": () => setValue("captcha_token", ""),
+        "expired-callback": () => setValue("captcha_token", "")
+      });
+    },
+    cleanup: widgetId => {
+      if (window.turnstile && widgetId) window.turnstile.remove(widgetId);
+    }
+  }
+};
+
+function useCaptcha({ formInstance, enabled = false, ref, isRHF = false }) {
+  const { captcha } = useApp();
+  const { setValue, register } = formInstance;
+
+  useEffect(() => {
+    (async () => {
+      if (!captcha && !enabled) return undefined;
+
+      const el = await waitForRef(ref);
+
+      if (register) {
+        register("captcha_token", { required: true });
+      }
+
+      const widgetId = configuration?.[captcha?.get("provider")]?.render({ el, captcha, setValue, isRHF });
+
+      return () => {
+        configuration?.[captcha?.get("provider")]?.cleanup(widgetId);
+      };
+    })();
+  }, [captcha?.size]);
+}
+
+export default useCaptcha;

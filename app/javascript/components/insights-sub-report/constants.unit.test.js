@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import * as constants from "./constants";
 
 describe("<InsightsSubReport /> - constants", () => {
@@ -10,6 +8,7 @@ describe("<InsightsSubReport /> - constants", () => {
     [
       "COMBINED_INDICATORS",
       "GROUPED_BY_FILTER",
+      "HEADER_TITLE_KEYS",
       "NAME",
       "GHN_VIOLATIONS_INDICATORS_IDS",
       "REPORTING_LOCATION_INSIGHTS",

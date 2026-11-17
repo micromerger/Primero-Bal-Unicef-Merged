@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import * as configConstants from "./config";
 
 describe("Verifying config constant", () => {
@@ -19,6 +17,7 @@ describe("Verifying config constant", () => {
     });
 
     [
+      "ACCESS_LOGS",
       "API_BASE_PATH",
       "ACCEPT",
       "ACCEPTED",
@@ -40,6 +39,8 @@ describe("Verifying config constant", () => {
       "DATE_SORTABLE_FIELDS",
       "DATABASE_NAME",
       "DATE_FORMAT",
+      "DATE_FORMAT_FALLBACK",
+      "DATE_TIME_FORMAT_FALLBACK",
       "DATE_FORMAT_NE",
       "DATE_TIME_FORMAT",
       "DEFAULT_DATE_VALUES",
@@ -86,6 +87,7 @@ describe("Verifying config constant", () => {
       "NAME_FIELD",
       "OFFLINE_ROWS_PER_PAGE_OPTIONS",
       "PASSWORD_MIN_LENGTH",
+      "PENDING_TRANSITION_ALERTS",
       "PERMITTED_URL",
       "POTENTIAL_MATCH_LIKELIHOOD",
       "PROCESS_QUALITY_AVERAGE_CASES_SUBREPORTS",
@@ -99,6 +101,7 @@ describe("Verifying config constant", () => {
       "RECORD_TYPES_PLURAL",
       "REFERRAL",
       "REFERRAL_TRANSFERS_SUBREPORTS",
+      "REFERRED_USERS_PENDING_FIELD",
       "REGISTRY_RECORD",
       "REGISTRY_RECORDS",
       "REJECT",
@@ -109,6 +112,7 @@ describe("Verifying config constant", () => {
       "SAVE_METHODS",
       "SAVING",
       "SERVICES_SUBFORM_FIELD",
+      "SKIP_LOGIN_REDIRECTION_ROUTES",
       "STRING_SOURCES_TYPES",
       "SUBFORM_READONLY_FIELD_NAMES",
       "SUMMARY",
@@ -119,6 +123,7 @@ describe("Verifying config constant", () => {
       "TRACING_REQUEST",
       "TRACING_REQUESTS",
       "TRACING_REQUEST_STATUS_FIELD_NAME",
+      "TRANSFERRED_TO_USERS_FIELD",
       "TRANSFERS_ASSIGNMENTS",
       "TRANSITIONS_DATE_FORMAT",
       "TRANSITION_TYPE",
@@ -157,7 +162,11 @@ describe("Verifying config constant", () => {
       "PROTECTION_OUTCOMES_SUBREPORTS",
       "PROCESS_QUALITY_SUCCESSFUL_REFERRALS_SUBREPORTS",
       "PROCESS_QUALITY_IMPLEMENTED_REFERRALS_SUBREPORTS",
-      "CASE_CHARACTERISTICS_SUBREPORTS"
+      "CASE_CHARACTERISTICS_SUBREPORTS",
+      "CASE_MANAGEMENT_KPIS_SUBREPORTS",
+      "CASE_MANAGEMENT_KPIS_SERVICE_REFERRALS_SUBREPORTS",
+      "DISTRIBUTION_USERS_ROLE_SUBREPORTS",
+      "MAXIMUM_ATTACHMENTS_PER_RECORD"
     ].forEach(property => {
       it(`exports '${property}'`, () => {
         expect(configConstants).toHaveProperty(property);

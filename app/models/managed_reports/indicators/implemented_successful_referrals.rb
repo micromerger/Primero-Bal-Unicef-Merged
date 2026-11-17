@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # An indicator that returns the implemented referrals
 class ManagedReports::Indicators::ImplementedSuccessfulReferrals < ManagedReports::SqlReportIndicator
   class << self
@@ -15,7 +13,7 @@ class ManagedReports::Indicators::ImplementedSuccessfulReferrals < ManagedReport
       date_query = grouped_service_implemented_day_time(params['grouped_by'], date_param)
       group_id = date_query.present? ? 'group_id' : nil
 
-      %(
+      <<~SQL
         WITH implemented_services AS (
           SELECT
               #{date_query&.+(' AS group_id,')}
@@ -28,10 +26,9 @@ class ManagedReports::Indicators::ImplementedSuccessfulReferrals < ManagedReport
               srch_owned_by_location AS owned_by_location,
               cases.id AS case_id
             FROM cases
-            #{join_services(params['service_type'])}
-            WHERE 1 = 1
+            #{join_services(params['service_type'], date_param)}
+            WHERE srch_record_state = TRUE
             #{build_filter_query(current_user, params)&.prepend('AND ')}
-            #{date_range_query(date_param, 'services', nil, 'service_implemented_day_time')&.prepend('AND ')}
         )
         SELECT
           #{group_id&.+(',')}
@@ -41,7 +38,7 @@ class ManagedReports::Indicators::ImplementedSuccessfulReferrals < ManagedReport
           SUM(COUNT(*)) OVER (#{group_id&.dup&.prepend('PARTITION BY ')}) AS total
         FROM implemented_services
         GROUP BY #{group_id&.+(',')} service_implemented, gender
-      )
+      SQL
     end
     # rubocop:enable Metrics/MethodLength
 
@@ -59,31 +56,34 @@ class ManagedReports::Indicators::ImplementedSuccessfulReferrals < ManagedReport
     end
 
     # rubocop:disable Metrics/MethodLength
-    def join_services(service_type_param = nil)
+    def join_services(service_type_param = nil, date_param = nil)
+      %(
+        CROSS JOIN LATERAL (
+          SELECT
+            services_section->>'service_status_referred' AS service_status_referred,
+           #{service_implemented_day_time_field},
+            services_section->>'unique_id' AS service_unique_id,
+            services_section->>'service_type' AS service_type,
+            services_section->>'service_implemented' AS service_implemented
+          FROM JSONB_ARRAY_ELEMENTS(data->'services_section') AS services_section
+          WHERE services_section @? '$[*]
+            ? (@.service_status_referred == true)
+            ? (@.service_implemented == "implemented")
+            #{filter_service_type(service_type_param&.value)&.prepend('? ')}'
+          #{date_range_query(date_param, nil, 'services_section', 'service_implemented_day_time')&.prepend('AND ')}
+        ) AS services
+      )
+    end
+    # rubocop:enable Metrics/MethodLength
+
+    def service_implemented_day_time_field
       ActiveRecord::Base.sanitize_sql_for_conditions(
         [
-          %(
-            CROSS JOIN LATERAL (
-              SELECT
-                services_section->>'service_status_referred' AS service_status_referred,
-                TO_TIMESTAMP(
-                  services_section->>'service_implemented_day_time', :format
-                ) AS service_implemented_day_time,
-                services_section->>'unique_id' AS service_unique_id,
-                services_section->>'service_type' AS service_type,
-                services_section->>'service_implemented' AS service_implemented
-              FROM JSONB_ARRAY_ELEMENTS(data->'services_section') AS services_section
-              WHERE services_section @? '$[*]
-                ? (@.service_status_referred == true)
-                ? (@.service_implemented == "implemented")
-                #{filter_service_type(service_type_param&.value)&.prepend('? ')}'
-            ) AS services
-           ),
+          "TO_TIMESTAMP(services_section->>'service_implemented_day_time', :format) AS service_implemented_day_time",
           { format: Report::DATE_TIME_FORMAT }
         ]
       )
     end
-    # rubocop:enable Metrics/MethodLength
 
     def filter_service_type(service_type)
       return unless service_type.present?

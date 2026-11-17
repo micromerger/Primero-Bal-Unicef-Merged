@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ManagedReports::Indicators::UnverifiedInformationViolations do
@@ -14,29 +12,52 @@ describe ManagedReports::Indicators::UnverifiedInformationViolations do
     incident1 = Incident.create!(
       data: { incident_date: Date.new(2022, 4, 4), date_of_first_report: Date.new(2022, 4, 4), status: 'open' }
     )
+    incident2 = Incident.create!(
+      data: { incident_date: Date.new(2022, 4, 8), date_of_first_report: Date.new(2022, 4, 8), status: 'closed' }
+    )
 
     Violation.create!(
-      data: { type: 'killing', violation_tally: { 'boys': 2, 'girls': 0, 'unknown': 2, 'total': 4 },
+      data: { type: 'killing', violation_tally: { 'boys' => 2, 'girls' => 0, 'unknown' => 2, 'total' => 4 },
               ctfmr_verified: 'report_pending_verification' },
       incident_id: incident.id
     )
 
     Violation.create!(
-      data: { type: 'attack_on_hospitals', ctfmr_verified: 'report_pending_verification',
-              violation_tally: { 'boys': 1, 'girls': 2, 'unknown': 5, 'total': 8 } },
+      data: { type: 'attack_on_hospitals', ctfmr_verified: 'reported_not_verified',
+              violation_tally: { 'boys' => 1, 'girls' => 2, 'unknown' => 5, 'total' => 8 } },
       incident_id: incident1.id
     )
 
     Violation.create!(
-      data: { type: 'attack_on_schools', violation_tally: { 'boys': 2, 'girls': 3, 'unknown': 2, 'total': 7 } },
+      data: { type: 'deprivation_liberty', ctfmr_verified: 'reported_not_verified',
+              violation_tally: { 'boys' => 1, 'girls' => 2, 'unknown' => 5, 'total' => 8 } },
+      incident_id: incident1.id
+    )
+
+    Violation.create!(
+      data: { type: 'attack_on_schools', violation_tally: { 'boys' => 2, 'girls' => 3, 'unknown' => 2, 'total' => 7 } },
       incident_id: incident.id
     )
 
     Violation.create!(
       data: { type: 'attack_on_schools', ctfmr_verified: 'report_pending_verification',
-              violation_tally: { 'boys': 3, 'girls': 4, 'unknown': 5, 'total': 12 } },
+              violation_tally: { 'boys' => 3, 'girls' => 4, 'unknown' => 5, 'total' => 12 } },
       incident_id: incident.id
     )
+
+    Violation.create!(
+      data: { type: 'attack_on_schools', ctfmr_verified: 'reported_not_verified',
+              violation_tally: { 'boys' => 3, 'girls' => 1, 'unknown' => 5, 'total' => 9 } },
+      incident_id: incident2.id
+    )
+  end
+
+  let(:attack_on_hospitals_statuses) do
+    'attack_on_hospitals_report_pending_verification,attack_on_hospitals_reported_not_verified'
+  end
+
+  let(:attack_on_schools_statuses) do
+    'attack_on_schools_report_pending_verification,attack_on_schools_reported_not_verified'
   end
 
   it 'return data for unverified information indicator' do
@@ -46,14 +67,35 @@ describe ManagedReports::Indicators::UnverifiedInformationViolations do
         'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
         'ghn_date_filter' => SearchFilters::DateRange.new(
           field_name: 'ghn_date_filter',
-          from: '2021-04-01',
-          to: '2022-06-10'
+          from: Date.parse('2021-04-01'),
+          to: Date.parse('2022-06-10')
         )
       }
     ).data
 
     expect(data).to match_array(
-      [{ 'id' => 'attack_on_hospitals', 'total' => 1 }, { 'id' => 'attack_on_schools', 'total' => 1 }]
+      [
+        {
+          'id' => 'attack_on_hospitals',
+          'total' => {
+            count: 1,
+            query: [
+              "violation_with_verification_status=#{attack_on_hospitals_statuses}",
+              'incident_date=2021-04-01..2022-06-10'
+            ]
+          }
+        },
+        {
+          'id' => 'attack_on_schools',
+          'total' => {
+            count: 1,
+            query: [
+              "violation_with_verification_status=#{attack_on_schools_statuses}",
+              'incident_date=2021-04-01..2022-06-10'
+            ]
+          }
+        }
+      ]
     )
   end
 end

@@ -1,0 +1,126 @@
+# frozen_string_literal: true
+
+require 'rails_helper'
+
+describe ManagedReports::Indicators::UnverifiedViolationsByRegion do
+  let(:managed_report_user) do
+    fake_user(
+      permissions: [
+        Permission.new(
+          resource: Permission::MANAGED_REPORT,
+          managed_report_scope: Permission::ALL,
+          actions: [Permission::VIOLATION_REPORT]
+        )
+      ]
+    )
+  end
+
+  before do
+    clean_data(Violation, Incident)
+
+    managed_report_user.stub(:incident_reporting_location_admin_level).and_return(1)
+
+    incident0 = Incident.new_with_user(
+      managed_report_user,
+      {
+        incident_date: Date.new(2022, 4, 23),
+        date_of_first_report: Date.new(2022, 4, 23),
+        status: 'open',
+        module_id: PrimeroModule::MRM,
+        reporting_location_hierarchy: 'CT.CT01.CT011003.CT011003003',
+        attack_on_schools: [
+          {
+            unique_id: 'bbfd214c-77c4-11f0-8941-7c10c98b54af',
+            ctfmr_verified: 'verified',
+            ctfmr_verified_date: Date.new(2022, 4, 23)
+          },
+          {
+            unique_id: '8edd80b2-76d9-11f0-8338-7c10c98b54af',
+            ctfmr_verified: 'reported_not_verified'
+          }
+        ],
+        killing: [
+          {
+            unique_id: '1dd8330e-874a-11f0-a0e0-7c10c98b54af',
+            ctfmr_verified: 'report_pending_verification',
+            violation_tally: { boys: 1, girls: 2, unknown: 1, total: 4 }
+          }
+        ],
+        deprivation_liberty: [
+          {
+            unique_id: '0620b8ae-cf92-11f0-9a66-7c10c98b54af',
+            ctfmr_verified: 'report_pending_verification',
+            violation_tally: { boys: 1, girls: 2, unknown: 1, total: 4 }
+          }
+        ],
+        military_use: [
+          {
+            unique_id: 'fe87ed46-d20d-11f0-9824-7c10c98b54af',
+            ctfmr_verified: 'report_pending_verification',
+            violation_tally: { boys: 1, girls: 0, unknown: 1, total: 2 }
+          }
+        ]
+      }.with_indifferent_access
+    )
+    incident0.save!
+
+    incident1 = Incident.new_with_user(
+      managed_report_user,
+      {
+        incident_date: Date.new(2022, 4, 23),
+        date_of_first_report: Date.new(2022, 4, 23),
+        status: 'open',
+        module_id: PrimeroModule::MRM,
+        reporting_location_hierarchy: 'CT.CT02.CT022003.CT022003001',
+        killing: [
+          {
+            unique_id: '4cb37a58-874a-11f0-8227-7c10c98b54af',
+            ctfmr_verified: 'report_pending_verification',
+            violation_tally: { boys: 1, girls: 0, unknown: 2, total: 3 }
+          }
+        ]
+      }.with_indifferent_access
+    )
+    incident1.save!
+
+    incident2 = Incident.new_with_user(
+      managed_report_user,
+      {
+        incident_date: Date.new(2022, 4, 23),
+        date_of_first_report: Date.new(2022, 4, 23),
+        status: 'closed',
+        module_id: PrimeroModule::MRM,
+        reporting_location_hierarchy: 'CT.CT02.CT022003.CT022003001',
+        killing: [
+          {
+            unique_id: '82359cfa-be55-11f0-a82a-7c10c98b54af',
+            ctfmr_verified: 'reported_not_verified',
+            violation_tally: { boys: 1, girls: 1, unknown: 2, total: 4 }
+          }
+        ]
+      }.with_indifferent_access
+    )
+    incident2.save!
+  end
+
+  it 'return data for  unverified violations by region' do
+    data = ManagedReports::Indicators::UnverifiedViolationsByRegion.build(
+      managed_report_user,
+      {
+        'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
+        'ghn_date_filter' => SearchFilters::DateRange.new(
+          field_name: 'ghn_date_filter',
+          from: Date.parse('2022-04-01'),
+          to: Date.parse('2022-04-23')
+        )
+      }
+    ).data
+
+    expect(data).to match_array(
+      [
+        { id: 'CT01', attack_on_schools: 1, killing: 4, total: 5 },
+        { id: 'CT02', killing: 3, total: 3 }
+      ]
+    )
+  end
+end

@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { useCallback, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useMediaQuery } from "@mui/material";
@@ -11,6 +9,7 @@ import { fromJS } from "immutable";
 import FormFilters from "../../../form-filters";
 import { useMemoizedSelector } from "../../../../libs";
 import { useI18n } from "../../../i18n";
+import useSystemStrings, { PAGE } from "../../../application/use-system-strings";
 import PageContainer from "../../../page";
 import LoadingIndicator from "../../../loading-indicator";
 import { clearSelectedRecord, fetchRecord, saveRecord, setSelectedRecord } from "../../../records";
@@ -31,22 +30,20 @@ import { RecordForm, RecordFormToolbar } from "../../form";
 import css from "../../styles.css";
 import { compactBlank, compactReadOnlyFields, compactValues, getRedirectPath } from "../../utils";
 import externalForms from "../external-forms";
+import { getIsIdentifiedUser } from "../../../user";
+import { READ_RECORDS, REFER_FROM_SERVICE, usePermissions } from "../../../permissions";
 
 function Component({
-  approvalSubforms,
   attachmentForms,
-  canRefer,
-  canSeeChangeLog,
-  canViewCases,
-  canViewSummaryForm,
   containerMode,
   demo,
+  editRedirect,
   fetchFromCaseId,
   firstTab,
   formNav,
   forms,
+  hideCancelButton,
   incidentFromCase,
-  incidentsSubforms,
   isCaseIdEqualParam,
   isNotANewCase,
   mode,
@@ -54,9 +51,17 @@ function Component({
   record,
   recordAttachments,
   recordType,
+  redirectTo,
+  primeroModule,
+  showFormToolbar = false,
+  forcePermitFormReadWrite,
+  title,
   shouldFetchRecord,
   summaryForm,
-  userPermittedFormsIds
+  userPermittedFormsIds,
+  submitActionOverride,
+  captcha,
+  showRecordInformation
 }) {
   let submitForm = null;
   const mobileDisplay = useMediaQuery(theme => theme.breakpoints.down("sm"));
@@ -66,12 +71,9 @@ function Component({
 
   const dispatch = useDispatch();
   const i18n = useI18n();
+  const { label } = useSystemStrings(PAGE);
 
-  const selectedModule = {
-    recordType,
-    primeroModule: record ? record.get("module_id") : params.module,
-    renderCustomForms: canViewSummaryForm
-  };
+  const selectedModule = record?.get("module_id") || params.module || primeroModule;
 
   const {
     handleCreateIncident,
@@ -86,6 +88,8 @@ function Component({
     mode: containerMode
   });
 
+  const canRefer = usePermissions(params.recordType, REFER_FROM_SERVICE);
+  const canViewCases = usePermissions(params.recordType, READ_RECORDS);
   const loadingForm = useMemoizedSelector(state => getLoadingState(state));
   const loadingRecord = useMemoizedSelector(state => getLoadingRecordState(state, params.recordType));
   const errors = useMemoizedSelector(state => getErrors(state));
@@ -94,11 +98,12 @@ function Component({
     getIsProcessingSomeAttachment(state, params.recordType)
   );
   const isServicesForm = useMemoizedSelector(state =>
-    getIsServicesForm(state, { recordType, primeroModule: selectedModule.primeroModule, formName: selectedForm })
+    getIsServicesForm(state, { recordType, primeroModule: selectedModule, formName: selectedForm })
   );
   const relationshipsToSave = useMemoizedSelector(state =>
     getRecordRelationshipsToSave(state, RECORD_TYPES_PLURAL.case)
   );
+  const isIdentifiedUser = useMemoizedSelector(state => getIsIdentifiedUser(state));
 
   const handleFormSubmit = e => {
     if (submitForm) {
@@ -124,27 +129,29 @@ function Component({
         const body = {
           data: {
             ...(containerMode.isEdit ? compactValues(writableValues, initialValues) : compactBlank(writableValues)),
-            ...(!containerMode.isEdit ? { module_id: selectedModule.primeroModule } : {}),
+            ...(!containerMode.isEdit ? { module_id: selectedModule } : {}),
             ...(fetchFromCaseId ? { incident_case_id: fetchFromCaseId } : {})
           }
         };
         const message = () => {
           return containerMode.isEdit
-            ? i18n.t(`${recordType}.messages.update_success`, {
+            ? label(`${recordType}.messages.update_success`, undefined, {
                 record_id: record.get("short_id")
               })
-            : i18n.t(`${recordType}.messages.creation_success`, recordType);
+            : label(`${recordType}.messages.creation_success`);
         };
 
-        batch(() => {
-          if (saveBeforeIncidentRedirect) {
-            setCaseIncidentData(formValues, incidentPath, true);
-          }
+        if (saveBeforeIncidentRedirect) {
+          setCaseIncidentData(formValues, incidentPath, true);
+        }
 
-          if (containerMode.isNew) {
-            dispatch(clearDataProtectionInitialValues());
-          }
+        if (containerMode.isNew) {
+          dispatch(clearDataProtectionInitialValues());
+        }
 
+        if (submitActionOverride) {
+          submitActionOverride(body);
+        } else {
           dispatch(
             saveRecord(
               params.recordType,
@@ -153,17 +160,17 @@ function Component({
               params.id,
               message(),
               i18n.t("offline_submitted_changes"),
-              getRedirectPath(containerMode, params, fetchFromCaseId),
+              getRedirectPath({ mode: containerMode, params, fetchFromCaseId, redirectTo }),
               true,
               "",
               saveBeforeIncidentRedirect,
-              selectedModule.primeroModule,
+              selectedModule,
               incidentPath,
               i18n.t("offline_submitted_changes"),
               relationshipsToSave
             )
           );
-        });
+        }
         // TODO: Set this if there are any errors on validations
         // setSubmitting(false);
       },
@@ -181,7 +188,7 @@ function Component({
     incidentFromCase,
     fetchFromCaseId,
     recordType: params.recordType,
-    primeroModule: selectedModule.primeroModule
+    primeroModule: selectedModule
   };
 
   const toolbarProps = {
@@ -191,8 +198,11 @@ function Component({
     handleFormSubmit,
     caseIdDisplay: record ? record.get("case_id_display") : null,
     shortId: record ? record.get("short_id") : null,
-    primeroModule: selectedModule.primeroModule,
-    record
+    primeroModule: selectedModule,
+    record,
+    editRedirect,
+    hideCancelButton,
+    title
   };
 
   useEffect(() => {
@@ -245,7 +255,7 @@ function Component({
       dispatch(
         fetchReferralUsers({
           record_type: RECORD_TYPES[params.recordType],
-          record_module_id: selectedModule.primeroModule
+          record_module_id: selectedModule
         })
       );
     }
@@ -288,7 +298,7 @@ function Component({
   const canSeeForm = !loadingForm && forms.size === 0 ? canViewCases : forms.size > 0 && !formNav.isEmpty() && firstTab;
   const hasData = Boolean(canSeeForm && (containerMode.isNew || record) && (containerMode.isNew || isCaseIdEqualParam));
   const loading = Boolean(loadingForm || loadingRecord);
-  const renderRecordFormToolbar = selectedModule.primeroModule && <RecordFormToolbar {...toolbarProps} />;
+  const renderRecordFormToolbar = (selectedModule || showFormToolbar) && <RecordFormToolbar {...toolbarProps} />;
 
   const containerClasses = cx(css.recordContainer, {
     [css.formNavOpen]: toggleNav && mobileDisplay
@@ -297,15 +307,12 @@ function Component({
   const demoClasses = cx({ [css.demo]: demo });
 
   const recordFormExternalForms = externalForms({
-    approvalSubforms,
-    canSeeChangeLog,
     containerMode,
     handleCreateIncident,
     handleToggleNav,
     id: params.id,
-    incidentsSubforms,
     mobileDisplay,
-    primeroModule: selectedModule.primeroModule,
+    primeroModule: selectedModule,
     record,
     recordType,
     selectedForm,
@@ -318,7 +325,12 @@ function Component({
 
   return (
     <PageContainer twoCol>
-      <LoadingIndicator hasData={hasData} type={params.recordType} loading={loading} errors={errors}>
+      <LoadingIndicator
+        hasData={hasData}
+        type={params.recordType || RECORD_TYPES_PLURAL[recordType]}
+        loading={loading}
+        errors={errors}
+      >
         {renderRecordFormToolbar}
         <div className={containerClasses}>
           <div className={navContainerClasses}>
@@ -327,21 +339,24 @@ function Component({
               formNav={formNav}
               handleToggleNav={handleToggleNav}
               isNew={containerMode.isNew}
-              isShow={containerMode.isShow}
               mobileDisplay={mobileDisplay}
-              recordType={params.recordType}
+              recordType={params.recordType || RECORD_TYPES_PLURAL[recordType]}
               selectedForm={selectedForm}
               selectedRecord={navSelectedRecords}
               toggleNav={toggleNav}
-              primeroModule={selectedModule.primeroModule}
+              primeroModule={selectedModule}
               hasForms={hasForms}
               recordId={params.id}
               formikValuesForNav={formikValuesForNav}
+              hideCancelButton={hideCancelButton}
+              showRecordInformation={showRecordInformation ?? !isIdentifiedUser}
             />
           </div>
           <div className={`${css.recordForms} ${demoClasses} record-form-container`}>
             <RecordForm
               {...formProps}
+              captcha={captcha}
+              forcePermitFormReadWrite={forcePermitFormReadWrite}
               externalForms={recordFormExternalForms}
               externalComponents={externalComponents}
               selectedForm={selectedForm}
@@ -351,8 +366,9 @@ function Component({
             />
             <FormFilters
               selectedForm={selectedForm}
-              recordType={selectedModule.recordType}
-              primeroModule={selectedModule.primeroModule}
+              recordType={recordType}
+              primeroModule={selectedModule}
+              recordId={params.id}
               formMode={mode}
               showDrawer
             />
@@ -368,27 +384,32 @@ Component.displayName = "RecordForm";
 Component.propTypes = {
   approvalSubforms: PropTypes.object,
   attachmentForms: PropTypes.object,
-  canRefer: PropTypes.bool,
-  canSeeChangeLog: PropTypes.bool,
-  canViewCases: PropTypes.bool,
-  canViewSummaryForm: PropTypes.bool,
+  captcha: PropTypes.bool,
   containerMode: PropTypes.object,
   demo: PropTypes.bool,
+  editRedirect: PropTypes.string,
   fetchFromCaseId: PropTypes.bool,
   firstTab: PropTypes.object,
+  forcePermitFormReadWrite: PropTypes.bool,
   formNav: PropTypes.object,
   forms: PropTypes.object,
+  hideCancelButton: PropTypes.bool,
   incidentFromCase: PropTypes.object,
-  incidentsSubforms: PropTypes.object,
   isCaseIdEqualParam: PropTypes.bool,
   isNotANewCase: PropTypes.bool,
   mode: PropTypes.string,
   params: PropTypes.object,
+  primeroModule: PropTypes.string,
   record: PropTypes.object,
   recordAttachments: PropTypes.object,
   recordType: PropTypes.string,
+  redirectTo: PropTypes.string,
   shouldFetchRecord: PropTypes.bool,
+  showFormToolbar: PropTypes.bool,
+  showRecordInformation: PropTypes.bool,
+  submitActionOverride: PropTypes.func,
   summaryForm: PropTypes.object,
+  title: PropTypes.string,
   userPermittedFormsIds: PropTypes.object
 };
 

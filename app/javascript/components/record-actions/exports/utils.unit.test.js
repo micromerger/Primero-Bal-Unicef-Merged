@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS, OrderedMap, Map } from "immutable";
 
 import { ACTIONS } from "../../permissions";
@@ -22,6 +20,7 @@ describe("<RecordActions /> - exports/utils", () => {
         "formatFields",
         "formatFileName",
         "isCustomExport",
+        "isIncidentRecorderExport",
         "isPdfExport",
         "skipFilters"
       ].forEach(property => {
@@ -236,6 +235,15 @@ describe("<RecordActions /> - exports/utils", () => {
     });
     it("returns true if pdf export", () => {
       expect(utils.isPdfExport("pdf")).toBe(true);
+    });
+  });
+
+  describe("isIncidentRecorderExport", () => {
+    it("returns false if not an incident recorder export", () => {
+      expect(utils.isIncidentRecorderExport("custom")).toBe(false);
+    });
+    it("returns true if incident recorder export", () => {
+      expect(utils.isIncidentRecorderExport("incident_recorder_xls")).toBe(true);
     });
   });
 

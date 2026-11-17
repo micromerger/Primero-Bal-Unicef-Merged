@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import * as index from "./index";
 
 describe("User - index", () => {
@@ -22,6 +20,7 @@ describe("User - index", () => {
       "getCurrentUserUserGroups",
       "getCurrentUserModules",
       "getIsAuthenticated",
+      "getIsIdentifiedUser",
       "getIsManagedReportScopeAll",
       "getManagedReportScope",
       "getPermissions",
@@ -31,6 +30,9 @@ describe("User - index", () => {
       "getSavingPassword",
       "getServerErrors",
       "getUser",
+      "getUserAgencyTermsOfUseChanged",
+      "getUserAgencyTermsOfUseEnabled",
+      "getUserTermsOfUseAcceptedOn",
       "getUserSavingRecord",
       "getUserProperty",
       "hasPrimeroModule",

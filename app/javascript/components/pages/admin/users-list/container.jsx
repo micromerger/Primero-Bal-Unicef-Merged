@@ -1,18 +1,17 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { batch, useDispatch } from "react-redux";
 import { fromJS } from "immutable";
-import Grid from "@mui/material/Unstable_Grid2";
+import isEmpty from "lodash/isEmpty";
 
 import { useI18n } from "../../../i18n";
 import IndexTable from "../../../index-table";
 import { PageHeading, PageContent } from "../../../page";
 import NAMESPACE from "../namespace";
-import { usePermissions, CREATE_RECORDS, READ_RECORDS, RESOURCES } from "../../../permissions";
+import { usePermissions, READ_RECORDS, RESOURCES } from "../../../permissions";
 import { FiltersForm } from "../../../form-filters/components";
 import { fetchAgencies } from "../agencies-list/action-creators";
 import {
+  fetchRoles,
   fetchUserGroups,
   getEnabledAgencies,
   getEnabledUserGroups,
@@ -23,23 +22,43 @@ import { getAppliedFilters, getMetadata } from "../../../record-list";
 import { useMetadata } from "../../../records";
 import { useMemoizedSelector } from "../../../../libs";
 import { DEFAULT_FILTERS, DATA } from "../constants";
+import { useDialog } from "../../../action-dialog";
+import Menu from "../../../menu";
+import { getRoles } from "../../../application/selectors";
 
 import { fetchUsers, setUsersFilters } from "./action-creators";
-import { LIST_HEADERS, AGENCY, DISABLED, USER_GROUP } from "./constants";
-import { agencyBodyRender, buildObjectWithIds, buildUsersQuery, getFilters } from "./utils";
+import {
+  LIST_HEADERS,
+  AGENCY,
+  DISABLED,
+  USER_GROUP,
+  LAST_DATE,
+  ACTIVITY_FILTERS,
+  USERS_DIALOG,
+  ACTION_IDS,
+  USERS_ABILITIES,
+  ROLE_ID,
+  LOCATION
+} from "./constants";
+import { agencyBodyRender, buildObjectWithIds, getFilters, buildActionList, roleBodyRender } from "./utils";
 import AlertMaxUser from "./components/alert-max-user";
-import CustomToolbar from "./components/custom-toolbar";
 import NewUserBtn from "./components/new-user-button";
+import DisableDialog from "./components/disable-dialog";
+import SendEmailDialog from "./components/send-email-dialog";
+import css from "./styles.css";
 
 function Container() {
   const i18n = useI18n();
   const dispatch = useDispatch();
+  const [selectedRecords, setSelectedRecords] = useState({});
   const { maximumUsers, maximumUsersWarning } = useApp();
-  const canAddUsers = usePermissions(NAMESPACE, CREATE_RECORDS);
+  const { canAddUsers, canDisableMultiple, canSendEmailMultiple } = usePermissions(NAMESPACE, USERS_ABILITIES);
   const canListAgencies = usePermissions(RESOURCES.agencies, READ_RECORDS);
+  const { setDialog } = useDialog(USERS_DIALOG);
   const recordType = "users";
 
   const agencies = useMemoizedSelector(state => selectAgencies(state));
+  const roles = useMemoizedSelector(state => getRoles(state, recordType));
   const currentFilters = useMemoizedSelector(state => getAppliedFilters(state, recordType));
   const enabledAgencies = useMemoizedSelector(state => getEnabledAgencies(state));
   const filterUserGroups = useMemoizedSelector(state => getEnabledUserGroups(state));
@@ -50,10 +69,16 @@ function Container() {
   const maximumUsersLimit = maximumUsersWarningEnabled ? maximumUsersWarning : maximumUsers;
 
   const agenciesWithId = buildObjectWithIds(agencies);
-
   const columns = LIST_HEADERS.map(({ label, ...rest }) => ({
     label: i18n.t(label),
     ...rest,
+    ...(rest.name === "role_unique_id"
+      ? {
+          options: {
+            customBodyRender: value => roleBodyRender(roles, value)
+          }
+        }
+      : {}),
     ...(rest.name === "agency_id"
       ? { options: { customBodyRender: value => agencyBodyRender(i18n, agenciesWithId, value) } }
       : {})
@@ -65,11 +90,13 @@ function Container() {
     if (canListAgencies) {
       dispatch(fetchAgencies({ options: { per: 999 } }));
     }
+    dispatch(fetchRoles());
     dispatch(fetchUserGroups());
   }, []);
 
   useMetadata(recordType, metadata, fetchUsers, DATA, {
-    defaultFilterFields: { ...DEFAULT_FILTERS, locale: i18n.locale }
+    defaultFilterFields: { ...DEFAULT_FILTERS, locale: i18n.locale },
+    includeQueryParams: true
   });
 
   const onTableChange = filters => {
@@ -84,21 +111,17 @@ function Container() {
     recordType,
     columns,
     options: {
-      selectableRows: "none"
+      selectableRows: "multiple"
     },
     defaultFilters,
     onTableChange,
     bypassInitialFetch: true,
-    // eslint-disable-next-line react/display-name, react/no-multi-comp
-    customToolbarSelect: ({ displayData }) => (
-      <CustomToolbar
-        displayData={displayData}
-        limitUsersReached={limitUsersReached}
-        maximumUsers={maximumUsersLimit}
-        totalUsersEnabled={totalUsersEnabled}
-        data-testid="custom-toolbar"
-      />
-    )
+    setSelectedRecords,
+    selectedRecords
+  };
+
+  const handleDialogClick = (dialog, action) => {
+    setDialog({ dialog, open: true, params: { action } });
   };
 
   const filterPermission = {
@@ -106,13 +129,17 @@ function Container() {
   };
 
   const filterProps = {
-    clearFields: [AGENCY, DISABLED, USER_GROUP],
-    filters: getFilters(i18n, enabledAgencies, filterUserGroups, filterPermission),
+    clearFields: [AGENCY, DISABLED, USER_GROUP, LAST_DATE, ROLE_ID, LOCATION],
+    filters: getFilters(i18n, enabledAgencies, filterUserGroups, filterPermission, roles),
     defaultFilters,
     initialFilters: DEFAULT_FILTERS,
     onSubmit: data => {
-      const filters = typeof data === "undefined" ? defaultFilters : buildUsersQuery(data);
-      const mergedFilters = currentFilters.merge(fromJS(filters)).set("page", 1);
+      const filters = typeof data === "undefined" ? defaultFilters : data;
+      let mergedFilters = currentFilters.merge(fromJS(filters)).set("page", 1);
+
+      if (ACTIVITY_FILTERS.some(key => mergedFilters.has(key))) {
+        mergedFilters = mergedFilters.set("activity_stats", true);
+      }
 
       batch(() => {
         dispatch(setUsersFilters({ data: mergedFilters }));
@@ -120,6 +147,13 @@ function Container() {
       });
     }
   };
+
+  const actions = buildActionList({ i18n, handleDialogClick, canDisableMultiple, canSendEmailMultiple });
+
+  const disabledCondition = action =>
+    [ACTION_IDS.disable, ACTION_IDS.sendEmail].includes(action.id)
+      ? isEmpty(Object.values(selectedRecords).flat())
+      : false;
 
   useEffect(() => {
     dispatch(setUsersFilters({ data: defaultFilters }));
@@ -129,21 +163,39 @@ function Container() {
     <>
       <PageHeading title={i18n.t("users.label")}>
         <NewUserBtn canAddUsers={canAddUsers} limitUsersReached={limitUsersReached} maximumUsers={maximumUsers} />
+        <Menu
+          data-testid="action-menu"
+          showMenu={Boolean(actions.length)}
+          actions={actions}
+          disabledCondition={disabledCondition}
+        />
       </PageHeading>
       <PageContent>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={8}>
+        <div className={css.container}>
+          <div>
             <AlertMaxUser
               limitUsersReached={limitUsersReached}
               maximumUsers={maximumUsersLimit}
               totalUsersEnabled={totalUsersEnabled}
             />
             <IndexTable title={i18n.t("users.label")} {...tableOptions} showCustomToolbar renderTitleMessage />
-          </Grid>
-          <Grid item xs={12} sm={4}>
+          </div>
+          <div>
+            <DisableDialog
+              selectedRecords={selectedRecords}
+              recordType={recordType}
+              filters={currentFilters}
+              setSelectedRecords={setSelectedRecords}
+            />
+            <SendEmailDialog
+              selectedRecords={selectedRecords}
+              recordType={recordType}
+              filters={currentFilters}
+              setSelectedRecords={setSelectedRecords}
+            />
             <FiltersForm {...filterProps} noMargin searchFieldLabel={i18n.t("users.filters.search")} showSearchField />
-          </Grid>
-        </Grid>
+          </div>
+        </div>
       </PageContent>
     </>
   );

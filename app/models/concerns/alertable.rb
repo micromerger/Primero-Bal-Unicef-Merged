@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Concern of Alertable
 module Alertable
   extend ActiveSupport::Concern
@@ -190,8 +188,10 @@ module ClassMethods
   end
 
   def open_enabled_records
+    where_query = "#{quoted_table_name}.data @? '$[*] ? (@.record_state == true && " \
+                  "@.status == #{Record::STATUS_OPEN.to_json})'"
     joins(:alerts).where(
-      "data %s '$[*] %s (@.record_state == true && @.status == %s)'", '@?', '?', Record::STATUS_OPEN.to_json
+      Arel.sql(ActiveRecord::Base.sanitize_sql(where_query))
     )
   end
 end

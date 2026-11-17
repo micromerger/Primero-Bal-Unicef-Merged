@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import React from "react";
 import PropTypes from "prop-types";
 import { withRouter } from "react-router-dom";
@@ -29,7 +27,8 @@ class ErrorBoundary extends React.Component {
     const { hasError } = this.state;
     const { children, location } = this.props;
     const type = first(compact(location.pathname.split("/")));
-    const errorMessage = type && this.window.I18n.t(`${type}.error_loading`);
+    const errorMessage =
+      type && this.window.I18n.t(`${type}.error_loading`, { defaults: [{ scope: "errors.error_loading" }] });
 
     if (hasError) {
       return <ErrorState handleTryAgain={this.handleTryAgain} type={type} errorMessage={errorMessage} />;

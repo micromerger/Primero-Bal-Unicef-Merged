@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 care_arrangements_fields_subform = [
   Field.new('name' => 'child_caregiver_status',
             'type' => 'radio_button',
@@ -100,7 +98,7 @@ care_arrangements_fields = [
   Field.new('name' => 'care_arrangements_section',
             'type' => 'subform',
             'editable' => true,
-            'subform_section' => care_arrangements_section,
+            'subform' => care_arrangements_section,
             'display_name_en' => 'Care Arrangements')
 ]
 

@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import PropTypes from "prop-types";
 import { DatePicker, DateTimePicker } from "@mui/x-date-pickers";
 import { isString } from "formik";
@@ -18,7 +16,8 @@ function DateFieldPicker({
   displayName,
   fieldTouched = false,
   fieldError,
-  helperText
+  helperText,
+  dateInput
 }) {
   const i18n = useI18n();
   const helpText =
@@ -65,8 +64,10 @@ function DateFieldPicker({
       ...textInputProps,
       "data-testid": dateIncludeTime ? "date-time-picker" : "date-picker",
       helperText: helpText,
-      InputProps: {
-        readOnly: textInputProps?.readOnly
+      label,
+      slotProps: {
+        input: { readOnly: textInputProps?.readOnly },
+        inputLabel: { shrink: true }
       },
       placeholder: placeholder || "",
       error
@@ -74,6 +75,12 @@ function DateFieldPicker({
   };
 
   const DateComponent = dateIncludeTime ? DateTimePicker : DatePicker;
+
+  const views = {
+    year: ["year"],
+    "year-month": ["year", "month"],
+    "year-month-day": ["year", "month", "day"]
+  }[dateInput && !dateIncludeTime ? dateInput : "year-month-day"];
 
   return (
     <DateProvider>
@@ -85,6 +92,7 @@ function DateFieldPicker({
         slotProps={textFieldProps}
         label={label}
         dayOfWeekFormatter={dayOfWeekFormatter(i18n)}
+        views={dateIncludeTime ? [...views, "hours", "minutes"] : views}
       />
     </DateProvider>
   );
@@ -94,6 +102,7 @@ DateFieldPicker.displayName = "DateFieldPicker";
 
 DateFieldPicker.propTypes = {
   dateIncludeTime: PropTypes.bool,
+  dateInput: PropTypes.oneOf(["year", "year-month", "year-month-day", null]),
   dateProps: PropTypes.object,
   displayName: PropTypes.object,
   fieldError: PropTypes.string,

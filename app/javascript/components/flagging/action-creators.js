@@ -1,5 +1,5 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
+import { METHODS } from "../../config";
+import { CLEAR_DIALOG } from "../action-dialog";
 import { ENQUEUE_SNACKBAR, generate } from "../notifier";
 
 import actions from "./actions";
@@ -34,14 +34,34 @@ export const unFlag = (id, body, message, recordType, record) => {
   };
 };
 
-export const addFlag = (body, message, path) => async dispatch => {
-  await dispatch({
-    type: actions.ADD_FLAG,
-    api: {
-      path,
-      method: "POST",
-      body,
-      successCallback: {
+export const addFlag = (body, message, path) => ({
+  type: actions.ADD_FLAG,
+  api: {
+    path,
+    method: "POST",
+    body,
+    successCallback: {
+      action: ENQUEUE_SNACKBAR,
+      payload: {
+        message,
+        options: {
+          variant: "success",
+          key: generate.messageKey()
+        }
+      }
+    }
+  }
+});
+
+export const bulkAddFlag = (body, message, path) => ({
+  type: actions.BULK_FLAG,
+  api: {
+    path,
+    method: METHODS.POST,
+    body,
+    successCallback: [
+      { action: CLEAR_DIALOG },
+      {
         action: ENQUEUE_SNACKBAR,
         payload: {
           message,
@@ -51,9 +71,28 @@ export const addFlag = (body, message, path) => async dispatch => {
           }
         }
       }
+    ]
+  }
+});
+
+export const updateFlag = ({ recordType, recordId, flagId, body }) => ({
+  type: actions.UPDATE_FLAG,
+  api: {
+    path: `${recordType}/${recordId}/flags/${flagId}`,
+    method: METHODS.PATCH,
+    body,
+    successCallback: {
+      action: ENQUEUE_SNACKBAR,
+      payload: {
+        messageKey: "flags.flag_updated",
+        options: {
+          variant: "success",
+          key: generate.messageKey()
+        }
+      }
     }
-  });
-};
+  }
+});
 
 export const setSelectedFlag = id => ({
   type: actions.SET_SELECTED_FLAG,

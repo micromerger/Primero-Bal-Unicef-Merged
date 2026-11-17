@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # TODO: There are some rubocop warnings related to double quotes around some of the Arabic text.  Leaving as-is for now
 
 require 'rails_helper'
@@ -11,7 +9,7 @@ module Exporters
   describe ExcelExporter do
     before do
       clean_data(
-        Alert, Child, Family, User, Agency, Role, UserGroup, Field, FormSection, PrimeroModule, PrimeroProgram, Referral
+        Alert, Child, Family, UserGroup, User, Agency, Role, UserGroup, Field, FormSection, PrimeroModule, PrimeroProgram, Referral
       )
       #### Build Form Section with subforms fields only ######
       subform = FormSection.new(name: 'cases_test_subform_2', parent_form: 'case', visible: false, is_nested: true,
@@ -190,11 +188,13 @@ module Exporters
 
       @primero_module = create(:primero_module, unique_id: 'primeromodule-cp', name: 'CP')
       @role = create(
-        :role, form_sections: [form_a, form_b, form_c, form_d, form_e, form_f, form_h], modules: [@primero_module]
+        :role, form_sections: [form_a, form_b, form_c, form_d, form_e, form_f,
+                               form_h], primero_modules: [@primero_module]
       )
-      @role_referral = create(:role, form_sections: [form_h, form_add], modules: [@primero_module])
-      @user_referral = create(:user, user_name: 'fakerefer', role: @role)
-      @user = create(:user, user_name: 'fakeadmin', role: @role)
+      @role_referral = create(:role, form_sections: [form_h, form_add], primero_modules: [@primero_module])
+      @user_group = UserGroup.create(unique_id: 'shared-group')
+      @user_referral = create(:user, user_name: 'fakerefer', role: @role, user_groups: [@user_group])
+      @user = create(:user, user_name: 'fakeadmin', role: @role, user_groups: [@user_group])
       @family = Family.create!(
         data: {
           family_number: 'FA-001',
@@ -351,7 +351,8 @@ module Exporters
 
       context 'when forms name has special characters' do
         before do
-          clean_data(Alert, Field, FormSection, User, Role, PrimeroModule)
+          clean_data(Alert, Field, FormSection, User, Role, PrimeroModule, Lookup)
+          create(:lookup)
           form1 = FormSection.new(
             name: "Child's Details / Identity / Another / Word", parent_form: 'case', visible: true,
             order_form_group: 2, order: 0, order_subform: 0, form_group_id: 'form_group1',
@@ -459,6 +460,194 @@ module Exporters
               [@records[1].short_id, nil, nil, nil, nil]
             )
           end
+        end
+      end
+    end
+
+    describe 'preload' do
+      before :each do
+        Referral.create!(
+          transitioned_by: @user.user_name, transitioned_to: @user_referral.user_name,
+          record: @records[0], consent_overridden: true
+        )
+      end
+      it 'preloads referrals for records' do
+        exporter = ExcelExporter.new(
+          nil,
+          { user: @user, record_type: 'Child' }
+        )
+
+        expect(exporter).to receive(:preload_referrals).with(@records).and_call_original
+
+        exporter.export(@records)
+        exporter.complete
+      end
+
+      it 'preloads agency names for records' do
+        exporter = ExcelExporter.new(nil, { user: @user, record_type: 'Child' })
+        expect(exporter).to receive(:preload_agency_names).with(@records).and_call_original
+        exporter.export(@records)
+        exporter.complete
+      end
+
+      it 'preloads registry_records for records' do
+        exporter = ExcelExporter.new(nil, { user: @user, record_type: 'Child' })
+        expect(exporter).to receive(:preload_registry_records).with(@records).and_call_original
+        exporter.export(@records)
+        exporter.complete
+      end
+
+      context 'Generic Agency Preloading' do
+        let(:agency1_id) { "agency_#{SecureRandom.hex(4)}" }
+        let(:agency2_id) { "agency_#{SecureRandom.hex(4)}" }
+        let(:agency1) { create(:agency, name_en: 'Agency One', unique_id: agency1_id) }
+        let(:agency2) { create(:agency, name_en: 'Agency Two', unique_id: agency2_id) }
+
+        let(:record_agency1) do
+          create(:child,
+                 created_organization: agency1.unique_id,
+                 owned_by_agency_id: agency2.unique_id)
+        end
+
+        let(:records_agency) { [record_agency1] }
+        let(:exporter_agency) { described_class.new(nil, { user: @user }) }
+
+        before do
+          # Mock the Field query to ensure our test fields are returned regardless of DB state
+          allow(Field).to receive(:where).with(option_strings_source: 'Agency')
+                                         .and_return(double(pluck: %w[created_organization owned_by_agency_id]))
+        end
+
+        it 'loads all agencies from multiple fields' do
+          exporter_agency.send(:preload_agency_names, records_agency)
+          cache = exporter_agency.instance_variable_get(:@agency_names_cache)
+          expect(cache).to include(
+            agency1.unique_id => 'Agency One',
+            agency2.unique_id => 'Agency Two'
+          )
+        end
+
+        it 'passes the cache to FieldValueService' do
+          exporter_agency.constraint_subforms
+          exporter_agency.build_worksheets_with_headers
+          expect(exporter_agency.field_value_service).to receive(:agencies=).with(kind_of(Hash))
+          exporter_agency.export_records(records_agency)
+        end
+      end
+
+      context 'Registry Records Preloading' do
+        before do
+          clean_data(Alert, Field, FormSection, User, Role, PrimeroModule, Lookup, RegistryRecord, Child)
+          allow(SystemSettings).to receive(:current).and_return(system_settings)
+
+          form1 = FormSection.new(
+            unique_id: 'basic_form', name: 'Basic Form', parent_form: 'case', visible: true, order_form_group: 2,
+            order: 0, order_subform: 0, form_group_id: 'form_group1'
+          )
+          form1.fields = [
+            Field.new(
+              name: 'services_section', type: Field::SUBFORM, display_name: 'Subform Field',
+              subform: FormSection.new(
+                name: 'Services Section', parent_form: 'case', visible: true, is_nested: true,
+                order_form_group: 2, order: 0, order_subform: 0, form_group_id: 'form_group1',
+                unique_id: 'services',
+                fields: [
+                  Field.new(
+                    name: 'service_nested_registry', type: Field::REGISTRY,
+                    display_name: 'Nested Registry', option_strings_source: 'foster_care'
+                  )
+                ]
+              )
+            ),
+            Field.new(
+              name: 'service_registry', type: Field::REGISTRY, display_name: 'Service Registry',
+              option_strings_source: 'provider'
+            )
+          ]
+          form1.save!
+
+          form2 = FormSection.new(
+            unique_id: 'basic_registry', name: 'Basic Registry', parent_form: 'registry_record', visible: true,
+            order_form_group: 2, order: 0, order_subform: 0, form_group_id: 'form_group1'
+          )
+          form2.fields = [
+            Field.new(name: 'registry_id_display', type: Field::TEXT_FIELD, display_name: 'Registry ID'),
+            Field.new(name: 'registry_no', type: Field::TEXT_FIELD, display_name: 'Registry No'),
+            Field.new(name: 'name', type: Field::TEXT_FIELD, display_name: 'Name')
+          ]
+          form2.save!
+        end
+
+        let(:primero_module_cp) { create(:primero_module, unique_id: 'primeromodule-cp', name: 'CP') }
+
+        let(:role_with_forms) do
+          create(:role, form_sections: FormSection.where(parent_form: 'case'), primero_modules: [primero_module_cp])
+        end
+
+        let(:fake_user) { create(:user, user_name: 'fakeadmin', role: role_with_forms) }
+
+        let(:system_settings) do
+          SystemSettings.new(
+            'registry_options' => {
+              'provider' => { 'collapsed_field_names' => %w[registry_id_display name] },
+              'foster_care' => { 'collapsed_field_names' => %w[registry_no name] }
+            }
+          )
+        end
+
+        let(:registry_record1) do
+          RegistryRecord.create!(
+            id: 'd19b696c-9084-11f1-829d-58112245f77a', data: { name: 'Registry 1', registry_no: 'reg1' }
+          )
+        end
+
+        let(:registry_record2) do
+          RegistryRecord.create!(
+            id: 'd6c0bdd4-9084-11f1-9b5b-58112245f77a', data: { name: 'Registry 2', registry_no: 'reg2' }
+          )
+        end
+
+        let(:associated_record1) do
+          Child.create!(id: '7f4963d0-90e3-11f1-8e3f-58112245f77a', data: { service_registry: registry_record1.id })
+        end
+
+        let(:associated_record2) do
+          associated_record2 = Child.create!(id: '88003256-90e3-11f1-b1a6-58112245f77a')
+          associated_record2.services_section = [
+            {
+              'unique_id' => '93830670-9085-11f1-8417-58112245f77a',
+              'service_nested_registry' => registry_record2.id
+            }
+          ]
+          associated_record2.save!
+          associated_record2
+        end
+
+        it 'loads all registry records for the given records' do
+          exporter = ExcelExporter.new(nil, { user: @user })
+          exporter.send(:preload_registry_records, [associated_record1, associated_record2])
+          cache = exporter.instance_variable_get(:@registry_records_cache)
+
+          expect(cache).to include(
+            registry_record1.id => registry_record1,
+            registry_record2.id => registry_record2
+          )
+        end
+
+        it 'renders the registry fields' do
+          data = ExcelExporter.export(
+            [associated_record1, associated_record2], nil, { user: fake_user }
+          )
+          workbook = Roo::Spreadsheet.open(StringIO.new(data), extension: :xlsx)
+          expect(workbook.sheet(0).row(1)).to eq(['ID', 'Service Registry'])
+          expect(workbook.sheet(0).row(2)).to eq(
+            [associated_record1.case_id_display, "#{registry_record1.registry_id_display} - #{registry_record1.name}"]
+          )
+          expect(workbook.sheet(1).row(1)).to eq(['ID', 'Nested Registry'])
+          expect(workbook.sheet(1).row(2)).to eq([associated_record1.case_id_display, nil])
+          expect(workbook.sheet(1).row(3)).to eq(
+            [associated_record2.case_id_display, "#{registry_record2.registry_no} - #{registry_record2.name}"]
+          )
         end
       end
     end

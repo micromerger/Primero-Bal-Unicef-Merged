@@ -1,10 +1,10 @@
 import { fromJS, Map } from "immutable";
 
-import { NUMERIC_FIELD, SELECT_FIELD, TEXT_FIELD, TICK_FIELD } from "../constants";
+import { NUMERIC_FIELD, RADIO_FIELD, SELECT_FIELD, TEXT_FIELD, TICK_FIELD } from "../constants";
 import { getRecordForms } from "../selectors";
 import { RECORD_TYPES, RECORD_TYPES_PLURAL } from "../../../config";
 import { FieldRecord, FormSectionRecord } from "../records";
-import { fireEvent, mountedFormComponent, screen, waitFor } from "../../../test-utils";
+import { act, fireEvent, mountedFormComponent, screen, waitFor } from "../../../test-utils";
 
 import RecordForm from "./record-form";
 
@@ -174,8 +174,8 @@ describe("<RecordForm />", () => {
     await fireEvent.submit(document.getElementsByTagName("form")[0]);
 
     await waitFor(() => {
-      expect(screen.getByText("form_section.required_field")).toBeInTheDocument();
-      expect(screen.getByText("errors.models.child.age")).toBeInTheDocument();
+      expect(screen.getAllByText("form_section.required_field")).toHaveLength(2);
+      expect(screen.getAllByText("errors.models.child.age")).toHaveLength(2);
     });
   });
 
@@ -397,6 +397,124 @@ describe("<RecordForm />", () => {
 
       expect(screen.getByRole("textbox", { name: "First Name" })).toHaveValue("test");
       expect(screen.getByRole("spinbutton", { name: "Field Age" })).toHaveValue(4);
+    });
+  });
+
+  describe("calculated fields", () => {
+    const yesNoOptions = [
+      { id: "true", display_text: "Yes" },
+      { id: "false", display_text: "No" }
+    ];
+
+    const buildCalculatedForms = calculatedField =>
+      getRecordForms(
+        Map({
+          forms: Map({
+            formSections: Map({
+              1: FormSectionRecord({
+                id: 1,
+                name: { en: "Calculated Form" },
+                unique_id: "calculated_form",
+                module_ids: ["some_module"],
+                visible: true,
+                is_nested: false,
+                parent_form: RECORD_TYPES.cases,
+                fields: [1, 2]
+              })
+            }),
+            fields: Map({
+              1: FieldRecord({
+                id: 1,
+                name: "field_age",
+                display_name: { en: "Field Age" },
+                type: NUMERIC_FIELD,
+                visible: true
+              }),
+              2: FieldRecord({
+                id: 2,
+                display_name: { en: "Calculated Field" },
+                type: RADIO_FIELD,
+                visible: true,
+                option_strings_text: yesNoOptions,
+                ...calculatedField
+              })
+            })
+          })
+        }),
+        query
+      );
+
+    const renderCalculatedForm = ({ calculatedField, record, onSubmit = () => {}, bindSubmitForm = () => {} }) =>
+      mountedFormComponent(
+        <RecordForm
+          {...{
+            bindSubmitForm,
+            forms: buildCalculatedForms(calculatedField),
+            handleToggleNav: () => {},
+            mobileDisplay: false,
+            mode,
+            onSubmit,
+            record: fromJS(record),
+            recordType: RECORD_TYPES.cases,
+            selectedForm: "calculated_form",
+            externalForms: () => {},
+            externalComponents: () => {},
+            userPermittedFormsIds: fromJS({ calculated_form: "rw" }),
+            setFormikValuesForNav: () => {}
+          }}
+        />
+      );
+
+    const isAdultField = { name: "is_adult", calculation: { expression: { gt: { field_age: 17 } } } };
+
+    it("sets a calculated radio to Yes when the boolean expression is true", async () => {
+      renderCalculatedForm({ calculatedField: isAdultField, record: { field_age: 18 } });
+
+      await waitFor(() => expect(screen.getByRole("radio", { name: "Yes" })).toBeChecked());
+    });
+
+    it("sets a calculated radio to No when the boolean expression is false", async () => {
+      renderCalculatedForm({ calculatedField: isAdultField, record: { field_age: 10 } });
+
+      await waitFor(() => expect(screen.getByRole("radio", { name: "No" })).toBeChecked());
+    });
+
+    it("does not recalculate when a referenced field is not in the user's forms", async () => {
+      renderCalculatedForm({
+        calculatedField: {
+          name: "feedback_complete",
+          calculation: { expression: { not_blank: ["field_age", "not_permitted_field"] } }
+        },
+        record: { field_age: 18, feedback_complete: true }
+      });
+
+      await waitFor(() => expect(screen.getByRole("radio", { name: "Yes" })).toBeChecked());
+      expect(screen.getByRole("radio", { name: "No" })).not.toBeChecked();
+    });
+
+    it("calculates hidden fields and submits them", async () => {
+      const onSubmit = jest.fn();
+      let submitForm;
+
+      renderCalculatedForm({
+        calculatedField: {
+          name: "hidden_complete",
+          visible: false,
+          calculation: { expression: { not_blank: ["field_age"] } }
+        },
+        record: { field_age: 18 },
+        onSubmit,
+        bindSubmitForm: formSubmit => {
+          submitForm = formSubmit;
+        }
+      });
+
+      await act(async () => {
+        await submitForm();
+      });
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+      expect(onSubmit.mock.calls[0][1]).toEqual(expect.objectContaining({ hidden_complete: true }));
     });
   });
 });

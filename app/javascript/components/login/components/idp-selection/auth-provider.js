@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 /* eslint-disable no-return-await */
 import { InteractionRequiredAuthError } from "@azure/msal-common";
 import { isImmutable } from "immutable";
@@ -9,6 +7,7 @@ import { SELECTED_IDP } from "../../../user/constants";
 
 import { setMsalApp, setMsalConfig, getLoginRequest, getTokenRequest } from "./utils";
 
+// eslint-disable-next-line import/no-mutable-exports
 let msalApp;
 let forceStandardOIDC = false;
 let tokenRequest;
@@ -55,8 +54,7 @@ const setupMsal = async (idp, historyObj) => {
   const idpObj = (isImmutable(idp) ? idp.toJS() : idp) || selectedIDPFromSessionStore();
 
   const identityScope = idpObj.identity_scope || [""];
-  const domainHint = idpObj.domain_hint;
-  const loginRequest = getLoginRequest(identityScope, domainHint);
+  const loginRequest = getLoginRequest(idpObj);
 
   tokenRequest = getTokenRequest(identityScope);
 
@@ -117,11 +115,17 @@ export const signOut = () => {
         }
       });
     } else {
-      msalApp.logout();
+      msalApp.logoutRedirect({
+        account: msalApp.getActiveAccount(),
+        onRedirectNavigate: () => {
+          // Return false to stop navigation after local logout
+          return false;
+        }
+      });
     }
     msalApp = null;
     forceStandardOIDC = false;
   }
 };
 
-export { getIDPToken };
+export { getIDPToken, msalApp };

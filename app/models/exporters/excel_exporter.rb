@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'write_xlsx'
 
 # Export records to Excel. Every form is represented by a new tab.
@@ -40,6 +38,8 @@ class Exporters::ExcelExporter < Exporters::BaseExporter
   def export_records(records)
     constraint_subforms
     build_worksheets_with_headers
+    preload_referrals(records)
+    prepare_field_value_service(records)
     records.each do |record|
       establish_record_constraints(record)
       write_record(record)
@@ -51,6 +51,13 @@ class Exporters::ExcelExporter < Exporters::BaseExporter
     constraint_subforms
     build_worksheets_with_headers
     write_record(records.first)
+  end
+
+  def prepare_field_value_service(records)
+    preload_agency_names(records)
+    preload_registry_records(records)
+    field_value_service.agencies = @agency_names_cache
+    field_value_service.registry_records = @registry_records_cache
   end
 
   def worksheet_id(form, subform_field = nil)
@@ -77,7 +84,7 @@ class Exporters::ExcelExporter < Exporters::BaseExporter
         build_worksheet_with_headers(constrained_subforms[subform_path(field)], field)
       else
         index += 1
-        worksheet&.write(0, index, field.display_name(locale))
+        worksheet&.write_string(0, index, field.display_name(locale))
       end
     end
   end
@@ -116,7 +123,7 @@ class Exporters::ExcelExporter < Exporters::BaseExporter
     name = form_name(form)
     return format_form_name(name) if subform_field.blank?
 
-    subform_name = form_name(subform_field.form).strip.slice(0, 15).concat("-#{name}")
+    subform_name = form_name(subform_field.form_section).strip.slice(0, 15).concat("-#{name}")
     format_form_name(subform_name)
   end
 
@@ -184,22 +191,36 @@ class Exporters::ExcelExporter < Exporters::BaseExporter
   end
 
   def write_value(worksheet, value, column, rows_to_write, current_worksheet_id)
-    value_array = value.is_a?(Array) ? value : Array.new(rows_to_write, value)
+    value_array = value.is_a?(Array) ? value : Array.new(rows_to_write, CsvSanitizerService.sanitize(value))
     value_array.each_with_index do |val, i|
       if column.zero?
         worksheet&.write_string(worksheets[current_worksheet_id][:row] + i, column, val)
       else
-        worksheet&.write(worksheets[current_worksheet_id][:row] + i, column, val)
+        row = worksheets[current_worksheet_id][:row] + i
+        write_export_value(worksheet, val, row, column)
       end
     end
   end
 
-  def export_value(value, field)
-    value = super(value, field)
-    # TODO: This will cause N+1 issue
-    if field.name == 'created_organization' && value.present?
-      return Agency.get_field_using_unique_id(value, :name_i18n)[locale.to_s]
+  def write_export_value(worksheet, value, row, column)
+    case value
+    when String
+      # Force string format for string values in order to prevent formula injections
+      worksheet&.write_string(row, column, CsvSanitizerService.sanitize(value))
+    when TrueClass, FalseClass
+      worksheet&.write_boolean(row, column, value)
+    else
+      worksheet.write(row, column, value)
     end
+  end
+
+  def export_value(value, field)
+    if (field.agency? || field.name == 'created_organization') && value.present?
+      return @agency_names_cache[value] if @agency_names_cache&.key?(value)
+
+      return agency_name(value)
+    end
+    value = super(value, field)
 
     return value unless value.is_a?(Array)
 
@@ -226,7 +247,7 @@ class Exporters::ExcelExporter < Exporters::BaseExporter
   end
 
   def subform_path(field)
-    "#{field.form.unique_id}.#{field.name}"
+    "#{field.form_section.unique_id}.#{field.name}"
   end
 
   def constraint_subform_fields(field)
@@ -260,6 +281,28 @@ class Exporters::ExcelExporter < Exporters::BaseExporter
 
   def subform_display_conditions(field)
     (field.subform_section_configuration&.dig('display_conditions') || []).reduce({}) { |acc, elem| acc.merge(elem) }
+  end
+
+  private
+
+  def preload_agency_names(records)
+    agency_field_names = Field.where(option_strings_source: 'Agency').pluck(:name)
+    agency_field_names << 'created_organization'
+
+    agency_ids = records.flat_map do |record|
+      collect_agency_ids(record, agency_field_names)
+    end.flatten.compact.uniq
+
+    agencies = Agency.where(unique_id: agency_ids).pluck(:unique_id, :name_i18n)
+    @agency_names_cache = agencies.to_h.transform_values { |names| names[locale.to_s] || '' }
+  end
+
+  def collect_agency_ids(record, field_names)
+    field_names.filter_map { |field_name| record.data[field_name] }
+  end
+
+  def agency_name(value)
+    Agency.get_field_using_unique_id(value, :name_i18n)&.[](locale.to_s)
   end
 end
 # rubocop:enable Metrics/ClassLength

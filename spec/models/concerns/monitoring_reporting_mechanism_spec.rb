@@ -1,14 +1,16 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe MonitoringReportingMechanism, search: true do
+  before do
+    clean_data(User, UserGroup, Role, PrimeroModule, Incident, Violation, IndividualVictim)
+  end
+
   let(:user1) do
     primero_module = PrimeroModule.new(name: 'CP')
 
-    role = Role.new(permissions: [], modules: [primero_module])
+    role = Role.new(permissions: [], primero_modules: [primero_module])
     role.save(validate: false)
 
     group1 = UserGroup.create!(name: 'Group1')
@@ -18,12 +20,13 @@ describe MonitoringReportingMechanism, search: true do
     user
   end
 
-  let(:incident1) do
+  let!(:incident1) do
     incident1 = Incident.new_with_user(
       user1,
       {
         'incident_date' => '2022-04-08',
         'module_id' => PrimeroModule::MRM,
+        'incident_total_tally' => { 'boys' => 1, 'girls' => 2, 'total' => 3 },
         'killing' => [
           {
             'unique_id' => 'b23b70de-9132-4c89-be8d-57e85a69ec68',
@@ -52,6 +55,15 @@ describe MonitoringReportingMechanism, search: true do
             'torture_punishment_while_deprivated_liberty' => 'no',
             'violations_ids' => ['b23b70de-9132-4c89-be8d-57e85a69ec68']
           }
+        ],
+        'deprivation_liberty' => [
+          {
+            'unique_id' => '9bbd0b84-ed7d-11f0-aaf1-7c10c98b54af',
+            'type' => 'deprivation_liberty',
+            'facilty_victims_held' => 'facility_3',
+            'reasons_deprivation_liberty' => 'reason_7',
+            'torture_punishment_while_deprivated_liberty' => 'no'
+          }
         ]
       }
     )
@@ -59,7 +71,7 @@ describe MonitoringReportingMechanism, search: true do
     incident1
   end
 
-  let(:incident2) do
+  let!(:incident2) do
     incident2 = Incident.new_with_user(
       user1,
       {
@@ -70,12 +82,16 @@ describe MonitoringReportingMechanism, search: true do
             'verified_ghn_reported' => '2022-q1',
             'type' => 'killing',
             'ctfmr_verified_date' => Date.today.end_of_quarter,
-            'weapon_type' => 'airstrike'
+            'weapon_type' => 'airstrike',
+            'violation_tally' => { 'boys' => 1, 'girls' => 2 }
           }
         ],
         'maiming' => [
-          'unique_id' => '5255e66c-5e57-4291-af2a-0acd50c1de72',
-          'type' => 'maiming'
+          {
+            'unique_id' => '5255e66c-5e57-4291-af2a-0acd50c1de72',
+            'type' => 'maiming',
+            'violation_tally' => { 'unknown' => 1, 'girls' => 2 }
+          }
         ],
         'perpetrators' => [
           {
@@ -110,7 +126,7 @@ describe MonitoringReportingMechanism, search: true do
     incident2
   end
 
-  let(:incident3) do
+  let!(:incident3) do
     incident3 = Incident.new_with_user(
       user1,
       {
@@ -128,7 +144,7 @@ describe MonitoringReportingMechanism, search: true do
     incident3
   end
 
-  let(:incident4) do
+  let!(:incident4) do
     incident4 = Incident.new_with_user(
       user1,
       {
@@ -155,7 +171,7 @@ describe MonitoringReportingMechanism, search: true do
     incident4
   end
 
-  let(:incident5) do
+  let!(:incident5) do
     incident5 = Incident.new_with_user(
       user1,
       {
@@ -164,7 +180,9 @@ describe MonitoringReportingMechanism, search: true do
           {
             'type' => 'attack_on_hospitals',
             'facility_attack_type' => %w[attack_on_medical_personnel threat_of_attack_on_hospital],
-            'facility_impact' => 'serious_damage'
+            'facility_impact' => 'serious_damage',
+            'violation_killed_tally' => { 'girls' => 1, 'total' => 1 },
+            'violation_injured_tally' => { 'girls' => 1, 'unknown' => 1, 'total' => 2 }
           }
         ],
         'denial_humanitarian_access' => [
@@ -173,15 +191,6 @@ describe MonitoringReportingMechanism, search: true do
       }
     )
     incident5.save!
-    incident5
-  end
-
-  before do
-    clean_data(User, UserGroup, Role, PrimeroModule, Incident, Violation, IndividualVictim)
-    incident1
-    incident2
-    incident3
-    incident4
     incident5
   end
 
@@ -220,6 +229,52 @@ describe MonitoringReportingMechanism, search: true do
       Incident,
       filters: [
         SearchFilters::TextValue.new(field_name: 'violation_with_verification_status', value: 'killing_verified')
+      ]
+    )
+    expect(search_result.total).to eq(1)
+    expect(search_result.records.first.id).to eq(incident1.id)
+  end
+
+  it 'can find incidents where violations have a victim_deprived_liberty_security_reasons' do
+    search_result = PhoneticSearchService.search(
+      Incident,
+      filters: [
+        SearchFilters::TextValue.new(field_name: 'victim_deprived_liberty_security_reasons', value: 'no')
+      ]
+    )
+    expect(search_result.total).to eq(1)
+    expect(search_result.records.map(&:id)).to match_array([incident2.id])
+  end
+
+  it 'can find incidents where violations with torture_punishment_while_deprivated_liberty' do
+    search_result = PhoneticSearchService.search(
+      Incident,
+      filters: [
+        SearchFilters::TextValue.new(field_name: 'torture_punishment_while_deprivated_liberty', value: 'no')
+      ]
+    )
+
+    expect(search_result.total).to eq(1)
+    expect(search_result.records.first.id).to eq(incident1.id)
+  end
+
+  it 'can find incidents where violations have reasons_deprivation_liberty' do
+    search_result = PhoneticSearchService.search(
+      Incident,
+      filters: [
+        SearchFilters::TextValue.new(field_name: 'reasons_deprivation_liberty', value: 'reason_7')
+      ]
+    )
+
+    expect(search_result.total).to eq(1)
+    expect(search_result.records.first.id).to eq(incident1.id)
+  end
+
+  it 'can find incidents where violations have a facilty_victims_held' do
+    search_result = PhoneticSearchService.search(
+      Incident,
+      filters: [
+        SearchFilters::TextValue.new(field_name: 'victim_facilty_victims_held', value: 'facility_3')
       ]
     )
     expect(search_result.total).to eq(1)
@@ -495,8 +550,8 @@ describe MonitoringReportingMechanism, search: true do
     expect(incident1.individual_violations).to match_array(%w[killing])
     expect(incident1.individual_sex).to match_array(%w[male])
     expect(incident1.victim_deprived_liberty_security_reasons).to match_array(%w[yes])
-    expect(incident1.reasons_deprivation_liberty).to match_array(%w[reason_1])
-    expect(incident1.victim_facilty_victims_held).to match_array(%w[facility_1])
+    expect(incident1.reasons_deprivation_liberty).to match_array(%w[reason_1 reason_7])
+    expect(incident1.victim_facilty_victims_held).to match_array(%w[facility_1 facility_3])
     expect(incident1.torture_punishment_while_deprivated_liberty).to match_array(%w[no])
     expect(incident1.armed_force_group_party_names).to match_array(%w[armed_force_1])
     expect(incident1.perpetrator_category).to match_array(%w[crossfire])
@@ -525,5 +580,87 @@ describe MonitoringReportingMechanism, search: true do
 
     expect(incident1.perpetrator_category).to match_array(%w[category2])
     expect(incident1.armed_force_group_party_names).to match_array(%w[armed_force_1 armed_force_2])
+  end
+
+  it 'calculates child_types from the incident_total_tally' do
+    expect(incident1.child_types).to match_array(%w[boys girls])
+  end
+
+  it 'calculates child_types from the violations_tally' do
+    expect(incident2.child_types).to match_array(%w[boys girls unknown])
+  end
+
+  it 'calculates child_types from the violations_killed_tally and violation_injured_tally' do
+    expect(incident5.child_types).to match_array(%w[girls unknown])
+  end
+
+  describe 'when incident_date changes' do
+    before do
+      travel_to Time.zone.parse('2023-08-10 12:00:00')
+    end
+
+    let!(:incident_with_late_violations) do
+      incident_with_late_violations = Incident.new_with_user(
+        user1,
+        {
+          'module_id' => PrimeroModule::MRM,
+          'killing' => [
+            {
+              'unique_id' => 'c383355a-d133-11f0-bbd0-7c10c98b54af',
+              'type' => 'killing',
+              'ctfmr_verified' => 'verified',
+              'ctfmr_verified_date' => Date.today + 1.days,
+              'weapon_type' => 'small_arm',
+              'violation_tally' => { 'boys' => 2, 'girls' => 1, 'total' => 3 }
+            }
+          ],
+          'maiming' => [
+            {
+              'unique_id' => 'cf2a474a-d133-11f0-bc35-7c10c98b54af',
+              'type' => 'maiming',
+              'ctfmr_verified' => 'verified',
+              'ctfmr_verified_date' => Date.today + 1.days,
+              'violation_tally' => { 'boys' => 1, 'unknown' => 1, 'girls' => 2, 'total' => 4 }
+            }
+          ]
+        }
+      )
+      incident_with_late_violations.save!
+      incident_with_late_violations
+    end
+
+    it 'recalculates late verified violations' do
+      incident_with_late_violations.incident_date = Date.parse('2023-02-21')
+      incident_with_late_violations.save!
+
+      expect(incident_with_late_violations.has_late_verified_violations).to eq(true)
+      expect(incident_with_late_violations.violations.map(&:is_late_verification)).to eq([true, true])
+    end
+
+    it 'recalculates late verified violations for updated violations' do
+      incident_with_late_violations.update_properties(
+        user1,
+        {
+          'incident_date' => Date.parse('2023-02-21'),
+          'maiming' => [
+            {
+              'unique_id' => 'cf2a474a-d133-11f0-bc35-7c10c98b54af',
+              'ctfmr_verified_date' => Date.parse('2023-03-01')
+            }
+          ]
+        }
+      )
+      incident_with_late_violations.save!
+
+      expect(incident_with_late_violations.has_late_verified_violations).to eq(true)
+      expect(
+        incident_with_late_violations.violations.map { |violation| [violation.id, violation.is_late_verification] }
+      ).to match_array(
+        [
+          ['c383355a-d133-11f0-bbd0-7c10c98b54af', true],
+          ['cf2a474a-d133-11f0-bc35-7c10c98b54af', false]
+        ]
+      )
+    end
   end
 end

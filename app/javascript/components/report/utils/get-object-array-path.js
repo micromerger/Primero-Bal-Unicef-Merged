@@ -1,10 +1,8 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import sortByDate from "./sort-by-date";
 
 export default (totalLabel, object) => {
   const allKeys = (obj, parent = []) => {
-    return sortByDate(Object.keys(obj).filter(key => key !== totalLabel))
+    return sortByDate(Object.keys(obj).filter(key => ![totalLabel, "query"].includes(key)))
       .concat(totalLabel)
       .reduce((acc, current) => {
         if (obj[current] && typeof obj[current] === "object") {

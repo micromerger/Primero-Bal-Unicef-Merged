@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import * as constants from "./constants";
 
 describe("<UsersList /> - constants", () => {
@@ -7,7 +5,23 @@ describe("<UsersList /> - constants", () => {
     const clone = { ...constants };
 
     expect(typeof clone).toEqual("object");
-    ["AGENCY", "DISABLED", "LIST_HEADERS", "USER_GROUP"].forEach(property => {
+    [
+      "AGENCY",
+      "DISABLED",
+      "LIST_HEADERS",
+      "USER_GROUP",
+      "LAST_DATE",
+      "ACTIVITY_FILTERS",
+      "ACTION_IDS",
+      "ACTION_NAMES",
+      "DISABLE_DIALOG_NAME",
+      "SEND_EMAIL_DIALOG_NAME",
+      "USERS_ABILITIES",
+      "USERS_DIALOG",
+      "ROLE_ID",
+      "LOCATION",
+      "FILTER_BY_AGENCY"
+    ].forEach(property => {
       expect(clone).toHaveProperty(property);
       delete clone[property];
     });

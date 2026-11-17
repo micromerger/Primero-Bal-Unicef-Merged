@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
@@ -25,6 +23,7 @@ import { REFERRAL_TYPE } from "../../../record-actions/transitions";
 import { OPTION_TYPES } from "../../../form";
 import useOptions from "../../../form/use-options";
 import { RECORD_TYPES } from "../../../../config";
+import { REFER_FROM_SERVICE, usePermissions } from "../../../permissions";
 
 function SelectFieldContainer({
   field,
@@ -48,6 +47,7 @@ function SelectFieldContainer({
   const i18n = useI18n();
   const dispatch = useDispatch();
   const { online } = useApp();
+  const canRefer = usePermissions(recordType, REFER_FROM_SERVICE);
 
   const {
     multi_select: multiSelect,
@@ -200,7 +200,7 @@ function SelectFieldContainer({
       InputProps
     },
     onOpen: () => {
-      if (name.endsWith(SERVICE_SECTION_FIELDS.implementingAgencyIndividual)) {
+      if (canRefer && name.endsWith(SERVICE_SECTION_FIELDS.implementingAgencyIndividual)) {
         reloadReferralUsers();
       }
     },

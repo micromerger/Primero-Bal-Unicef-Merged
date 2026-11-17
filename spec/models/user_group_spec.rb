@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe UserGroup do
@@ -36,6 +34,16 @@ describe UserGroup do
 
       expect(user_groups.size).to eq(3)
       expect(user_groups.map(&:unique_id)).to match_array(%w[group_1 group_2 group_3])
+    end
+  end
+
+  describe 'enabled' do
+    let!(:disabled_group) { UserGroup.create!(unique_id: 'usergroup-mrm', name: 'MRM', disabled: true) }
+
+    it 'returns only enabled groups as options with id and display_text' do
+      usergroups_enabled = UserGroup.enabled.map(&:unique_id)
+      expect(usergroups_enabled).to match_array(%w[group_1 group_2 group_3])
+      expect(usergroups_enabled).not_to include('usergroup-mrm')
     end
   end
 end

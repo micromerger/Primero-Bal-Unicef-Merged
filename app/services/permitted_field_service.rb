@@ -1,21 +1,39 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Calculate the permitted fields for a record based on the user's role.
 # TODO: Currently allows some permitted fields to be represented as a JSON schema,
 #       but this functionality should be extracted.
 # rubocop:disable Metrics/ClassLength
 class PermittedFieldService
-  attr_accessor :user, :model_class, :action_name, :id_search, :permitted_form_field_service
+  attr_accessor :user, :model_class, :action_name, :id_search, :permitted_form_field_service,
+                :permitted_field_values_service
 
   UUID_REGEX = '\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z'
+
+  PERMITTED_STATUS_VALUES = [
+    Record::STATUS_OPEN,
+    Record::STATUS_CLOSED,
+    Record::STATUS_TRANSFERRED,
+    Record::STATUS_IDENTIFIED
+  ].freeze
+
+  PERMITTED_WORKFLOW_VALUES = [
+    Workflow::WORKFLOW_NEW,
+    Workflow::WORKFLOW_CLOSED,
+    Workflow::WORKFLOW_REOPENED,
+    Workflow::WORKFLOW_SERVICE_PROVISION,
+    Workflow::WORKFLOW_SERVICE_IMPLEMENTED,
+    Workflow::WORKFLOW_CASE_PLAN,
+    Workflow::WORKFLOW_ASSESSMENT
+  ].freeze
 
   # case_status_reopened, record_state, incident_case_id, owned_by, module_id,
   PERMITTED_CORE_FIELDS_SCHEMA = {
     'id' => { 'type' => 'string', 'format' => 'regex', 'pattern' => UUID_REGEX },
-    'status' => { 'type' => 'string' }, 'state' => { 'type' => 'boolean' },
-    'case_status_reopened' => { 'type' => %w[boolean null] }, 'record_state' => { 'type' => 'boolean' },
+    'status' => { 'type' => 'string', 'enum' => PERMITTED_STATUS_VALUES },
+    'state' => { 'type' => 'boolean' },
+    'case_status_reopened' => { 'type' => %w[boolean null] },
+    'record_state' => { 'type' => 'boolean' },
     'incident_case_id' => { 'type' => 'string', 'format' => 'regex', 'pattern' => UUID_REGEX },
     'registry_record_id' => { 'type' => '%w[string null]', 'format' => 'regex', 'pattern' => UUID_REGEX },
     'family_id' => { 'type' => '%w[string null]', 'format' => 'regex', 'pattern' => UUID_REGEX },
@@ -27,37 +45,59 @@ class PermittedFieldService
 
   # Calculated fields needed to perform searches
   PERMITTED_FILTER_FIELD_NAMES = %w[
-    or not cases_by_date record_in_scope associated_user_names not_edited_by_owner referred_users referred_users_present
-    transferred_to_users transferred_to_user_groups has_photo survivor_code survivor_code_no case_id_display
-    created_at has_incidents short_id record_state sex age registration_date date_closure
-    reassigned_transferred_on current_alert_types location_current reporting_location_hierarchy followup_dates
-    reunification_dates tracing_dates service_implemented_day_times
+    or and not cases_by_date record_in_scope associated_user_names not_edited_by_owner has_photo survivor_code
+    survivor_code_no case_id_display created_at has_incidents short_id record_state sex age registration_date
+    date_closure reassigned_transferred_on current_alert_types location_current reporting_location_hierarchy
+    followup_dates reunification_dates tracing_dates service_implemented_day_times
   ].freeze
 
   PERMITTED_MRM_FILTER_FIELD_NAMES = %w[
     individual_violations individual_age individual_sex victim_deprived_liberty_security_reasons
     reasons_deprivation_liberty victim_facilty_victims_held torture_punishment_while_deprivated_liberty
     violation_with_verification_status armed_force_group_party_names has_late_verified_violations perpetrator_category
-    date_of_first_report ctfmr_verified_date verification_status
+    date_of_first_report ctfmr_verified_date verification_status child_types
+    verified_ghn_reported weapon_type facility_impact facility_attack_type child_role
+    abduction_purpose_single military_use_type types_of_aid_disrupted_denial
   ].freeze
 
   PERMITTED_RECORD_INFORMATION_FIELDS = %w[
     alert_count assigned_user_names created_at created_by created_by_agency owned_by owned_by_agency_id
     owned_by_text owned_by_agency_office previous_agency previously_owned_by reassigned_tranferred_on reopened_logs
     last_updated_at last_updated_by owned_by_groups previously_owned_by_agency created_organization
-    consent_for_services disclosure_other_orgs case_type
+    consent_for_services disclosure_other_orgs case_type assign identified_by
   ].freeze
 
   PERMITTED_DASHBOARD_FILTERS = {
     Permission::DASH_CASE_RISK => %w[risk_level],
-    Permission::DASH_SHARED_WITH_OTHERS => %w[transfer_status],
-    Permission::DASH_SHARED_FROM_MY_TEAM => %w[transfer_status]
+    Permission::DASH_SHARED_WITH_ME => %w[
+      referred_users referred_users_pending referred_users_accepted transferred_to_users
+    ],
+    Permission::DASH_SHARED_WITH_OTHERS => %w[
+      referred_users_present referred_users_pending_present referred_users_accepted_present last_referral_rejected_at
+      last_referral_done_at transfer_status
+    ],
+    Permission::DASH_SHARED_FROM_MY_TEAM => %w[
+      referred_users_pending_present referred_users_accepted_present last_referral_rejected_at last_referral_done_at
+      transfer_status
+    ],
+    Permission::DASH_SHARED_WITH_MY_TEAM => %w[
+      referred_users_pending referred_users_accepted referred_users_pending_present referred_users_accepted_present
+      transferred_to_users
+    ],
+    Permission::DASH_SHARED_WITH_MY_TEAM_OVERVIEW => %w[
+      transferred_to_user_groups transfer_status
+    ],
+    Permission::DASH_CASES_BY_INCIDENT_TYPE => %w[incident_types]
   }.freeze
 
   PERMITTED_FIELDS_FOR_ACTION_SCHEMA = {
-    Permission::CLOSE => { 'status' => { 'type' => 'string' }, 'date_closure' => { 'type' => 'date' } },
+    Permission::CLOSE => {
+      'status' => { 'type' => 'string', 'enum' => PERMITTED_STATUS_VALUES },
+      'date_closure' => { 'type' => 'date' }
+    },
     Permission::REOPEN => {
-      'status' => { 'type' => 'string' }, 'workflow' => { 'type' => 'string' },
+      'status' => { 'type' => 'string', 'enum' => PERMITTED_STATUS_VALUES },
+      'workflow' => { 'type' => 'string', 'enum' => PERMITTED_WORKFLOW_VALUES },
       'case_status_reopened' => { 'type' => 'boolean' }
     },
     Permission::ENABLE_DISABLE_RECORD => { 'record_state' => { 'type' => 'boolean' } },
@@ -74,7 +114,8 @@ class PermittedFieldService
     Permission::LINK_FAMILY_RECORD => {
       'family_id' => { 'type' => %w[string null], 'format' => 'regex', 'pattern' => UUID_REGEX },
       'family_member_id' => { 'type' => %w[string null], 'format' => 'regex', 'pattern' => UUID_REGEX }
-    }
+    },
+    Permission::ATTRIBUTE => { 'identified_by' => { 'type' => 'string' } }
   }.freeze
 
   # TODO: Add more validation. Enums?
@@ -86,12 +127,15 @@ class PermittedFieldService
 
   ID_SEARCH_FIELDS = %w[age date_of_birth estimated name sex].freeze
 
-  def initialize(user, model_class, permitted_form_field_service = nil, options = {})
+  def initialize(
+    user, model_class, permitted_form_field_service = nil, permitted_field_values_service = nil, options = {}
+  )
     self.user = user
     self.model_class = model_class
     self.action_name = options[:action_name]
     self.id_search = options[:id_search]
     self.permitted_form_field_service = permitted_form_field_service || PermittedFormFieldsService.instance
+    self.permitted_field_values_service = permitted_field_values_service || PermittedFieldValuesService.instance
   end
 
   # This is a long series of permission conditions. Sacrificing Rubocop for readability.
@@ -103,6 +147,7 @@ class PermittedFieldService
   def permitted_field_names(module_unique_id = nil, writeable = false, update = false, roles = [])
     return @permitted_field_names if @permitted_field_names.present?
     return permitted_field_names_from_action_name if permitted_field_names_from_action_name.present?
+    return permitted_fields_for_identified_scope(module_unique_id, writeable, update) if identified_scope?
 
     @permitted_field_names = permitted_core_fields(update) + PERMITTED_FILTER_FIELD_NAMES
     @permitted_field_names += PERMITTED_MRM_FILTER_FIELD_NAMES if user.module?(PrimeroModule::MRM)
@@ -110,10 +155,11 @@ class PermittedFieldService
       roles.presence || [user.role], model_class.parent_form, module_unique_id, writeable
     )
     # TODO: Consider moving model specific permitted fields to the model class.
-    @permitted_field_names += %w[workflow status case_status_reopened] if model_class == Child
+    @permitted_field_names += %w[workflow status case_status_reopened registry_record_ids] if model_class == Child
     @permitted_field_names << 'tracing_names' if model_class == TracingRequest
     @permitted_field_names << 'hidden_name' if user.can?(:update, model_class)
     @permitted_field_names += %w[flag_count flagged] if user.can?(:flag, model_class)
+    @permitted_field_names += permitted_pending_transition_field_names
     @permitted_field_names += SYNC_FIELDS_SCHEMA.keys if external_sync?
     @permitted_field_names += permitted_incident_field_names
     @permitted_field_names << 'incident_details' if user.can?(:view_incident_from_case, model_class)
@@ -132,14 +178,62 @@ class PermittedFieldService
     @permitted_field_names
   end
 
+  # TODO: The method is essentially duplicating some logic from permitted_field_names. DRY!
+  def permitted_fields_for_identified_scope(module_unique_id = nil, writeable = false, update = false)
+    @permitted_field_names = permitted_form_field_service.permitted_field_names(
+      [user.role], model_class.parent_form, module_unique_id, writeable
+    )
+    @permitted_field_names += core_schema_for_identified_scope(update).keys
+    # TODO: Should these fields be permitted for writes/updates
+    @permitted_field_names += %w[workflow status case_status_reopened] if model_class == Child
+    @permitted_field_names << 'hidden_name' if user.can?(:update, model_class)
+    @permitted_field_names += %w[flag_count flagged] if user.can?(:flag, model_class)
+    @permitted_field_names += permitted_pending_transition_field_names
+    approval_fields = permitted_approval_schema.keys
+    @permitted_field_names += permitted_approval_schema.keys if approval_fields.present?
+    @permitted_field_names << 'approval_subforms' if approval_fields.present?
+    @permitted_field_names += permitted_attachment_fields
+    @permitted_field_names += permitted_identified_fields(writeable || update)
+    @permitted_field_names
+  end
+
+  # TODO: The method is essentially duplicating some logic from permitted_field_names. DRY!
+  def permitted_fields_for_webhook(module_unique_id = nil)
+    @permitted_field_names = permitted_form_field_service.permitted_field_names(
+      [user.role], model_class.parent_form, module_unique_id, false
+    )
+    @permitted_field_names += permitted_core_fields(false)
+  end
+
+  def permitted_identified_fields(writeable = false)
+    return [] if writeable
+
+    %w[identified_at identified_by identified_by_full_name]
+  end
+
+  def identified_scope?
+    user.group_permission?(Permission::IDENTIFIED)
+  end
+
   def permitted_core_fields(update = false)
     core_fields = PERMITTED_CORE_FIELDS_SCHEMA.except('registry_record_id').keys
     update ? core_fields - %w[id] : core_fields
   end
 
-  # TODO:  The method is essentially duplicating some logic from permitted_field_names. DRY!
+  # TODO: Consider a refactor to consolidate the logic of these core fields methods
+  def core_schema_for_identified_scope(update = false)
+    schema = PERMITTED_CORE_FIELDS_SCHEMA.except('created_at', 'owned_by')
+    # TODO: Do the same in other core fields methods to prevent users from performing updates on forbidden fields
+    schema = schema.except(*PermittedFormFieldsService::UPDATE_FORBIDDEN) if update
+    # TODO: This should be derived from permissions similar to permitted_family_id and permitted_registry_record_id?
+    schema.except('registry_record_id', 'family_id')
+  end
+
+  # TODO: The method is essentially duplicating some logic from permitted_field_names. DRY!
   def permitted_fields_schema(update = false)
     schema = update ? PERMITTED_CORE_FIELDS_SCHEMA.except('id') : PERMITTED_CORE_FIELDS_SCHEMA.dup
+    schema = core_schema_for_identified_scope(update) if identified_scope?
+    # TODO: Should this method permit actions for superusers who have MANAGE permission?
     permitted_actions =
       PERMITTED_FIELDS_FOR_ACTION_SCHEMA.keys.select { |a| user.role.permits?(model_class.parent_form, a) }
     schema = schema.merge(PERMITTED_FIELDS_FOR_ACTION_SCHEMA.slice(*permitted_actions).values.reduce({}, :merge))
@@ -254,6 +348,15 @@ class PermittedFieldService
     attachment_field_names << 'photo' if user.can?(:view_photo, model_class)
 
     attachment_field_names
+  end
+
+  def permitted_pending_transition_field_names
+    field_names = []
+    if user.can?(:transfer, model_class) || user.can?(:receive_transfer, model_class)
+      field_names << 'transferred_to_users'
+    end
+    field_names << 'referred_users_pending' if user.can?(:receive_referral, model_class)
+    field_names
   end
 
   def permitted_dashboard_filter_field_names

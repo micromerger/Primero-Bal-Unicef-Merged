@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # MRM-related model
 # rubocop:disable Metrics/ModuleLength
 module MonitoringReportingMechanism
@@ -9,15 +7,11 @@ module MonitoringReportingMechanism
 
   ASSOCIATION_MAPPING = {
     'armed_force_group_party_name' => 'armed_force_group_party_names',
-    'ctfmr_verified' => 'verification_status',
-    'facilty_victims_held' => 'victim_facilty_victims_held'
+    'ctfmr_verified' => 'verification_status'
   }.freeze
 
   ASSOCIATION_FIELDS = {
-    'individual_victims' => %w[
-      individual_age individual_sex victim_deprived_liberty_security_reasons reasons_deprivation_liberty
-      facilty_victims_held torture_punishment_while_deprivated_liberty
-    ],
+    'individual_victims' => %w[individual_age individual_sex victim_deprived_liberty_security_reasons],
     'perpetrators' => %w[armed_force_group_party_name perpetrator_category],
     'violations' => %w[
       verified_ghn_reported weapon_type facility_impact facility_attack_type child_role abduction_purpose_single
@@ -31,6 +25,14 @@ module MonitoringReportingMechanism
     'violation_with_facility_impact' => 'facility_impact'
   }.freeze
 
+  DEPRIVATION_LIBERTY_FIELDS = %w[
+    reasons_deprivation_liberty facilty_victims_held torture_punishment_while_deprivated_liberty
+  ].freeze
+
+  DEPRIVATION_LIBERTY_MAPPING = {
+    'facilty_victims_held' => 'victim_facilty_victims_held'
+  }.freeze
+
   included do
     # TODO: For now we are storing the associations fields in the incident data, but at some point we should be able
     # to extend our filters in order to query the association directly.
@@ -41,7 +43,7 @@ module MonitoringReportingMechanism
       :verification_status, :armed_force_group_party_names, :perpetrator_category, :verified_ghn_reported,
       :weapon_type, :facility_impact, :facility_attack_type, :violation_with_weapon_type, :child_role,
       :abduction_purpose_single, :violation_with_facility_impact, :violation_with_facility_attack_type,
-      :military_use_type, :types_of_aid_disrupted_denial, :ctfmr_verified_date
+      :military_use_type, :types_of_aid_disrupted_denial, :ctfmr_verified_date, :incident_total_tally, :child_types
     )
 
     has_many :violations, dependent: :destroy, inverse_of: :incident
@@ -50,7 +52,7 @@ module MonitoringReportingMechanism
     has_many :sources, through: :violations
 
     before_save :save_violations_and_associations
-    before_save :update_violations
+    before_save :recalculate_child_types
   end
 
   # Class methods for all MRM Incidents
@@ -97,6 +99,8 @@ module MonitoringReportingMechanism
   end
 
   def save_violations_and_associations
+    @violations_to_save ||= []
+    recalculate_late_verifications
     save_violations
     save_violations_associations
 
@@ -104,6 +108,27 @@ module MonitoringReportingMechanism
 
     reload_violations_and_associations
     recalculate_association_fields
+  end
+
+  def recalculate_late_verifications
+    return unless should_recalculate_late_verifications?
+
+    violations.each do |violation|
+      next if will_save_violation_id?(violation.id)
+
+      violation.calculate_late_verifications
+      @violations_to_save << violation if violation.changed?
+    end
+  end
+
+  def will_save_violation_id?(violation_id)
+    return false unless @violations_to_save.present?
+
+    @violations_to_save.any? { |violation| violation.id == violation_id }
+  end
+
+  def should_recalculate_late_verifications?
+    !new_record? && mrm? && (incident_date_changed? || incident_date_end_changed?)
   end
 
   def save_violations
@@ -160,14 +185,6 @@ module MonitoringReportingMechanism
     violations_result
   end
 
-  def update_violations
-    should_update_violations = !new_record? && mrm? && (incident_date_changed? || incident_date_end_changed?)
-
-    return unless should_update_violations
-
-    violations.each(&:calculate_late_verifications)
-  end
-
   # TODO: This method will trigger queries to reload the violations and associations in order to store the latest data
   def reload_violations_and_associations
     association_classes = association_classes_to_save
@@ -181,6 +198,7 @@ module MonitoringReportingMechanism
   def recalculate_association_fields
     stamp_association_fields
     stamp_fields_with_violation_type
+    stamp_deprivation_liberty_fields
     calculate_individual_violations
     calculate_late_verified_violations
     calculate_has_late_verified_violations
@@ -261,6 +279,39 @@ module MonitoringReportingMechanism
     has_late_verified_violations
   end
 
+  def stamp_deprivation_liberty_fields
+    deprivation_liberty_violations = deprivation_liberty_from_violations
+    deprivation_liberty_victims = deprivation_liberty_from_individual_victims
+
+    DEPRIVATION_LIBERTY_FIELDS.each do |field|
+      record_field_name = DEPRIVATION_LIBERTY_MAPPING[field] || field
+      violation_values = deprivation_liberty_violations[field] || []
+      victim_values = deprivation_liberty_victims[field] || []
+
+      data[record_field_name] = (violation_values + victim_values).flatten.compact.uniq
+    end
+  end
+
+  def deprivation_liberty_from_individual_victims
+    individual_victims.each_with_object({}) do |individual_victim, memo|
+      DEPRIVATION_LIBERTY_FIELDS.each do |field|
+        memo[field] ||= []
+        memo[field] << individual_victim.send(field)
+      end
+    end
+  end
+
+  def deprivation_liberty_from_violations
+    violations.each_with_object({}) do |violation, memo|
+      next unless violation.type == 'deprivation_liberty'
+
+      DEPRIVATION_LIBERTY_FIELDS.each do |field|
+        memo[field] ||= []
+        memo[field] << violation.send(field)
+      end
+    end
+  end
+
   def calculate_violation_with_facility_attack_type
     self.violation_with_facility_attack_type = violations.each_with_object([]) do |violation, memo|
       next unless violation.type.present? && violation.facility_attack_type.present?
@@ -269,6 +320,30 @@ module MonitoringReportingMechanism
     end.uniq
 
     violation_with_facility_attack_type
+  end
+
+  def recalculate_child_types
+    self.child_types = record_child_types | violations_child_types
+
+    child_types
+  end
+
+  def record_child_types
+    child_types_for_tally(incident_total_tally)
+  end
+
+  def violations_child_types
+    violations.reduce([]) do |violations_memo, violation|
+      tally_values = [violation.violation_killed_tally, violation.violation_injured_tally, violation.violation_tally]
+      tally_child_types = tally_values.reduce([]) { |tally_memo, tally| tally_memo | child_types_for_tally(tally) }
+      violations_memo | tally_child_types
+    end
+  end
+
+  def child_types_for_tally(tally)
+    return [] unless tally.present?
+
+    tally.select { |key, value| key != 'total' && value&.positive? }.keys
   end
 end
 # rubocop:enable Metrics/ModuleLength

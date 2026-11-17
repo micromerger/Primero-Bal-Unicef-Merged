@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import * as index from "./index";
 
 describe("pages/admin/<FormBuilder />/components/<FieldDialog />/forms - index", () => {
@@ -13,7 +11,9 @@ describe("pages/admin/<FormBuilder />/components/<FieldDialog />/forms - index",
       "subformField",
       "tallyFieldForm",
       "textFieldForm",
-      "tickboxFieldForm"
+      "tickboxFieldForm",
+      "signatureFieldForm",
+      "registryFieldForm"
     ].forEach(property => {
       expect(indexValues).toHaveProperty(property);
       delete indexValues[property];

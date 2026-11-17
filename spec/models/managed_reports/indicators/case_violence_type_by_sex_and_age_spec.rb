@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ManagedReports::Indicators::CaseViolenceTypeBySexAndAge do
@@ -126,7 +124,7 @@ describe ManagedReports::Indicators::CaseViolenceTypeBySexAndAge do
     @case3.incidents = [incident3]
     @case3.save!
     @case4 = Child.new_with_user(
-      @all_user, {  registration_date: Date.new(2023, 4, 25), sex: 'female', age: 2, status: 'open' }
+      @all_user, { registration_date: Date.new(2023, 4, 25), sex: 'female', age: 2, status: 'open' }
     )
     @case4.incidents = [incident4, incident5, incident6]
     @case4.save!
@@ -137,9 +135,9 @@ describe ManagedReports::Indicators::CaseViolenceTypeBySexAndAge do
 
     expect(report_data).to match_array(
       [
-        { id: 'female', "0 - 5": 2, total: 2 },
-        { id: 'male', "6 - 11": 1, "18+": 1, total: 2 },
-        { id: 'total', "0 - 5": 2, "6 - 11": 1, "18+": 1, total: 4 }
+        { id: 'female', '0 - 5': 2, total: 2 },
+        { id: 'male', '6 - 11': 1, '18+': 1, total: 2 },
+        { id: 'total', '0 - 5': 2, '6 - 11': 1, '18+': 1, total: 4 }
       ]
     )
   end
@@ -157,8 +155,8 @@ describe ManagedReports::Indicators::CaseViolenceTypeBySexAndAge do
 
       expect(report_data).to match_array(
         [
-          { id: 'female', "0 - 5": 1, total: 1 },
-          { id: 'total', "0 - 5": 1, total: 1 }
+          { id: 'female', '0 - 5': 1, total: 1 },
+          { id: 'total', '0 - 5': 1, total: 1 }
         ]
       )
     end
@@ -168,9 +166,9 @@ describe ManagedReports::Indicators::CaseViolenceTypeBySexAndAge do
 
       expect(report_data).to match_array(
         [
-          { id: 'female', "0 - 5": 2, total: 2 },
-          { id: 'male', "6 - 11": 1, total: 1 },
-          { id: 'total', "0 - 5": 2, "6 - 11": 1, total: 3 }
+          { id: 'female', '0 - 5': 2, total: 2 },
+          { id: 'male', '6 - 11': 1, total: 1 },
+          { id: 'total', '0 - 5': 2, '6 - 11': 1, total: 3 }
         ]
       )
     end
@@ -180,9 +178,9 @@ describe ManagedReports::Indicators::CaseViolenceTypeBySexAndAge do
 
       expect(report_data).to match_array(
         [
-          { id: 'female', "0 - 5": 1, total: 1 },
-          { id: 'male', "18+": 1, total: 1 },
-          { id: 'total', "0 - 5": 1,  "18+": 1, total: 2 }
+          { id: 'female', '0 - 5': 1, total: 1 },
+          { id: 'male', '18+': 1, total: 1 },
+          { id: 'total', '0 - 5': 1, '18+': 1, total: 2 }
         ]
       )
     end
@@ -209,8 +207,8 @@ describe ManagedReports::Indicators::CaseViolenceTypeBySexAndAge do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'year'),
             'registration_date' => SearchFilters::DateRange.new(
               field_name: 'registration_date',
-              from: '2022-03-07',
-              to: '2022-03-10'
+              from: Date.parse('2022-03-07'),
+              to: Date.parse('2022-03-10')
             )
           }
         ).data
@@ -219,11 +217,13 @@ describe ManagedReports::Indicators::CaseViolenceTypeBySexAndAge do
           [
             {
               group_id: 2022,
-              data: [
-                { id: 'female', '0 - 5': 1, total: 1 },
-                { id: 'male', '18+': 1, total: 1 },
-                { id: 'total', '0 - 5': 1, '18+': 1, total: 2 }
-              ]
+              data: match_array(
+                [
+                  { id: 'female', '0 - 5': 1, total: 1 },
+                  { id: 'male', '18+': 1, total: 1 },
+                  { id: 'total', '0 - 5': 1, '18+': 1, total: 2 }
+                ]
+              )
             }
           ]
         )
@@ -238,8 +238,8 @@ describe ManagedReports::Indicators::CaseViolenceTypeBySexAndAge do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'month'),
             'registration_date' => SearchFilters::DateRange.new(
               field_name: 'registration_date',
-              from: '2022-02-15',
-              to: '2022-03-10'
+              from: Date.parse('2022-02-15'),
+              to: Date.parse('2022-03-10')
             )
           }
         ).data
@@ -249,11 +249,13 @@ describe ManagedReports::Indicators::CaseViolenceTypeBySexAndAge do
             { group_id: '2022-02', data: [] },
             {
               group_id: '2022-03',
-              data: [
-                { id: 'female', '0 - 5': 1, total: 1 },
-                { id: 'male', '18+': 1, total: 1 },
-                { id: 'total', '0 - 5': 1, '18+': 1, total: 2 }
-              ]
+              data: match_array(
+                [
+                  { id: 'female', '0 - 5': 1, total: 1 },
+                  { id: 'male', '18+': 1, total: 1 },
+                  { id: 'total', '0 - 5': 1, '18+': 1, total: 2 }
+                ]
+              )
             }
           ]
         )
@@ -268,8 +270,8 @@ describe ManagedReports::Indicators::CaseViolenceTypeBySexAndAge do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
             'registration_date' => SearchFilters::DateRange.new(
               field_name: 'registration_date',
-              from: '2022-02-15',
-              to: '2022-03-30'
+              from: Date.parse('2022-02-15'),
+              to: Date.parse('2022-03-30')
             )
           }
         ).data
@@ -278,11 +280,13 @@ describe ManagedReports::Indicators::CaseViolenceTypeBySexAndAge do
           [
             {
               group_id: '2022-Q1',
-              data: [
-                { id: 'female', '0 - 5': 1, total: 1 },
-                { id: 'male', '18+': 1, total: 1 },
-                { id: 'total', '0 - 5': 1, '18+': 1, total: 2 }
-              ]
+              data: match_array(
+                [
+                  { id: 'female', '0 - 5': 1, total: 1 },
+                  { id: 'male', '18+': 1, total: 1 },
+                  { id: 'total', '0 - 5': 1, '18+': 1, total: 2 }
+                ]
+              )
             }
           ]
         )
@@ -297,8 +301,8 @@ describe ManagedReports::Indicators::CaseViolenceTypeBySexAndAge do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'week'),
             'registration_date' => SearchFilters::DateRange.new(
               field_name: 'registration_date',
-              from: '2022-02-27',
-              to: '2022-03-10'
+              from: Date.parse('2022-02-27'),
+              to: Date.parse('2022-03-10')
             )
           }
         ).data
@@ -308,11 +312,13 @@ describe ManagedReports::Indicators::CaseViolenceTypeBySexAndAge do
             { group_id: '2022-02-27 - 2022-03-05', data: [] },
             {
               group_id: '2022-03-06 - 2022-03-12',
-              data: [
-                { id: 'female', '0 - 5': 1, total: 1 },
-                { id: 'male', '18+': 1, total: 1 },
-                { id: 'total', '0 - 5': 1, '18+': 1, total: 2 }
-              ]
+              data: match_array(
+                [
+                  { id: 'female', '0 - 5': 1, total: 1 },
+                  { id: 'male', '18+': 1, total: 1 },
+                  { id: 'total', '0 - 5': 1, '18+': 1, total: 2 }
+                ]
+              )
             }
           ]
         )

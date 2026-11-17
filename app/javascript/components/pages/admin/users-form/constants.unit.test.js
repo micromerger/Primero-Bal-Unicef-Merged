@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import * as userConstants from "./constants";
 
 describe("Verifying user constant", () => {
@@ -50,6 +48,9 @@ describe("values", () => {
         "AGENCY_ID",
         "AGENCY_OFFICE",
         "POSITION",
+        "LAST_ACCESS",
+        "LAST_CASE_UPDATED",
+        "LAST_CASE_VIEWED",
         "LOCATION",
         "DISABLED",
         "SEND_MAIL",

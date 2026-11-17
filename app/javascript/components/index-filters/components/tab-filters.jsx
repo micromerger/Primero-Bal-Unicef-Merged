@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { useMemo } from "react";
 import { useWatch } from "react-hook-form";
 import PropTypes from "prop-types";
@@ -68,6 +66,7 @@ function TabFilters({
         recordType={recordType}
         setMore={setMore}
         setMoreSectionFilters={setMoreSectionFilters}
+        queryParams={queryParams}
       />
     </div>
   );

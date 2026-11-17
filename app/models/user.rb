@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # This model represents the Primero end user and the associated application permissions.
 # Primero can be configured to perform its own password-based authentication, in which case the
 # User model is responsible for storing the encrypted password and associated whitelisted JWT
@@ -29,6 +27,7 @@ class User < ApplicationRecord
     'password_reset' => { 'type' => 'boolean' }, 'role_id' => { 'type' => 'string' },
     'agency_office' => { 'type' => %w[string null] }, 'code_of_conduct_id' => { 'type' => 'integer' },
     'send_mail' => { 'type' => 'boolean' }, 'receive_webpush' => { 'type' => 'boolean' },
+    'accept_terms_of_use' => { 'type' => 'boolean' },
     'settings' => {
       'type' => %w[object null], 'properties' => {
         'notifications' => {
@@ -42,12 +41,19 @@ class User < ApplicationRecord
     }
   }.freeze
 
+  AUDIT_LAST_DATE = {
+    last_access: { action: 'login', record_type: 'User' },
+    last_case_viewed: { action: 'show', record_type: 'Child' },
+    last_case_updated: { action: 'update', record_type: 'Child' }
+  }.freeze
+
   attr_accessor :should_send_password_reset_instructions, :user_groups_changed
   attr_writer :user_location, :reporting_location
 
   delegate :can?, :cannot?, to: :ability
 
-  devise :database_authenticatable, :timeoutable, :recoverable, :lockable
+  devise :database_authenticatable, :recoverable, :lockable
+  devise :timeoutable unless Rails.configuration.x.idp.use_identity_provider
 
   self.unique_id_attribute = 'user_name'
 
@@ -81,12 +87,28 @@ class User < ApplicationRecord
     )
   end)
 
-  alias_attribute :organization, :agency
+  scope :who_accessed_record, (lambda do |record, actions = AuditLog::RECORD_VIEWS_EDIT|
+    where(
+      AuditLog.unscoped
+              .where(record_id: record.id, record_type: record.class.name, action: actions)
+              .where('audit_logs.user_id = users.id')
+              .arel
+              .exists
+    )
+  end)
+
+  scope :by_category, (lambda do |user_category|
+    joins(:role).where(disabled: false, duplicate: false)
+    .where(roles: { user_category: })
+  end)
+
+  alias organization agency
   alias_attribute :name, :user_name
 
   before_validation :generate_random_password
   before_create :set_agency_services
   before_save :make_user_name_lowercase, :update_reporting_location_code, :set_locale, :set_code_of_conduct_accepted_on
+  before_update :after_password_reset
   after_commit :update_associated_records, on: :update
   after_create :send_reset_password_instructions, if: :should_send_password_reset_instructions
 
@@ -114,6 +136,11 @@ class User < ApplicationRecord
   validates :locale,
             inclusion: { in: I18n.available_locales.map(&:to_s), message: 'errors.models.user.invalid_locale' },
             allow_nil: true
+  validates :data_processing_consent_provided_on,
+            presence: { message: 'errors.models.user.data_processing_consent_provided_on' },
+            if: :data_processing_consent_required?
+  validate :validate_latest_code_of_conduct
+  validate :validate_agency_terms_of_use, if: -> { Rails.configuration.enforce_terms_of_use }
   with_options if: :limit_maximum_users_enabled? do
     validate :validate_limit_user_reached, on: :create
     validate :validate_limit_user_reached_on_enabling, on: :update
@@ -127,47 +154,50 @@ class User < ApplicationRecord
       ]
     end
 
-    def self_hidden_attributes
-      %w[role_unique_id identity_provider_unique_id user_name user_group_unique_ids agency_id
-         identity_provider_id reset_password_token reset_password_sent_at service_account
-         unlock_token locked_at failed_attempts identity_provider_sync]
-    end
-
-    def password_parameters
-      %w[password password_confirmation]
+    def self_permitted_params
+      # TODO: Refactor code of conduct acceptance logic so that code_of_conduct_id is not part of this list
+      [
+        'full_name', 'code', 'password', 'password_confirmation', 'locale', { 'services' => [] }, 'email', 'position',
+        'phone', 'location', 'send_mail', 'code_of_conduct_id', 'receive_webpush',
+        { 'settings' => { 'notifications' => { 'send_mail' => {}, 'receive_webpush' => {} } } },
+        'accept_terms_of_use'
+      ]
     end
 
     def unique_id_parameters
       %w[user_group_unique_ids role_unique_id identity_provider_unique_id]
     end
 
-    def permitted_attribute_names
-      User.attribute_names.reject { |name| name == 'services' } + [{ 'services' => [] }]
-    end
-
     def order_insensitive_attribute_names
       %w[full_name user_name position]
     end
 
+    # rubocop:disable Metrics/MethodLength
     def default_permitted_params
       (
-        User.permitted_attribute_names + User.password_parameters +
-        [
-          { 'user_group_ids' => [] }, { 'user_group_unique_ids' => [] },
-          { 'module_unique_ids' => [] }, 'role_unique_id', 'identity_provider_unique_id',
-          { 'settings' => { 'notifications' => { 'send_mail' => {}, 'receive_webpush' => {} } } }
-        ]
+        %w[full_name user_name code phone email agency_id position
+           location reporting_location_code role_id time_zone locale send_mail disabled
+           agency_office reset_password_token identity_provider_id code_of_conduct_id
+           receive_webpush registration_stream password password_confirmation role_unique_id
+           identity_provider_unique_id] +
+           [{ 'services' => [] },
+            { 'user_group_ids' => [] }, { 'user_group_unique_ids' => [] },
+            { 'module_unique_ids' => [] },
+            { 'settings' => { 'notifications' =>
+            { 'send_mail' => {}, 'receive_webpush' => {} } } }]
       ) - User.hidden_attributes
     end
+    # rubocop:enable Metrics/MethodLength
 
     def permitted_api_params(current_user = nil, target_user = nil)
-      permitted_params = User.default_permitted_params
+      return default_permitted_params if current_user.nil? || target_user.nil?
+      return default_permitted_params if current_user.user_name != target_user.user_name
 
-      return permitted_params if current_user.nil? || target_user.nil?
+      self_permitted_params
+    end
 
-      return permitted_params unless current_user.user_name == target_user.user_name
-
-      permitted_params - User.self_hidden_attributes
+    def standard
+      by_category(nil)
     end
 
     def last_login_timestamp(user_name)
@@ -199,7 +229,99 @@ class User < ApplicationRecord
     end
 
     def limit_user_reached?
-      SystemSettings.current.maximum_users > User.enabled.count
+      SystemSettings.current.maximum_users > User.standard.count
+    end
+
+    def with_audit_dates
+      select(<<~SQL)
+        users.*,
+        (SELECT timestamp FROM audit_logs WHERE audit_logs.user_id = users.id AND action = 'login'
+          ORDER BY timestamp DESC LIMIT 1) AS last_access,
+        (SELECT timestamp FROM audit_logs WHERE audit_logs.user_id = users.id AND record_type = 'Child'
+         AND action = 'show' ORDER BY timestamp DESC LIMIT 1) AS last_case_viewed,
+        (SELECT timestamp FROM audit_logs WHERE audit_logs.user_id = users.id AND record_type = 'Child'
+         AND action = 'update' ORDER BY timestamp DESC LIMIT 1) AS last_case_updated
+      SQL
+    end
+
+    def with_audit_dates_if(include_activity_stats)
+      include_activity_stats ? with_audit_dates : all
+    end
+
+    def with_audit_date_between(action:, from:, to:, record_type: 'User')
+      subquery = <<~SQL.squish
+        SELECT 1 FROM audit_logs
+        WHERE timestamp >= :from AND timestamp <= :to
+        AND record_type = :record_type AND action = :action
+        AND audit_logs.user_id = users.id
+        ORDER BY timestamp DESC LIMIT 1
+      SQL
+
+      where("EXISTS(#{subquery})", action:, record_type:, from:, to:)
+    end
+
+    def apply_date_filters(scope, filters)
+      AUDIT_LAST_DATE.each do |last_date, config|
+        next unless filters[last_date].present?
+
+        scope = scope.with_audit_date_between(
+          action: config[:action],
+          record_type: config[:record_type],
+          from: parse_date_filter(filters.dig(last_date, 'from')),
+          to: parse_date_filter(filters.dig(last_date, 'to'))
+        )
+      end
+      scope
+    end
+
+    def parse_date_filter(value)
+      value.is_a?(String) ? Time.zone.parse(value) : value
+    end
+
+    def build_self_registration_user(params, stream)
+      new(
+        params.except(:data_processing_consent_provided).merge(
+          role_unique_id: stream.role,
+          user_group_unique_ids: stream.user_groups,
+          unverified: true,
+          user_name: params[:email]
+        )
+      )
+    end
+
+    def create_self_registration_user(params)
+      stream = registration_stream(params[:registration_stream])
+      return unless stream.present?
+
+      user = build_self_registration_user(params, stream)
+      user.data_processing_consent_provided_on = DateTime.now if params[:data_processing_consent_provided]
+      user.agency = Agency.find_by(unique_id: stream.agency)
+      user.self_registered = true
+      user
+    end
+
+    def registration_stream(unique_id)
+      SystemSettings.current&.registration_streams&.find do |stream|
+        stream.unique_id == unique_id
+      end
+    end
+
+    def search_record_identifiers_by_name(query)
+      return record_identifiers unless query.present?
+
+      record_identifiers.where(
+        'user_name ILIKE :value OR full_name ILIKE :value',
+        value: "%#{ActiveRecord::Base.sanitize_sql_like(query)}%"
+      )
+    end
+
+    def find_record_identifier_by_user_name(user_name)
+      record_identifiers.find_by(user_name:)
+    end
+
+    def record_identifiers
+      # NOTE: The app cannot attribute a case to an unverified user
+      joins(:role).enabled.where(unverified: false, role: { user_category: Role::CATEGORY_IDENTIFIED })
     end
   end
 
@@ -281,7 +403,7 @@ class User < ApplicationRecord
   end
 
   def modules
-    @modules ||= role.modules
+    @modules ||= role.primero_modules
   end
 
   def module_unique_ids
@@ -327,6 +449,10 @@ class User < ApplicationRecord
     permission_by_permission_type?(record_type.parent_form, Permission::DISPLAY_VIEW_PAGE)
   end
 
+  def can_manage_restricted_metadata?
+    permission_by_permission_type?(Permission::METADATA, Permission::MANAGE_RESTRICTED)
+  end
+
   def managed_users
     if group_permission? Permission::ALL
       User.all
@@ -351,34 +477,33 @@ class User < ApplicationRecord
     user_managers
   end
 
+  def data_processing_consent_required?
+    Primero::Application.config.allow_self_registration && registration_stream.present?
+  end
+
   # This method indicates what records or flags this user can search for.
   # Returns self, if can only search records associated with this user
   # Returns list of UserGroups if can only query from those user groups that this user has access to
   # Returns the Agency if can only query from the agency this user has access to
   # Returns empty list if can query for all records in the system
-  def record_query_scope(record_model, id_search = false)
-    user_scope = case user_query_scope(record_model, id_search)
-                 when Permission::AGENCY
-                   { 'agency' => agency.unique_id, 'agency_id' => agency_id }
-                 when Permission::GROUP
-                   { 'group' => user_groups.map(&:unique_id).compact }
+  def record_query_scope(record_model, record_search = false)
+    user_scope = case user_query_scope(record_model, record_search)
+                 when Permission::AGENCY then { 'agency' => agency.unique_id, 'agency_id' => agency_id }
+                 when Permission::GROUP then { 'group' => user_groups.map(&:unique_id).compact }
+                 when Permission::IDENTIFIED then { 'identified' => user_name }
                  when Permission::ALL then {}
-                 else
-                   { 'user' => user_name }
+                 else { 'user' => user_name }
                  end
     { user: user_scope }
   end
 
-  def user_query_scope(record_model = nil, id_search = false)
-    if can_search_for_all?(record_model, id_search)
-      Permission::ALL
-    elsif group_permission?(Permission::AGENCY)
-      Permission::AGENCY
-    elsif group_permission?(Permission::GROUP) && user_group_ids.present?
-      Permission::GROUP
-    else
-      Permission::USER
-    end
+  def user_query_scope(record_model = nil, record_search = false)
+    return Permission::ALL if can_search_for_all?(record_model, record_search)
+    return Permission::AGENCY if group_permission?(Permission::AGENCY)
+    return Permission::GROUP if group_permission?(Permission::GROUP) && user_group_ids.present?
+    return Permission::IDENTIFIED if group_permission?(Permission::IDENTIFIED)
+
+    Permission::USER
   end
 
   def user_assign_scope(record_model)
@@ -393,8 +518,8 @@ class User < ApplicationRecord
     end
   end
 
-  def can_search_for_all?(record_model, id_search = false)
-    group_permission?(Permission::ALL) || (can?(:search_owned_by_others, record_model) && id_search && record_model)
+  def can_search_for_all?(record_model, record_search = false)
+    group_permission?(Permission::ALL) || (can?(:search_owned_by_others, record_model) && record_search && record_model)
   end
 
   def mobile_login_history
@@ -443,8 +568,9 @@ class User < ApplicationRecord
     modules.any?(&:user_group_filter)
   end
 
+  # TODO: How should we handle this in the future with unverified users?
   def active_for_authentication?
-    super && !disabled
+    super && !disabled && !unverified
   end
 
   def modules_for_record_type(record_type)
@@ -541,6 +667,14 @@ class User < ApplicationRecord
     permission_by_permission_type?(Permission::USER, Permission::AGENCY_READ)
   end
 
+  def can_view_referrals?
+    can?(Permission::REFERRAL_FROM_SERVICE.to_sym, Child) ||
+      can?(Permission::REMOVE_ASSIGNED_USERS.to_sym, Child) ||
+      can?(Permission::REFERRAL.to_sym, Child) ||
+      can?(Permission::RECEIVE_REFERRAL.to_sym, Child) ||
+      can?(Permission::RECEIVE_REFERRAL_DIFFERENT_MODULE.to_sym, Child)
+  end
+
   def emailable?
     email.present? && send_mail == true && !disabled?
   end
@@ -568,17 +702,59 @@ class User < ApplicationRecord
     record.respond_to?(:referrals_to_user) && record.referrals_to_user(self).exists?
   end
 
+  def referred_record_ids(record_ids, record_type)
+    Set.new(Referral.active_for_user(user_name, record_ids, record_type).pluck(:record_id))
+  end
+
   def permitted_to_access_record?(record)
-    if group_permission? Permission::ALL
-      true
-    elsif group_permission? Permission::AGENCY
-      record.associated_user_agencies.include?(agency.unique_id)
-    elsif group_permission? Permission::GROUP
-      # TODO: This may need to be record&.owned_by_groups
-      (user_group_unique_ids & record&.associated_user_groups).present?
+    return true if group_permission? Permission::ALL
+    return agency_permits_access?(record) if group_permission? Permission::AGENCY
+    # TODO: This may need to be record&.owned_by_groups
+    return group_permits_access?(record) if group_permission? Permission::GROUP
+    return identified_permits_access?(record) if group_permission? Permission::IDENTIFIED
+
+    record&.associated_user_names&.include?(user_name)
+  end
+
+  def permitted_to_access_referral?(referral)
+    return true if referral.record.owner?(self)
+    return referral.sender?(self) || scope_permits_referral?(referral) if can_view_referrals?
+
+    !referral.remote? && referral.recipient?(self) && [
+      Transition::STATUS_INPROGRESS, Transition::STATUS_ACCEPTED
+    ].include?(referral.status)
+  end
+
+  def scope_permits_referral?(referral)
+    case role.group_permission
+    when Permission::SELF then referral.recipient?(self)
+    when Permission::AGENCY then agency_permits_referral?(referral)
+    when Permission::GROUP then group_permits_referral?(referral)
+    when Permission::ALL then true
     else
-      record&.associated_user_names&.include?(user_name)
+      false
     end
+  end
+
+  def group_permits_referral?(referral)
+    referral.record.owned_by_any_groups?(user_group_unique_ids) ||
+      User.by_user_group(user_group_ids).exists?(user_name: referral.transitioned_to)
+  end
+
+  def agency_permits_referral?(referral)
+    agency_id == referral.record.owner.agency_id || referral.transitioned_to_agency == agency.unique_id
+  end
+
+  def agency_permits_access?(record)
+    record.associated_user_agencies.include?(agency.unique_id)
+  end
+
+  def group_permits_access?(record)
+    (user_group_unique_ids & record&.associated_user_groups).present?
+  end
+
+  def identified_permits_access?(record)
+    record.identified_by == user_name
   end
 
   def specific_notification?(notifier, action)
@@ -589,6 +765,30 @@ class User < ApplicationRecord
 
   def admin_query_scope?
     [Permission::ALL, Permission::AGENCY, Permission::GROUP].include?(user_query_scope)
+  end
+
+  def incident_reporting_location_admin_level
+    incident_admin_level = role.incident_reporting_location_config&.admin_level
+
+    incident_admin_level || ReportingLocation::DEFAULT_ADMIN_LEVEL
+  end
+
+  def agency_terms_of_use_changed?
+    return false if terms_of_use_accepted_on.nil? || agency&.terms_of_use_uploaded_at.nil?
+
+    terms_of_use_accepted_on < agency.terms_of_use_uploaded_at
+  end
+
+  def self.delete_unverified_older_than(retention_days = 30)
+    cutoff_date = Time.zone.now - retention_days.days
+
+    User.where('unverified = ? AND updated_at < ?', true, cutoff_date).find_in_batches(batch_size: 100) do |users|
+      users.each do |user|
+        # NOTE: We are assuming that unverified users will never be associated with any record.
+        Rails.logger.info "Deleting unverified User:[#{user.user_name}]"
+        user.destroy!
+      end
+    end
   end
 
   private
@@ -605,6 +805,12 @@ class User < ApplicationRecord
 
   def make_user_name_lowercase
     user_name.downcase!
+  end
+
+  def after_password_reset
+    return unless will_save_change_to_attribute?(:encrypted_password)
+
+    self.unverified = false
   end
 
   def generate_random_password
@@ -624,6 +830,15 @@ class User < ApplicationRecord
     self.code_of_conduct_accepted_on ||= DateTime.now if code_of_conduct_id.present?
   end
 
+  def needs_terms_of_use_acceptance?
+    return false unless agency&.terms_of_use_enabled?
+
+    return true if terms_of_use_accepted_on.nil?
+
+    agency.terms_of_use_uploaded_at.present? &&
+      terms_of_use_accepted_on < agency.terms_of_use_uploaded_at
+  end
+
   def mark_user_groups_changed(_user_group)
     self.user_groups_changed = true
   end
@@ -638,7 +853,7 @@ class User < ApplicationRecord
       update_agencies: saved_change_to_attribute?('agency_id'),
       update_locations: saved_change_to_attribute?('location'),
       update_agency_offices: saved_change_to_attribute('agency_office')&.last&.present?,
-      models: [Child, Incident]
+      models: [Child, Incident, Family]
     )
   end
 
@@ -657,16 +872,29 @@ class User < ApplicationRecord
 
   def validate_limit_user_reached
     maximum_users = SystemSettings.current.maximum_users
-    return if maximum_users > User.enabled.count
+    return if maximum_users > User.standard.count
 
     errors.add(:base, I18n.t('users.alerts.limit_user_reached', maximum_users:))
   end
 
   def validate_limit_user_reached_on_enabling
     maximum_users = SystemSettings.current.maximum_users
-    return if !enabling_user? || maximum_users > User.enabled.count
+    return if !enabling_user? || maximum_users > User.standard.count
 
     errors.add(:base, I18n.t('users.alerts.limit_user_reached_on_enable', maximum_users:))
+  end
+
+  def validate_latest_code_of_conduct
+    return unless will_save_change_to_attribute?('code_of_conduct_id')
+    return if code_of_conduct == CodeOfConduct.current
+
+    errors.add(:code_of_conduct_id, I18n.t('errors.models.user.code_of_conduct'))
+  end
+
+  def validate_agency_terms_of_use
+    return unless will_save_change_to_agency_id? && agency.terms_of_use_enabled? && !agency.terms_of_use.attached?
+
+    errors.add(:base, I18n.t('errors.models.agency.no_signed_terms_of_use'))
   end
 end
 # rubocop:enable Metrics/ClassLength

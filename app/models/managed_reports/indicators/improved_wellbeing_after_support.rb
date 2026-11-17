@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # An indicator that returns % of clients with improved psychosocial wellbeing
 class ManagedReports::Indicators::ImprovedWellbeingAfterSupport < ManagedReports::SqlReportIndicator
   include ManagedReports::PercentageIndicator
@@ -14,7 +12,7 @@ class ManagedReports::Indicators::ImprovedWellbeingAfterSupport < ManagedReports
     def sql(current_user, params = {})
       date_group_query = build_date_group(params, {}, Child)
       group_id = date_group_query.present? ? 'group_id' : nil
-      %{
+      <<~SQL
         WITH improvement_ranges_and_groups AS (
           SELECT
             #{date_group_query&.+(' AS group_id,')}
@@ -25,7 +23,8 @@ class ManagedReports::Indicators::ImprovedWellbeingAfterSupport < ManagedReports
             END AS improvement_range,
             COALESCE(srch_gender, 'incomplete_data') AS gender
           FROM cases
-          WHERE srch_psychsocial_assessment_score_initial >= 0
+          WHERE srch_record_state = TRUE
+          AND srch_psychsocial_assessment_score_initial >= 0
           AND srch_psychsocial_assessment_score_most_recent >= 0
           AND srch_next_steps && '{a_continue_protection_assessment}'
           #{build_filter_query(current_user, params)&.prepend('AND ')}
@@ -37,7 +36,7 @@ class ManagedReports::Indicators::ImprovedWellbeingAfterSupport < ManagedReports
           COUNT(*)
         FROM improvement_ranges_and_groups
         GROUP BY #{group_id&.+(',')} improvement_range, gender
-      }
+      SQL
     end
     # rubocop:enable Metrics/MethodLength
 

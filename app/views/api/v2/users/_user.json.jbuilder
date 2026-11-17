@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 user_hash = user.attributes.except(*User.hidden_attributes)
 user_hash = user_hash.merge({
   agency_id: user.agency_id,
@@ -15,6 +13,13 @@ user_hash = user_hash.merge({
   reporting_location_config: user.reporting_location_config,
   managed_report_scope: user.managed_report_scope
 }.compact)
+
+if Rails.configuration.enforce_terms_of_use
+  user_hash = user_hash.merge(
+    agency_terms_of_use_enabled: user.agency&.terms_of_use_enabled,
+    agency_terms_of_use_changed: user.agency_terms_of_use_changed?
+  )
+end
 
 if @extended
   user_hash = user_hash.merge(
@@ -34,7 +39,7 @@ if @extended
       RegistryRecord.parent_form,
       Family.parent_form
     ].map { |record_type| { record_type.pluralize => Filter.filters(user, record_type) } }
-     .inject(&:merge),
+             .inject(&:merge),
     list_headers: ([
       Child.parent_form,
       Incident.parent_form,

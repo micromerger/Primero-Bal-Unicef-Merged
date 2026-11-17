@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS, OrderedMap } from "immutable";
 
 import { mountedComponent, screen, userEvent } from "../../../test-utils";
@@ -226,6 +224,77 @@ describe("<RecordFormToolbar />", () => {
     it("renders a Badge indicator for Flag", () => {
       mountedComponent(<RecordFormToolbar {...showProps} />, fromJS(initialStateShowMode));
       expect(screen.getAllByTestId("badge")).toHaveLength(1);
+    });
+  });
+
+  describe("when the current user has a pending referral", () => {
+    const pendingState = fromJS({
+      ...initialState,
+      user: {
+        username: "user_1",
+        modules: [MODULES.CP],
+        permissions: { cases: [ACTIONS.WRITE, ACTIONS.FLAG] }
+      }
+    });
+    const pendingRecord = record.set("referred_users_pending", fromJS(["user_1"]));
+
+    describe("in show mode", () => {
+      const showProps = { ...props, record: pendingRecord, mode: { isNew: false, isEdit: false, isShow: true } };
+
+      it("disables the edit button", () => {
+        mountedComponent(<RecordFormToolbar {...showProps} />, pendingState);
+
+        expect(screen.getByRole("button", { name: /buttons.edit/ })).toHaveAttribute("aria-disabled", "true");
+      });
+
+      it("disables the flags button", () => {
+        mountedComponent(<RecordFormToolbar {...showProps} />, pendingState);
+
+        expect(screen.getByRole("button", { name: /buttons.flags/ })).toBeDisabled();
+      });
+
+      it("labels the edit button with the referral restriction tooltip", () => {
+        mountedComponent(<RecordFormToolbar {...showProps} />, pendingState);
+
+        expect(screen.getByRole("button", { name: /buttons.edit/ }).parentElement).toHaveAttribute(
+          "aria-label",
+          "referral.pending_restriction"
+        );
+      });
+    });
+
+    describe("in edit mode", () => {
+      const editProps = { ...props, record: pendingRecord };
+
+      it("disables the save button", () => {
+        mountedComponent(<RecordFormToolbar {...editProps} />, pendingState);
+
+        expect(screen.getByRole("button", { name: /buttons.save/ })).toBeDisabled();
+      });
+    });
+  });
+
+  describe("when the current user has no pending transition", () => {
+    const state = fromJS({
+      ...initialState,
+      user: {
+        username: "user_1",
+        modules: [MODULES.CP],
+        permissions: { cases: [ACTIONS.WRITE, ACTIONS.FLAG] }
+      }
+    });
+    const showProps = { ...props, mode: { isNew: false, isEdit: false, isShow: true } };
+
+    it("enables the edit button", () => {
+      mountedComponent(<RecordFormToolbar {...showProps} />, state);
+
+      expect(screen.getByRole("button", { name: /buttons.edit/ })).not.toHaveAttribute("aria-disabled", "true");
+    });
+
+    it("enables the flags button", () => {
+      mountedComponent(<RecordFormToolbar {...showProps} />, state);
+
+      expect(screen.getByRole("button", { name: /buttons.flags/ })).not.toBeDisabled();
     });
   });
 

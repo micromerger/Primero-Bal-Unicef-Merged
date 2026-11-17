@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { displayNameHelper } from "../../../libs";
 
 export const buildField = (current, formSection, locale) => ({
@@ -46,7 +44,7 @@ export const buildMinimumLocationField = (current, i18n, reportingLocationConfig
     (acc, [key, value]) =>
       acc.concat({
         ...current,
-        id: `${current.id}${key}`,
+        id: `loc:${current.id}${key}`,
         display_text: `${current.display_text} (${i18n.t(`location.base_types.${value.first()}`)})`
       }),
     []

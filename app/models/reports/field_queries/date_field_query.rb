@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Represents a query against a date field
 class Reports::FieldQueries::DateFieldQuery < Reports::FieldQueries::FieldQuery
   attr_accessor :group_by
@@ -27,53 +25,63 @@ class Reports::FieldQueries::DateFieldQuery < Reports::FieldQueries::FieldQuery
     end
   end
 
-  def sort_field
+  def generate_sort_alias
     return super unless [Report::DAY, Report::MONTH, Report::WEEK].include?(group_by)
 
-    column_name('sort')
+    "#{column_alias}_srt"
   end
 
   def date_query
+    date_format = field.date_include_time ? Report::DATE_TIME_FORMAT : Report::DATE_FORMAT
+
     ActiveRecord::Base.sanitize_sql_for_conditions(
       [
-        "to_timestamp(#{data_column_name} ->> :field_name, :date_format) as #{column_name}",
-        { field_name: field.name,
-          date_format: field.date_include_time ? Report::DATE_TIME_FORMAT : Report::DATE_FORMAT }
+        "to_timestamp(#{data_column_name} ->> :field_name, :date_format) as #{column_alias}",
+        { field_name: field.name, date_format: }
       ]
     )
   end
 
+  # rubocop:disable Metrics/MethodLength
   def grouped_by_year_query
     ActiveRecord::Base.sanitize_sql_for_conditions(
       [
         %(
-          CAST(
-            DATE_PART('year', to_timestamp(#{data_column_name} ->> :field_name, :date_format)) AS INTEGER
-          ) as #{column_name}
+          DATE_TRUNC('year', TO_TIMESTAMP(#{data_column_name} ->> :field_name, :date_format))
+          || '..' ||
+          DATE_TRUNC(
+            'year', TO_TIMESTAMP(#{data_column_name} ->> :field_name, :date_format)
+          ) + INTERVAL '1 years' - INTERVAL '1 second' AS #{column_alias}
         ),
         { field_name: field.name, date_format: Report::DATE_FORMAT }
       ]
     )
   end
+  # rubocop:enable Metrics/MethodLength
 
+  # rubocop:disable Metrics/MethodLength
   def grouped_by_month_query
     ActiveRecord::Base.sanitize_sql_for_conditions(
       [
         %(
           #{sort_by_month_query},
-          DATE_PART('year', to_timestamp(#{data_column_name} ->> :field_name, :date_format)) || '-' ||
-          to_char(to_timestamp(#{data_column_name} ->> :field_name, :date_format), 'Mon')
-          as #{column_name}
+          DATE_TRUNC('month', TO_TIMESTAMP(#{data_column_name} ->> :field_name, :date_format))
+          || '..' ||
+          DATE_TRUNC(
+            'month', TO_TIMESTAMP(#{data_column_name} ->> :field_name, :date_format)
+          ) + INTERVAL '1 months' - INTERVAL '1 second'
+          as #{column_alias}
         ),
         { field_name: field.name, date_format: Report::DATE_FORMAT }
       ]
     )
   end
+  # rubocop:enable Metrics/MethodLength
 
   def sort_by_month_query
     ActiveRecord::Base.sanitize_sql_for_conditions(
       [
-        "date_trunc('month', to_timestamp(#{data_column_name} ->> :field_name, :date_format)) as #{sort_field}",
+        "DATE_TRUNC('month', TO_TIMESTAMP(#{data_column_name} ->> :field_name, :date_format)) AS #{sort_alias}",
         { field_name: field.name, date_format: Report::DATE_FORMAT }
       ]
     )
@@ -85,16 +93,14 @@ class Reports::FieldQueries::DateFieldQuery < Reports::FieldQueries::FieldQuery
       [
         %(
           #{sort_by_week_query},
-          to_char(
-            date_trunc('week', to_timestamp(#{data_column_name} ->> :field_name, :date_format)), 'dd-Mon-yyyy'
-          ) || ' - ' ||
-          to_char(
-            date_trunc('week', to_timestamp(#{data_column_name} ->> :field_name, :date_format)) + '6 days'::interval,
-            'dd-Mon-yyyy'
-          ) as #{column_name}
+          DATE_TRUNC('week', TO_TIMESTAMP(#{data_column_name} ->> :field_name, :date_format))
+          || '..' ||
+          DATE_TRUNC(
+            'week', TO_TIMESTAMP(#{data_column_name} ->> :field_name, :date_format)
+          ) + INTERVAL '1 weeks' - INTERVAL '1 second'
+          as #{column_alias}
         ),
-        { field_name: field.name,
-          date_format: Report::DATE_FORMAT }
+        { field_name: field.name, date_format: Report::DATE_FORMAT }
       ]
     )
   end
@@ -103,32 +109,36 @@ class Reports::FieldQueries::DateFieldQuery < Reports::FieldQueries::FieldQuery
   def sort_by_week_query
     ActiveRecord::Base.sanitize_sql_for_conditions(
       [
-        "date_trunc('week', to_timestamp(#{data_column_name} ->> :field_name, :date_format)) as #{sort_field}",
-        { field_name: field.name,
-          date_format: Report::DATE_FORMAT }
+        "date_trunc('week', to_timestamp(#{data_column_name} ->> :field_name, :date_format)) as #{sort_alias}",
+        { field_name: field.name, date_format: Report::DATE_FORMAT }
       ]
     )
   end
 
+  # rubocop:disable Metrics/MethodLength
   def grouped_by_day_query
     ActiveRecord::Base.sanitize_sql_for_conditions(
       [
         %(
           #{sort_by_day_query},
-          to_char(to_timestamp(#{data_column_name} ->> :field_name, :date_format), :date_format) as #{column_name}
+          DATE_TRUNC('day', TO_TIMESTAMP(#{data_column_name} ->> :field_name, :date_format))
+          || '..' ||
+          DATE_TRUNC(
+            'day', TO_TIMESTAMP(#{data_column_name} ->> :field_name, :date_format)
+          ) + INTERVAL '1 days' - INTERVAL '1 second'
+          AS #{column_alias}
         ),
-        { field_name: field.name,
-          date_format: Report::DATE_FORMAT }
+        { field_name: field.name, date_format: Report::DATE_FORMAT }
       ]
     )
   end
+  # rubocop:enable Metrics/MethodLength
 
   def sort_by_day_query
     ActiveRecord::Base.sanitize_sql_for_conditions(
       [
-        "to_timestamp(#{data_column_name} ->> :field_name, :date_format) as #{sort_field}",
-        { field_name: field.name,
-          date_format: Report::DATE_FORMAT }
+        "to_timestamp(#{data_column_name} ->> :field_name, :date_format) as #{sort_alias}",
+        { field_name: field.name, date_format: Report::DATE_FORMAT }
       ]
     )
   end

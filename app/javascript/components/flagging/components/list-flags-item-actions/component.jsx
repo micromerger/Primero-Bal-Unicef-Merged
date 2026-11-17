@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import PropTypes from "prop-types";
 import { Divider } from "@mui/material";
 import { useDispatch } from "react-redux";
@@ -34,7 +32,9 @@ function Component({ flag }) {
     return null;
   }
 
-  const handleUnflagDialog = () => {
+  const handleUnflagDialog = event => {
+    event.stopPropagation();
+
     dispatch(setSelectedFlag(flag.id));
     setDialog({ dialog: UNFLAG_DIALOG, open: true });
   };

@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import PropTypes from "prop-types";
 import { Grid } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -11,6 +9,7 @@ import { NAME_DETAIL } from "../../constants";
 import DisplayData from "../../../display-data";
 import ActionButton from "../../../action-button";
 import { ACTION_BUTTON_TYPES } from "../../../action-button/constants";
+import useSystemStrings, { FORMS } from "../../../application/use-system-strings";
 
 import { EDIT, VIEW } from "./constants";
 
@@ -25,6 +24,7 @@ function Component({
   dirty = false
 }) {
   const i18n = useI18n();
+  const { label } = useSystemStrings(FORMS);
   const canViewIncidents = usePermissions(RESOURCES.incidents, READ_RECORDS);
   const canEditIncidents = usePermissions(RESOURCES.incidents, WRITE_RECORDS);
 
@@ -72,18 +72,44 @@ function Component({
   return (
     <>
       <Grid container spacing={2}>
-        <Grid item container md={10} xs={12}>
-          <Grid item md={6} xs={12}>
+        <Grid
+          container
+          size={{
+            md: 10,
+            xs: 12
+          }}
+        >
+          <Grid
+            size={{
+              md: 6,
+              xs: 12
+            }}
+          >
             <DisplayData label={incidentInterviewLabel} value={incidentDateInterview} />
           </Grid>
-          <Grid item md={6} xs={12}>
+          <Grid
+            size={{
+              md: 6,
+              xs: 12
+            }}
+          >
             <DisplayData label={incidentDateLabel} value={incidentDate} />
           </Grid>
-          <Grid item md={6} xs={12}>
-            <DisplayData label={incidentTypeLabel} value={incidentType} />
+          <Grid
+            size={{
+              md: 6,
+              xs: 12
+            }}
+          >
+            <DisplayData label={label(incidentTypeLabel)} value={incidentType} noTranslate />
           </Grid>
         </Grid>
-        <Grid item md={2} xs={12}>
+        <Grid
+          size={{
+            md: 2,
+            xs: 12
+          }}
+        >
           <div className={css.buttonsActions}>
             {viewIncidentBtn}
             {editIncidentBtn}

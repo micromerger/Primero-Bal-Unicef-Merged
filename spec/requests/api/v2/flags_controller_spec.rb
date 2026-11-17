@@ -1,14 +1,12 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe Api::V2::FlagsController, type: :request do
   include ActiveJob::TestHelper
 
   before :each do
-    clean_data(Flag, Child, TracingRequest, Incident)
+    clean_data(Alert, Flag, Transition, User, Role, UserGroup, Child, TracingRequest, Incident)
 
     @case1 = Child.create!(data: { name: 'Test1', age: 5, sex: 'male' })
     @case2 = Child.create!(data: { name: 'Test2', age: 7, sex: 'female' })
@@ -63,7 +61,7 @@ describe Api::V2::FlagsController, type: :request do
     end
     it 'list include removed flag' do
       @case1.add_flag('This is a second flag', Date.today, 'faketest')
-      @case1.remove_flag(@case1.flags.first.id, 'faketest', 'Resolved Flag')
+      @case1.update_flag(@case1.flags.first.id, 'faketest', { unflag_message: 'Resolved Flag' }).save!
       get "/api/v2/cases/#{@case1.id}/flags"
 
       expect(response).to have_http_status(200)
@@ -157,6 +155,18 @@ describe Api::V2::FlagsController, type: :request do
     end
   end
 
+  describe 'POST /api/v2/:recordType/:recordId/flags with a pending transition' do
+    it 'returns 403 and does not flag the record' do
+      @case1.update_column(:data, @case1.data.merge('transferred_to_users' => %w[faketest]))
+
+      login_for_test(permissions: permission_flag_record)
+      post("/api/v2/cases/#{@case1.id}/flags", params: { data: { message: 'x', date: Date.today.to_s } })
+
+      expect(response).to have_http_status(403)
+      expect(@case1.reload.flags.where(message: 'x')).to be_empty
+    end
+  end
+
   describe 'PATCH /api/v2/:recordType/:recordId/flags/:id' do
     it 'unflags a case and sets the flagged property to false' do
       login_for_test(permissions: permission_flag_record)
@@ -172,6 +182,56 @@ describe Api::V2::FlagsController, type: :request do
       @case1.reload
       expect(@case1.flagged).to eq(false)
       expect(audit_params['action']).to eq('unflag')
+    end
+
+    it 'updates a flag for a case' do
+      login_for_test(
+        permissions: [
+          Permission.new(
+            resource: Permission::CASE,
+            actions: [Permission::READ, Permission::WRITE, Permission::FLAG, Permission::FLAG_UPDATE]
+          )
+        ]
+      )
+      date = Date.today - 1.days
+      flag = @case1.add_flag!('This is another flag', Date.today, 'faketest')
+      params = { data: { message: 'This is an updated flag', date: } }
+      patch("/api/v2/cases/#{@case1.id}/flags/#{flag.id}", params:)
+
+      expect(response).to have_http_status(200)
+      expect(json['data']['message']).to eq('This is an updated flag')
+      expect(json['data']['date']).to eq(date.to_s)
+      expect(json['data']['record_id']).to eq(json['data']['record']['id'])
+    end
+
+    it 'updates the date of a flag' do
+      login_for_test(
+        permissions: [
+          Permission.new(
+            resource: Permission::CASE,
+            actions: [Permission::READ, Permission::WRITE, Permission::FLAG, Permission::FLAG_UPDATE]
+          )
+        ]
+      )
+      date = Date.today - 1.days
+      flag = @case1.add_flag!('This is another flag', Date.today, 'faketest')
+      params = { data: { date: } }
+      patch("/api/v2/cases/#{@case1.id}/flags/#{flag.id}", params:)
+
+      expect(response).to have_http_status(200)
+      expect(json['data']['message']).to eq('This is another flag')
+      expect(json['data']['date']).to eq(date.to_s)
+      expect(json['data']['record_id']).to eq(json['data']['record']['id'])
+    end
+
+    it 'gets a forbidden message if the user does not have the flag_update permission' do
+      login_for_test(permissions: permission_flag_record)
+      params = { data: { message: 'This is an updated flag', date: Date.today - 1.days } }
+      patch("/api/v2/cases/#{@case1.id}/flags/#{@case1.flags.first.id}", params:)
+
+      expect(response).to have_http_status(403)
+      expect(json['errors'][0]['resource']).to eq("/api/v2/cases/#{@case1.id}/flags/#{@case1.flags.first.id}")
+      expect(json['errors'][0]['message']).to eq('Forbidden')
     end
 
     it 'unflags a tracing_request and sets the flagged property to false' do
@@ -217,72 +277,95 @@ describe Api::V2::FlagsController, type: :request do
   end
 
   describe 'POST /api/v2/:recordType/flags' do
-    it 'flagging cases in bulk' do
-      login_for_test(permissions: permission_flag_record)
-      expect(@case1.flag_count).to eq(1)
-      expect(@case2.flag_count).to eq(0)
+    context 'when user has flag_multiple permission' do
+      before do
+        login_for_test(permissions: permission_bulk_flag_record)
+        allow(BulkFlagRecordsJob).to receive(:perform_later)
+      end
 
-      params = {
-        data: {
-          ids: [@case1.id, @case2.id], record_type: 'case', date: Date.today.to_s, message: 'This is another flag'
+      it 'returns 200 with the message and filters in the response' do
+        params = {
+          data: {
+            filters: { id: [@case1.id, @case2.id] },
+            date: Date.today.to_s,
+            message: 'This is a bulk flag'
+          }
         }
-      }
-      post('/api/v2/cases/flags', params:)
 
-      expect(response).to have_http_status(204)
-      @case1.reload
-      @case2.reload
-      expect(@case1.flag_count).to eq(2)
-      expect(@case2.flag_count).to eq(1)
+        post('/api/v2/cases/flags', params:)
 
-      expect(audit_params['action']).to eq('bulk_flag')
+        expect(response).to have_http_status(200)
+        expect(json['data']['message']).to eq('This is a bulk flag')
+        expect(json['data']['filters']).to be_present
+        expect(audit_params['action']).to eq('bulk_flag')
+      end
+
+      it 'enqueues a BulkFlagRecordsJob' do
+        params = {
+          data: {
+            filters: { id: [@case1.id] },
+            date: Date.today.to_s,
+            message: 'Bulk flag'
+          }
+        }
+        post('/api/v2/cases/flags', params:)
+
+        expect(BulkFlagRecordsJob).to have_received(:perform_later)
+      end
+
+      it 'returns 422 when the filters param is missing' do
+        params = { data: { date: Date.today.to_s, message: 'Missing filters' } }
+        post('/api/v2/cases/flags', params:)
+
+        expect(response).to have_http_status(422)
+        expect(json['errors'][0]['resource']).to eq('/api/v2/cases/flags')
+      end
+
+      it 'returns 422 when the number of matching records exceeds the bulk limit' do
+        stub_const('Flag::MAX_BULK_FLAGS', -1)
+        params = {
+          data: {
+            filters: { id: [@case1.id] },
+            date: Date.today.to_s,
+            message: 'Too many'
+          }
+        }
+        post('/api/v2/cases/flags', params:)
+
+        expect(response).to have_http_status(422)
+      end
     end
 
-    it 'flagging tracing_request in bulk' do
-      login_for_test(permissions: permission_flag_record)
-      expect(@tracing_request1.flag_count).to eq(1)
-      expect(@tracing_request2.flag_count).to eq(0)
+    context 'when the user has a pending transition on one of the records' do
+      it 'does not flag that record' do
+        role = Role.new(
+          permissions: [Permission.new(resource: Permission::CASE, actions: [Permission::READ, Permission::BULK_FLAG])],
+          group_permission: Permission::ALL
+        )
+        role.save(validate: false)
+        user = User.new(user_name: 'bulk_flagger', role:)
+        user.save(validate: false)
+        @case1.update_column(:data, @case1.data.merge('transferred_to_users' => [user.user_name]))
 
-      params = {
-        data: {
-          ids: [@tracing_request1.id, @tracing_request2.id], record_type: 'tracing_request',
-          date: Date.today.to_s, message: 'This is another flag TR'
-        }
-      }
-      post('/api/v2/tracing_requests/flags', params:)
+        sign_in(user)
+        params = { data: { filters: { id: [@case1.id, @case2.id] }, date: Date.today.to_s, message: 'Bulk flag' } }
 
-      expect(response).to have_http_status(204)
-      @tracing_request1.reload
-      @tracing_request2.reload
-      expect(@tracing_request1.flag_count).to eq(2)
-      expect(@tracing_request2.flag_count).to eq(1)
+        post('/api/v2/cases/flags', params:)
+        perform_enqueued_jobs
+
+        expect(response).to have_http_status(200)
+        expect(@case1.reload.flags.where(message: 'Bulk flag')).to be_empty
+        expect(@case2.reload.flags.where(message: 'Bulk flag')).to be_present
+      end
     end
 
-    it 'flagging incindet in bulk' do
+    it "returns 403 if the user has flag but not flag_multiple permission" do
       login_for_test(permissions: permission_flag_record)
-      expect(@incident1.flag_count).to eq(1)
-      expect(@incident2.flag_count).to eq(0)
-
       params = {
         data: {
-          ids: [@incident1.id, @incident2.id], record_type: 'incident',
-          date: Date.today.to_s, message: 'This is another flag TR'
-        }
-      }
-      post('/api/v2/incidents/flags', params:)
-
-      expect(response).to have_http_status(204)
-      @incident1.reload
-      @incident2.reload
-      expect(@incident1.flag_count).to eq(2)
-      expect(@incident2.flag_count).to eq(1)
-    end
-
-    it "get a forbidden message if the user doesn't have flag permission" do
-      login_for_test
-      params = {
-        data: {
-          ids: [@case1.id, @case2.id], record_type: 'case', date: Date.today.to_s, message: 'This is another flag'
+          filters: { id: [@case1.id, @case2.id] },
+          date: Date.today.to_s,
+          message: 'This is another flag'
         }
       }
       post('/api/v2/cases/flags', params:)
@@ -293,19 +376,21 @@ describe Api::V2::FlagsController, type: :request do
       expect(json['errors'][0]['message']).to eq('Forbidden')
     end
 
-    it "get a 404 error if one of the ids on the requests isn't exists" do
-      login_for_test(permissions: permission_flag_record)
-
+    it 'returns 403 if the user has no permissions' do
+      login_for_test
       params = {
         data: {
-          ids: [@incident1.id, '12345'], record_type: 'incident',
-          date: Date.today.to_s, message: 'This is another flag TR'
+          filters: { id: [@case1.id] },
+          date: Date.today.to_s,
+          message: 'This is another flag'
         }
       }
-      post('/api/v2/incidents/flags', params:)
+      post('/api/v2/cases/flags', params:)
 
-      expect(response).to have_http_status(404)
-      expect(json['errors'][0]['message']).to eq('Not Found')
+      expect(response).to have_http_status(403)
+      expect(json['errors'][0]['status']).to eq(403)
+      expect(json['errors'][0]['resource']).to eq('/api/v2/cases/flags')
+      expect(json['errors'][0]['message']).to eq('Forbidden')
     end
   end
 
@@ -337,6 +422,6 @@ describe Api::V2::FlagsController, type: :request do
 
   after do
     clear_enqueued_jobs
-    clean_data(Flag, Child, TracingRequest, Incident)
+    clean_data(Alert, Flag, Transition, User, Role, UserGroup, Child, TracingRequest, Incident)
   end
 end

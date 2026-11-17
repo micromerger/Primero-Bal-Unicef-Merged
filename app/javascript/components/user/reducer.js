@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { Map, fromJS } from "immutable";
 import isEmpty from "lodash/isEmpty";
 
@@ -15,8 +13,13 @@ const DEFAULT_STATE = Map({
 
 export default (state = DEFAULT_STATE, { type, payload }) => {
   switch (type) {
-    case Actions.SET_AUTHENTICATED_USER:
-      return state.set("isAuthenticated", true).set("id", payload.id).set("username", payload.username);
+    case Actions.SET_AUTHENTICATED_USER: {
+      return state
+        .set("isAuthenticated", true)
+        .set("id", payload.id)
+        .set("username", payload.username)
+        .set("roleGroupPermission", payload.groupPermission);
+    }
     case Actions.LOGOUT_SUCCESS:
       return DEFAULT_STATE;
     case Actions.FETCH_USER_DATA_SUCCESS: {
@@ -40,7 +43,10 @@ export default (state = DEFAULT_STATE, { type, payload }) => {
         code_of_conduct_accepted_on: codeOfConductAcceptedOn,
         permitted_role_unique_ids: permittedRoleUniqueIds,
         managed_report_scope: managedReportScope,
-        receive_webpush: receiveWebpush
+        receive_webpush: receiveWebpush,
+        terms_of_use_accepted_on: termsOfUseAcceptedOn,
+        agency_terms_of_use_enabled: agencyTermsOfUseEnabled,
+        agency_terms_of_use_changed: agencyTermsOfUseChanged
       } = payload;
       const cleanedPermissions = permissions.list.filter(listItem => !isEmpty(listItem.actions));
 
@@ -66,7 +72,10 @@ export default (state = DEFAULT_STATE, { type, payload }) => {
           permittedRoleUniqueIds,
           managedReportScope,
           loaded: true,
-          receiveWebpush
+          receiveWebpush,
+          agencyTermsOfUseEnabled,
+          termsOfUseAcceptedOn,
+          agencyTermsOfUseChanged
         })
       );
     }

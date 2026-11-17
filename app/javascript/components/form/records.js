@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { Record, fromJS } from "immutable";
 
 import { SELECT_CHANGE_REASON } from "./constants";
@@ -60,6 +58,7 @@ export const FieldRecord = Record({
   on_collapsed_subform: false,
   onBlur: null,
   onChange: null,
+  onInputChange: null,
   onClick: null,
   onKeyPress: null,
   option_strings_condition: null,
@@ -67,8 +66,10 @@ export const FieldRecord = Record({
   option_strings_source: null,
   option_strings_text: null,
   optionFieldName: null,
+  transformOptions: null,
   order: null,
   password: false,
+  phone_number: false,
   placeholder: "",
   rawOptions: false,
   renderChildren: true,
@@ -80,6 +81,7 @@ export const FieldRecord = Record({
   showDefaultAction: true,
   showDeleteAction: true,
   showDisableOption: true,
+  showFileUrl: false,
   showIf: null,
   subform_section_configuration: null,
   subform_section_id: null,
@@ -91,8 +93,10 @@ export const FieldRecord = Record({
   tooltip: "",
   type: "",
   visible: null,
+  warning: "",
   watchedInputs: null,
-  wrapWithComponent: null
+  wrapWithComponent: null,
+  signature_provided_by_label: {}
 });
 
 export const FormSectionRecord = Record({

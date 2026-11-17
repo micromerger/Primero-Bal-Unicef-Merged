@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # An indicator that returns the reporting locations of violation type killing
 class ManagedReports::Indicators::ReportingLocation < ManagedReports::SqlReportIndicator
   class << self
@@ -16,7 +14,7 @@ class ManagedReports::Indicators::ReportingLocation < ManagedReports::SqlReportI
     def sql(current_user, params = {})
       admin_level = user_reporting_location_admin_level(current_user)
 
-      %{
+      <<~SQL
         select name, key, sum(value::integer)
         #{group_id_alias(params['grouped_by'])&.dup&.prepend(', ')}
         from (
@@ -29,6 +27,8 @@ class ManagedReports::Indicators::ReportingLocation < ManagedReports::SqlReportI
             from violations violations
             inner join incidents incidents
               on incidents.id = violations.incident_id
+              AND incidents.srch_status = 'open'
+              AND incidents.srch_record_state = TRUE
               #{user_scope_query(current_user, 'incidents')&.prepend('and ')}
             cross join json_each_text((violations."data"->>'violation_tally')::JSON)
             where incidents.data->>'reporting_location_hierarchy' is not null
@@ -38,11 +38,12 @@ class ManagedReports::Indicators::ReportingLocation < ManagedReports::SqlReportI
             #{date_range_query(params['ctfmr_verified_date'], 'violations')&.prepend('and ')}
             #{equal_value_query(params['ctfmr_verified'], 'violations')&.prepend('and ')}
             #{equal_value_query(params['type'], 'violations')&.prepend('and ')}
+            #{equal_value_query(params['has_late_verified_violations'], 'incidents')&.prepend('and ')}
             ) keys_values
         group by key, name
         #{group_id_alias(params['grouped_by'])&.dup&.prepend(', ')}
         order by name
-      }
+      SQL
     end
     # rubocop:enable Metrics/AbcSize
     # rubocop:enable Metrics/MethodLength

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # rubocop:disable Metrics/ClassLength
 # The truth of it is, this is a long class.
 # Just the same, it shouldn't exceed 300 lines (250 lines of active code).
@@ -38,6 +36,7 @@ class Child < ApplicationRecord
   include Alertable
   include Attachable
   include Noteable
+  include RegistryAssociable
   include EagerLoadable
   include Webhookable
   include Kpi::GBVChild
@@ -49,6 +48,7 @@ class Child < ApplicationRecord
   include ReportableLocation
   include SubformSummarizable
   include Normalizeable
+  include AccessLoggable
 
   # rubocop:disable Naming/VariableNumber
   store_accessor(
@@ -72,7 +72,7 @@ class Child < ApplicationRecord
     :duplicate, :cp_case_plan_subform_case_plan_interventions, :has_case_plan,
     :family_member_id, :family_id_display, :family_number, :has_incidents, :assessment_due_dates,
     :case_plan_due_dates, :followup_due_dates, :reunification_details_section, :reunification_dates,
-    :tracing_actions_section, :tracing_dates, :case_type
+    :tracing_actions_section, :tracing_dates, :case_type, :incident_types
   )
   # rubocop:enable Naming/VariableNumber
 
@@ -83,6 +83,8 @@ class Child < ApplicationRecord
   belongs_to :registry_record, foreign_key: :registry_record_id, optional: true
 
   scope :by_date_of_birth, -> { where.not('data @> ?', { date_of_birth: nil }.to_json) }
+
+  eager_load_associations :incidents, :registry_records
 
   def self.filterable_id_fields
     # The fields family_count_no and dss_id are hacked in only because of Bangladesh
@@ -102,11 +104,18 @@ class Child < ApplicationRecord
     NAME_FIELDS
   end
 
+  def self.phone_number_fields
+    %w[
+      telephone_current telephone_child_future telephone_caregivers telephone_future_caregivers telephone_last
+      telephone_searchable_1 telephone_searchable_2 telephone_searchable_3
+    ]
+  end
+
   def self.summary_field_names
-    common_summary_fields + %w[
+    common_summary_fields + transition_summary_field_names + %w[
       case_id_display name survivor_code_no age sex registration_date
       hidden_name workflow case_status_reopened module_id registry_record_id
-      client_code gender reporting_location_hierarchy location_current
+      client_code gender reporting_location_hierarchy location_current registry_record_ids
     ]
   end
 
@@ -132,6 +141,11 @@ class Child < ApplicationRecord
     MatchingConfiguration.matchable_fields('case', true).pluck(:name) | MatchingConfiguration::DEFAULT_INQUIRER_FIELDS
   end
 
+  def self.preview_field_names
+    # TODO: Move this constant to this model
+    PermittedFieldService::ID_SEARCH_FIELDS + super
+  end
+
   def self.api_path
     '/api/v2/cases'
   end
@@ -152,6 +166,7 @@ class Child < ApplicationRecord
   end
 
   validate :validate_date_of_birth
+  validate :validate_unique_identified_record
 
   before_save :sync_protection_concerns
   before_save :stamp_registry_fields
@@ -163,8 +178,10 @@ class Child < ApplicationRecord
   before_save :calculate_followup_due_dates
   before_save :calculate_tracing_dates
   before_save :calculate_reunification_dates
+  before_save :calculate_incident_types
   before_save :save_searchable_fields
   before_save :stamp_case_type
+  before_update :update_identified
   before_create :hide_name
   after_save :save_incidents
 
@@ -174,6 +191,7 @@ class Child < ApplicationRecord
       super_new_with_user(user, data).tap do |local_case|
         local_case.registry_record_id ||= local_case.data.delete('registry_record_id')
         local_case.family_id ||= local_case.data.delete('family_id')
+        local_case.mark_identified(user) if user.role&.user_category == Role::CATEGORY_IDENTIFIED
       end
     end
 
@@ -407,6 +425,58 @@ class Child < ApplicationRecord
 
   def stamp_case_type
     self.case_type = PrimeroModule.find_by(unique_id: module_id)&.case_type || PrimeroModule::DEFAULT_CASE_TYPE
+  end
+
+  def mark_recalculate_incident_types
+    @recalculate_incident_types = true
+  end
+
+  def calculate_incident_types
+    return unless @incidents_to_save.present? || @recalculate_incident_types
+
+    incident_types_to_save = @incidents_to_save&.map(&:incident_type) || []
+    existing_incident_types = incidents.map(&:incident_type)
+
+    self.incident_types = (incident_types_to_save + existing_incident_types).compact.uniq
+  end
+
+  def mark_identified(user)
+    self.status = STATUS_IDENTIFIED
+    self.identified_by = user.user_name
+    self.identified_by_full_name = user.full_name
+    self.identified_at = DateTime.now
+  end
+
+  def update_identified
+    return unless identified_by.present? && changes_to_save_for_record.key?('identified_by')
+
+    identified_by_user = User.find_record_identifier_by_user_name(identified_by)
+    raise invalid_identified_by_user if identified_by_user.blank?
+
+    self.identified_by = identified_by_user.user_name
+    self.identified_by_full_name = identified_by_user.full_name
+    self.identified_at ||= DateTime.now
+  end
+
+  def invalid_identified_by_user
+    invalid_error = Errors::InvalidRecordJson.new('errors.models.child.identified_by_exists')
+    invalid_error.invalid_props = %w[identified_by]
+    invalid_error
+  end
+
+  def validate_unique_identified_record
+    return unless changes_to_save_for_record.key?('identified_by')
+    return unless identified_by.present? && Child.exists?(srch_identified_by: identified_by)
+
+    errors.add(:identified_by, 'errors.models.child.identified_by_unique')
+  end
+
+  def registry_record_ids
+    registry_records.map(&:id).uniq
+  end
+
+  def case_relationships
+    CaseRelationship.where(from_case_id: id).or(CaseRelationship.where(to_case_id: id))
   end
 end
 # rubocop:enable Metrics/ClassLength

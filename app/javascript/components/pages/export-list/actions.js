@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { namespaceActions } from "../../../libs";
 
 import NAMESPACE from "./namespace";
@@ -9,5 +7,10 @@ export default namespaceActions(NAMESPACE, [
   "FETCH_EXPORTS_STARTED",
   "FETCH_EXPORTS_SUCCESS",
   "FETCH_EXPORTS_FINISHED",
-  "FETCH_EXPORTS_FAILURE"
+  "FETCH_EXPORTS_FAILURE",
+  "DELETE_EXPORT",
+  "DELETE_EXPORT_STARTED",
+  "DELETE_EXPORT_SUCCESS",
+  "DELETE_EXPORT_FINISHED",
+  "DELETE_EXPORT_FAILURE"
 ]);

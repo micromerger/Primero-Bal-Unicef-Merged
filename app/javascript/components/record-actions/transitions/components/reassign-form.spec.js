@@ -1,9 +1,8 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { Map, List, fromJS } from "immutable";
 
 // import { getUsersByTransitionType } from "../selectors";
 import { mountedComponent, screen } from "../../../../test-utils";
+import { PrimeroModuleRecord } from "../../../application/records";
 
 import ReassignForm from "./reassign-form";
 
@@ -69,5 +68,30 @@ describe("<ReassignForm />", () => {
         // expect(component.find("div.MuiButtonBase-root.MuiListItem-root")).to.have.lengthOf(values.size);
       });
     });
+  });
+});
+
+describe("<ReassignForm /> with an overridden incident warning", () => {
+  it("renders the overridden warning for an incident linked to a case", () => {
+    mountedComponent(
+      <ReassignForm recordType="incidents" record={Map({ id: "123abc" })} handleClose={() => {}} formDisabled />,
+      fromJS({
+        transitions: { reassign: { users: [] } },
+        application: {
+          modules: [
+            PrimeroModuleRecord({
+              unique_id: "primeromodule-cp",
+              name: "CP",
+              field_labels: {
+                "reassign.incident_from_case_warning": { en: "You cannot assign this Monitoring Report." }
+              }
+            })
+          ]
+        },
+        user: { modules: ["primeromodule-cp"] }
+      })
+    );
+
+    expect(screen.getByText("You cannot assign this Monitoring Report.")).toBeInTheDocument();
   });
 });

@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 import { array, object, string, lazy } from "yup";
 
@@ -13,7 +11,8 @@ import {
   DATE_FIELD,
   NUMERIC_FIELD,
   OPTION_TYPES,
-  TEXT_AREA
+  TEXT_AREA,
+  REGISTRY_FIELD
 } from "../../../form";
 import { CONSTRAINTS } from "../../constants";
 
@@ -204,7 +203,7 @@ export default (i18n, fields, currentField, isNotNullConstraintOrTrue, css, useB
           name: ATTRIBUTE,
           type: SELECT_FIELD,
           groupBy: "formSection",
-          option_strings_text: fields
+          option_strings_text: fields.filter(field => field.type !== REGISTRY_FIELD)
         }),
         FieldRecord({
           name: CONSTRAINT,

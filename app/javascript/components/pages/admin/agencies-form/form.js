@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 import { object, string, boolean, array } from "yup";
 
@@ -20,12 +18,14 @@ import { TERMS_OF_USE, TERMS_OF_USE_ENABLED } from "./constants";
 
 export const validations = i18n =>
   object().shape({
-    agency_code: string().required(),
+    agency_code: string().required(
+      i18n.t("forms.required_field", {
+        field: i18n.t("agency.code")
+      })
+    ),
     description: object(),
     disabled: boolean(),
     logo_enabled: boolean(),
-    logo_full_base64: string(),
-    logo_full_file_name: string(),
     name: object().shape({
       en: string().required(
         i18n.t("forms.required_field", {
@@ -37,7 +37,7 @@ export const validations = i18n =>
     telephone: string()
   });
 
-export const form = (i18n, formMode) => {
+export const form = (i18n, formMode, enforceTermsOfUse) => {
   return fromJS([
     FormSectionRecord({
       unique_id: "agencies",
@@ -68,9 +68,32 @@ export const form = (i18n, formMode) => {
           option_strings_source: "lookup-service-type"
         }),
         FieldRecord({
+          display_name: i18n.t("agency.contact_name"),
+          name: "contact_name",
+          type: TEXT_FIELD
+        }),
+        FieldRecord({
+          display_name: i18n.t("agency.contact_email"),
+          name: "contact_email",
+          type: TEXT_FIELD
+        }),
+        FieldRecord({
+          display_name: i18n.t("agency.contact_phone"),
+          name: "contact_phone",
+          type: TEXT_FIELD,
+          phone_number: true
+        }),
+        FieldRecord({
+          display_name: i18n.t("agency.notes"),
+          name: "notes",
+          type: TEXT_AREA
+        }),
+        FieldRecord({
           display_name: i18n.t("agency.terms_of_use_enabled"),
           name: TERMS_OF_USE_ENABLED,
-          type: TICK_FIELD
+          type: TICK_FIELD,
+          selected_value: enforceTermsOfUse,
+          disabled: enforceTermsOfUse
         }),
         FieldRecord({
           display_name: i18n.t("agency.terms_of_use"),
@@ -79,12 +102,15 @@ export const form = (i18n, formMode) => {
           help_text: i18n.t("agency.terms_of_use_help"),
           fileFormat: FILE_FORMAT.pdf,
           renderDownloadButton: true,
+          showFileUrl: true,
           downloadButtonLabel: i18n.t("agency.terms_of_use_download_button"),
-          watchedInputs: [TERMS_OF_USE_ENABLED],
+          watchedInputs: [TERMS_OF_USE_ENABLED, TERMS_OF_USE],
+          required: enforceTermsOfUse,
           handleWatchedInputs: value => {
-            const { terms_of_use_enabled: termsOfUseEnabled } = value;
+            const { terms_of_use_enabled: termsOfUseEnabled, terms_of_use: termsOfUse } = value;
 
             return {
+              warning: termsOfUseEnabled && !termsOfUse ? i18n.t("agency.terms_of_use_warning") : "",
               visible: termsOfUseEnabled
             };
           }

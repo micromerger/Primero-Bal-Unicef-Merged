@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Transform a params hash into SearchFilters::SearchFiklter objects
 class SearchFilterService
   EXCLUDED = %w[format controller action page per order order_by fields id_search].freeze
@@ -42,10 +40,18 @@ class SearchFilterService
       build_id_filter(key, value)
     elsif key == 'or'
       build_or_filter(value)
+    elsif key == 'and'
+      build_and_filter(value)
     elsif key == 'not'
       SearchFilters::Not.new(filter: build_filter(value.keys.first, value.values.first))
+    elsif key == 'assign'
+      build_transition_filter('Assign', value)
     elsif key.starts_with?('loc:')
       build_location_filter(key, value)
+    elsif Array.wrap(value).include?('not_null')
+      SearchFilters::NotNull.new(field_name: key)
+    elsif Array.wrap(value).include?('is_null')
+      SearchFilters::IsNull.new(field_name: key)
     elsif value.is_a?(Hash)
       self.class.range_class(value)&.new(field_name: key, from: value['from'], to: value['to'])
     elsif value.is_a?(Array)
@@ -85,10 +91,22 @@ class SearchFilterService
     SearchFilters::LocationValue.new(field_name:, value:)
   end
 
+  def build_transition_filter(field_name, value)
+    SearchFilters::TransitionValue.new(field_name:, value:)
+  end
+
   def build_id_filter(field_name, value)
     return SearchFilters::IdListFilter.new(field_name:, values: value) if value.is_a?(Array)
 
     SearchFilters::IdFilter.new(field_name:, value:)
+  end
+
+  def build_and_filter(value)
+    if value.is_a?(Array)
+      SearchFilters::And.new(filters: value.map { |v| build_filters(v).first })
+    elsif value.is_a?(Hash)
+      SearchFilters::And.new(filters: build_filters(value))
+    end
   end
 
   def build_or_filter(value)

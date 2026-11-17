@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 /* eslint-disable no-nested-ternary */
 import { Divider, Grid, FormControlLabel } from "@mui/material";
 import PropTypes from "prop-types";
@@ -7,12 +5,13 @@ import PropTypes from "prop-types";
 import { getOption } from "../../record-form";
 import DisplayData from "../../display-data";
 import { useI18n } from "../../i18n";
-import { REFERRAL_DETAILS_NAME, TRANSITION_STATUS } from "../constants";
-import { LOOKUPS } from "../../../config";
+import { REFERRAL_DETAILS_NAME, REFERRAL_SUCCESS_STATUS, TRANSITION_STATUS } from "../constants";
+import { LOOKUPS, RECORD_TYPES_PLURAL } from "../../../config";
 import { OPTION_TYPES } from "../../form";
 import { useMemoizedSelector } from "../../../libs";
 import useOptions from "../../form/use-options";
 import DateTransitions from "../components/date-transitions";
+import RegistrySummary from "../../registry-summary";
 
 import renderIconValue from "./render-icon-value";
 import { referralAgencyName } from "./utils";
@@ -30,28 +29,64 @@ function Details({ transition, classes }) {
   });
   const agencies = useOptions({ source: OPTION_TYPES.AGENCY, useUniqueId: true });
 
+  const reasonNotSuccessful = useMemoizedSelector(state => {
+    const value = getOption(state, LOOKUPS.reasons_referral_failure, i18n.locale).filter(
+      option => option.id === transition.data?.reason_not_successful
+    );
+
+    // eslint-disable-next-line camelcase
+    return value[0]?.display_text;
+  });
+
+  const successStatus = transition.data?.success_status
+    ? i18n.t(`referral.success_status_options.${transition.data.success_status}`)
+    : null;
+
+  const successfulReferral =
+    [TRANSITION_STATUS.done, TRANSITION_STATUS.revoked].includes(transition.status) &&
+    transition.data?.success_status === REFERRAL_SUCCESS_STATUS.successful;
+
   const agencyName = referralAgencyName(transition, agencies);
 
   const renderRejected =
     transition.status === TRANSITION_STATUS.rejected ? (
-      <Grid item md={12} xs={12}>
+      <Grid
+        size={{
+          md: 12,
+          xs: 12
+        }}
+      >
         <DisplayData label="transition.rejected" value={transition.rejected_reason} />
       </Grid>
     ) : null;
 
   return (
     <Grid container spacing={2}>
-      <Grid item md={6} xs={12}>
+      <Grid
+        size={{
+          md: 6,
+          xs: 12
+        }}
+      >
         <DisplayData
           label="transition.recipient"
           value={transition.transitioned_to || transition.transitioned_to_remote}
         />
       </Grid>
-      <Grid item md={6} xs={12}>
+      <Grid
+        size={{
+          md: 6,
+          xs: 12
+        }}
+      >
         <DisplayData label="transition.assigned_by" value={transition.transitioned_by} />
       </Grid>
-
-      <Grid item md={6} xs={12}>
+      <Grid
+        size={{
+          md: 6,
+          xs: 12
+        }}
+      >
         <DisplayData
           label="transition.no_consent_share"
           value={
@@ -68,22 +103,82 @@ function Details({ transition, classes }) {
           }
         />
       </Grid>
-      <Grid item md={6} xs={12}>
+      <Grid
+        size={{
+          md: 6,
+          xs: 12
+        }}
+      >
         <DisplayData label="transition.service_label" value={service} />
       </Grid>
-      <Grid item md={6} xs={12}>
-        <DisplayData label="transition.agency_label" value={agencyName} />
-      </Grid>
-      <Grid item md={6} xs={12}>
+      {transition.service_external_referral_registry || (
+        <Grid
+          size={{
+            md: 6,
+            xs: 12
+          }}
+        >
+          <DisplayData label="transition.agency_label" value={agencyName} />
+        </Grid>
+      )}
+      {transition.service_external_referral_registry && (
+        <Grid
+          size={{
+            md: 12,
+            xs: 12
+          }}
+        >
+          <DisplayData
+            label="referral.service_implementing_agency_external"
+            value={
+              <>
+                <RegistrySummary
+                  recordType={RECORD_TYPES_PLURAL[transition.record_type]}
+                  value={transition.data?.service_implementing_agency_registry_id}
+                  disabled
+                />
+              </>
+            }
+          />
+        </Grid>
+      )}
+      <Grid
+        size={{
+          md: 6,
+          xs: 12
+        }}
+      >
         <DateTransitions name="responded_at" label="transition.responded_at" value={transition.responded_at} />
       </Grid>
+      {[TRANSITION_STATUS.done, TRANSITION_STATUS.revoked].includes(transition.status) && (
+        <>
+          <Grid size={{ md: successfulReferral ? 12 : 6, xs: 12 }}>
+            <DisplayData label="referral.success_status" value={successStatus} />
+          </Grid>
+          {!successfulReferral && (
+            <Grid size={{ md: 6, xs: 12 }}>
+              <DisplayData label="referral.reason_not_successful" value={reasonNotSuccessful} />
+            </Grid>
+          )}
+        </>
+      )}
       {renderRejected}
-      <Grid item md={12} xs={12}>
+      <Grid
+        size={{
+          md: 12,
+          xs: 12
+        }}
+      >
         <Divider data-testid="divider" className={classes.divider} />
         <DisplayData label="referral.notes_label" value={transition.notes} />
       </Grid>
       {transition.rejection_note && (
-        <Grid item md={12} xs={12}>
+        <Grid
+          size={{
+            md: 12,
+            xs: 12
+          }}
+        >
           <Divider className={classes.divider} />
           <DisplayData label="referral.note_on_referral_from_provider" value={transition.rejection_note} />
         </Grid>

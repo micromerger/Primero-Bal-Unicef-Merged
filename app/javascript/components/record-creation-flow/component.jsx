@@ -1,14 +1,13 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
-import { Drawer } from "@mui/material";
+import { Drawer, FormHelperText } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import AddIcon from "@mui/icons-material/Add";
 import isEmpty from "lodash/isEmpty";
 import { push } from "connected-react-router";
-import { useDispatch, batch } from "react-redux";
+import { useDispatch } from "react-redux";
 
+import addIdSearch from "../index-filters/utils/add-id-search";
 import ActionButton from "../action-button";
 import { ACTION_BUTTON_TYPES } from "../action-button/constants";
 import { useI18n } from "../i18n";
@@ -18,13 +17,16 @@ import { SEARCH_OR_CREATE_FILTERS } from "../record-list/constants";
 import { applyFilters } from "../index-filters";
 import { setRedirectedToCreateNewRecord } from "../record-form/action-creators";
 import useSystemStrings, { PAGE } from "../application/use-system-strings";
+import useQueryParams from "../record-list/use-query-params";
+import { setIsRecordCreationFlow } from "../records";
 
 import { ConsentPrompt, SearchPrompt } from "./components";
 import { NAME, DATA_PROTECTION_FIELDS } from "./constants";
 import css from "./styles.css";
 
-function Component({ open, onClose, recordType, primeroModule }) {
+function Component({ open, onClose, recordType, primeroModule, preventCaseCreationWithoutSearch = false }) {
   const i18n = useI18n();
+  const { queryParams } = useQueryParams();
 
   const { label } = useSystemStrings(PAGE);
   const dispatch = useDispatch();
@@ -40,17 +42,18 @@ function Component({ open, onClose, recordType, primeroModule }) {
   };
 
   const redirectToNewCase = () => {
-    batch(() => {
-      dispatch(setRedirectedToCreateNewRecord(true));
-      dispatch(push(`/${recordType}/${primeroModule}/new`));
-    });
+    dispatch(setRedirectedToCreateNewRecord(true));
+    dispatch(push(`/${recordType}/${primeroModule}/new`));
   };
 
   const onSearchCases = data => {
+    const searchData = addIdSearch(data);
+
     dispatch(
       applyFilters({
         recordType,
-        data: { ...SEARCH_OR_CREATE_FILTERS, ...(!isEmpty(data) && { ...data, id_search: true }) }
+        data: { ...SEARCH_OR_CREATE_FILTERS, ...(!isEmpty(searchData) && { ...searchData }) },
+        isRecordCreationFlow: true
       })
     );
   };
@@ -67,6 +70,7 @@ function Component({ open, onClose, recordType, primeroModule }) {
   const handleCloseDrawer = () => {
     setOpenConsentPrompt(false);
     onClose();
+    dispatch(setIsRecordCreationFlow(recordType, false));
 
     if (searchValue) {
       onSearchCases();
@@ -74,21 +78,37 @@ function Component({ open, onClose, recordType, primeroModule }) {
     }
   };
 
+  useEffect(() => {
+    if (queryParams?.query && open) {
+      goToNewCase();
+    }
+  }, [open]);
+
   const renderSkipAndCreate = !openConsentPrompt && (
     <div className={css.skipButtonContainer}>
       <ActionButton
         icon={<AddIcon />}
         text="case.skip_and_create"
         type={ACTION_BUTTON_TYPES.default}
+        disabled={preventCaseCreationWithoutSearch && isEmpty(queryParams.query)}
         rest={{
           onClick: handleSkipAndCreate
         }}
       />
+      {preventCaseCreationWithoutSearch && isEmpty(queryParams.query) && (
+        <FormHelperText>{i18n.t("case.skip_and_create_helper_text")}</FormHelperText>
+      )}
     </div>
   );
 
   return (
-    <Drawer anchor="right" open={open} onClose={handleCloseDrawer} classes={{ paper: css.subformDrawer }}>
+    <Drawer
+      anchor="right"
+      open={open}
+      onClose={handleCloseDrawer}
+      classes={{ paper: css.subformDrawer }}
+      data-testid="record-creation-flow"
+    >
       <div className={css.container}>
         <div className={css.title}>
           <h2>{label("case.create_new_case")}</h2>
@@ -134,6 +154,7 @@ Component.displayName = NAME;
 Component.propTypes = {
   onClose: PropTypes.func,
   open: PropTypes.bool,
+  preventCaseCreationWithoutSearch: PropTypes.bool,
   primeroModule: PropTypes.string,
   recordType: PropTypes.string
 };

@@ -1,9 +1,10 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
-import { fromJS } from "immutable";
-import { mountedComponent, screen } from "test-utils";
+import { fromJS, OrderedMap } from "immutable";
+import qs from "qs";
+import { mountedComponent, screen, userEvent } from "test-utils";
 
 import { ACTIONS } from "../../../../permissions";
+import { PrimeroModuleRecord } from "../../../../application/records";
+import { FieldRecord } from "../../../../record-form/records";
 
 import Overview from "./component";
 
@@ -184,6 +185,123 @@ describe("<Overview> - pages/dashboard/components/overview", () => {
       });
 
       expect(screen.queryByText("dashboard.case_overview")).toBeInTheDocument();
+    });
+  });
+
+  describe("when the dash_case_incident_overview label is overridden", () => {
+    it("renders the overridden dashboard title", () => {
+      mountedComponent(
+        <Overview />,
+        fromJS({
+          records: {
+            dashboard: {
+              overview: {
+                data: [
+                  {
+                    name: "dashboard.dash_case_incident_overview",
+                    type: "indicator",
+                    indicators: { open: { count: 5, query: ["record_state=true", "status=open"] } }
+                  }
+                ]
+              }
+            }
+          },
+          application: {
+            modules: [
+              PrimeroModuleRecord({
+                unique_id: "primeromodule-cp",
+                name: "CP",
+                field_labels: { "dashboard.dash_case_incident_overview": { en: "My Cases / Monitoring Reports" } }
+              })
+            ]
+          },
+          user: {
+            modules: ["primeromodule-cp"],
+            permissions: { dashboards: [ACTIONS.DASH_CASE_INCIDENT_OVERVIEW] }
+          }
+        })
+      );
+
+      expect(screen.getByText("My Cases / Monitoring Reports")).toBeInTheDocument();
+    });
+  });
+
+  describe("when a user only has DASH_CASES_BY_INCIDENT_TYPE", () => {
+    let store;
+
+    beforeEach(() => {
+      ({ store } = mountedComponent(<Overview />, {
+        records: {
+          dashboard: {
+            overview: {
+              data: [
+                {
+                  name: "dashboard.dash_cases_by_incident_type",
+                  type: "indicator",
+                  indicators: {
+                    cases_by_incident_type: {
+                      physical: {
+                        count: 2,
+                        query: ["record_state=true", "status=open", "incident_types=physical"]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        forms: {
+          fields: OrderedMap({
+            1: FieldRecord({ name: "incident_types", option_strings_source: "lookup lookup-incident-types" })
+          }),
+          options: {
+            lookups: [
+              {
+                unique_id: "lookup-incident-types",
+                values: [
+                  { id: "physical", display_text: { en: "Physical violence" } },
+                  { id: "neglect", display_text: { en: "Neglect" } }
+                ]
+              }
+            ]
+          }
+        },
+        user: {
+          permissions: {
+            dashboards: [ACTIONS.DASH_CASES_BY_INCIDENT_TYPE]
+          }
+        }
+      }));
+    });
+
+    it("renders the overview card with the cases_by_incident_type dashboard", () => {
+      expect(screen.getByText("dashboard.overview")).toBeInTheDocument();
+      expect(screen.getByText("dashboard.dash_cases_by_incident_type")).toBeInTheDocument();
+    });
+
+    it("renders a row with the count for each incident type option", () => {
+      expect(screen.getByText("Physical violence")).toBeInTheDocument();
+      expect(screen.getByText("2")).toBeInTheDocument();
+      expect(screen.getByText("Neglect")).toBeInTheDocument();
+      expect(screen.getByText("0")).toBeInTheDocument();
+    });
+
+    it("navigates to the cases list filtered by the incident type", async () => {
+      await userEvent.click(screen.getByText("2"));
+
+      const [navigation] = store.getActions().filter(action => action.type === "@@router/CALL_HISTORY_METHOD");
+
+      const { pathname, search } = navigation.payload.args[0];
+
+      expect(pathname).toBe("/cases");
+      expect(qs.parse(search)).toEqual({ record_state: ["true"], status: ["open"], incident_types: ["physical"] });
+    });
+
+    it("does not navigate when an incident type has no cases", async () => {
+      await userEvent.click(screen.getByText("0"));
+
+      expect(store.getActions().filter(action => action.type === "@@router/CALL_HISTORY_METHOD")).toHaveLength(0);
     });
   });
 });

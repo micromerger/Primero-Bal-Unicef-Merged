@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # An indicator that returns the total of incidents grouped by context
 class ManagedReports::Indicators::GBVCaseContext < ManagedReports::SqlReportIndicator
   class << self
@@ -12,21 +10,26 @@ class ManagedReports::Indicators::GBVCaseContext < ManagedReports::SqlReportIndi
     # rubocop:disable Metrics/MethodLength
     def sql(current_user, params = {})
       date_param = filter_date(params)
-      %{
-        select
-          context as id,
-          #{grouped_date_query(params['grouped_by'], date_param)&.concat(' as group_id,')}
-          count(*) as total
-        from incidents,
-        jsonb_array_elements_text(data #> '{gbv_case_context}') as context
-        where data ->> 'gbv_case_context' is not NULL
-        #{date_range_query(date_param)&.prepend('and ')}
-        #{equal_value_query(params['module_id'])&.prepend('and ')}
-        #{user_scope_query(current_user)&.prepend('and ')}
-        group by context
+      <<~SQL
+        SELECT
+          context AS id,
+          #{grouped_date_query(params['grouped_by'], date_param)&.concat(' AS group_id,')}
+          COUNT(*) AS total
+        FROM incidents,
+          JSONB_ARRAY_ELEMENTS_TEXT(data -> 'gbv_case_context') AS context
+        WHERE incidents.srch_record_state = TRUE
+        AND data @? '$[*] ? (
+          @.consent_reporting  == "true" && @.gbv_case_context != null
+        ) ? (
+          !exists(@.gbv_reported_elsewhere) || @.gbv_reported_elsewhere != "gbvims-org"
+        )'
+        #{date_range_query(date_param)&.prepend('AND ')}
+        #{equal_value_query(params['module_id'])&.prepend('AND ')}
+        #{user_scope_query(current_user)&.prepend('AND ')}
+        GROUP BY context
         #{grouped_date_query(params['grouped_by'], date_param)&.prepend(', ')}
-        order by context
-      }
+        ORDER BY context
+      SQL
     end
     # rubocop:enable Metrics/MethodLength
   end

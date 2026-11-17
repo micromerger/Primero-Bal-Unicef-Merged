@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 import { mountedComponent, screen } from "test-utils";
 
@@ -90,7 +88,7 @@ describe("<Account />", () => {
       }
     });
 
-    it("renders 20 fields", () => {
+    it("renders 24 fields", () => {
       mountedComponent(<Account {...props} />, state, {}, ["/account"]);
       expect(screen.getAllByTestId("form-section-field")).toHaveLength(20);
     });

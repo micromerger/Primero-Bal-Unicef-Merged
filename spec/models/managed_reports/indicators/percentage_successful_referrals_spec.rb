@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ManagedReports::Indicators::PercentageSuccessfulReferrals do
@@ -22,7 +20,7 @@ describe ManagedReports::Indicators::PercentageSuccessfulReferrals do
       name: 'Role 1',
       unique_id: 'role-1',
       group_permission: Permission::SELF,
-      modules: [module1, module2],
+      primero_modules: [module1, module2],
       permissions: [
         Permission.new(
           resource: Permission::CASE,
@@ -369,15 +367,15 @@ describe ManagedReports::Indicators::PercentageSuccessfulReferrals do
 
   describe 'grouped by' do
     context 'when is year' do
-      it 'should return results grouped by year for service_response_day_time' do
+      it 'should return results grouped by year for service_response_day_time when date range has time' do
         data = ManagedReports::Indicators::PercentageSuccessfulReferrals.build(
           nil,
           {
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'year'),
             'service_response_day_time' => SearchFilters::DateRange.new(
               field_name: 'service_response_day_time',
-              from: '2021-01-01',
-              to: '2021-12-31'
+              from: Time.zone.parse('2021-01-01T00:00:00'),
+              to: Time.zone.parse('2021-12-31T00:00:00')
             )
           }
         ).data
@@ -402,8 +400,8 @@ describe ManagedReports::Indicators::PercentageSuccessfulReferrals do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'year'),
             'referral_created_at' => SearchFilters::DateRange.new(
               field_name: 'referral_created_at',
-              from: '2021-01-01',
-              to: '2021-12-31'
+              from: Date.parse('2021-01-01'),
+              to: Date.parse('2021-12-31')
             )
           }
         ).data
@@ -430,8 +428,8 @@ describe ManagedReports::Indicators::PercentageSuccessfulReferrals do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'month'),
             'service_response_day_time' => SearchFilters::DateRange.new(
               field_name: 'service_response_day_time',
-              from: '2021-10-01',
-              to: '2021-11-30'
+              from: Date.parse('2021-10-01'),
+              to: Date.parse('2021-11-30')
             )
           }
         ).data
@@ -463,8 +461,8 @@ describe ManagedReports::Indicators::PercentageSuccessfulReferrals do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'month'),
             'referral_created_at' => SearchFilters::DateRange.new(
               field_name: 'referral_created_at',
-              from: '2021-10-01',
-              to: '2021-11-30'
+              from: Date.parse('2021-10-01'),
+              to: Date.parse('2021-11-30')
             )
           }
         ).data
@@ -495,8 +493,8 @@ describe ManagedReports::Indicators::PercentageSuccessfulReferrals do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'week'),
             'service_response_day_time' => SearchFilters::DateRange.new(
               field_name: 'service_response_day_time',
-              from: '2021-10-01',
-              to: '2021-10-16'
+              from: Date.parse('2021-10-01'),
+              to: Date.parse('2021-10-16')
             )
           }
         ).data
@@ -529,8 +527,8 @@ describe ManagedReports::Indicators::PercentageSuccessfulReferrals do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'week'),
             'referral_created_at' => SearchFilters::DateRange.new(
               field_name: 'referral_created_at',
-              from: '2021-10-01',
-              to: '2021-10-16'
+              from: Date.parse('2021-10-01'),
+              to: Date.parse('2021-10-16')
             )
           }
         ).data

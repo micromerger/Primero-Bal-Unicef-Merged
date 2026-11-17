@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 Rails.application.routes.draw do
   root to: 'home#v2'
 
@@ -9,6 +7,8 @@ Rails.application.routes.draw do
     get '/', to: 'home#v2'
     get '*all', to: 'home#v2'
   end
+
+  mount PdfjsViewer::Engine => '/pdf-viewer'
 
   devise_for(
     :users,
@@ -26,9 +26,9 @@ Rails.application.routes.draw do
   end
 
   resources :health, only: %i[index show]
-  # rubocop:disable Style/FormatStringToken(RuboCop)
+  # rubocop:disable Style/FormatStringToken
   get 'login/:id', to: redirect(path: '/v2/login/%{id}')
-  # rubocop:enable Style/FormatStringToken(RuboCop)
+  # rubocop:enable Style/FormatStringToken
 
   get 'manifest', to: 'themes#manifest', defaults: { format: :json }
   get :theme, to: 'themes#index', defaults: { format: :js }
@@ -42,7 +42,8 @@ Rails.application.routes.draw do
       resources :children, as: :cases, path: :cases do
       collection do
         get :punjab, to: 'ncrc_api#index'
-      end  
+      end
+        get :identified, on: :collection
         resources :children_incidents, as: :incidents, path: :incidents, only: %i[index new] do
           post '/', to: 'children_incidents#update_bulk', on: :collection
         end
@@ -53,13 +54,18 @@ Rails.application.routes.draw do
         resources :transfers, only: %i[index create update]
         resources :transfer_requests, only: %i[index create update]
         resources :transitions, only: [:index]
-        resources :attachments, only: %i[create destroy update]
+        resources :attachments, only: %i[create destroy update show] do
+          member do
+            get '(:preview_type)', action: :show
+          end
+        end
         resources :approvals, only: [:update]
         resources :potential_matches, only: [:index]
         resources :webhook_syncs, as: :sync, path: :sync, only: [:create]
         resources :case_relationships, only: %i[index create destroy update]
         get :traces, to: 'children#traces'
         get :record_history, to: 'record_histories#index'
+        get :access_log, to: 'record_access#index'
         post :family, to: 'children#create_family'
         collection do
           post :flags, to: 'flags#create_bulk'
@@ -73,11 +79,17 @@ Rails.application.routes.draw do
         resources :flags, only: %i[index create update]
         resources :alerts, only: %i[index destroy]
         resources :approvals, only: [:update]
-        resources :attachments, only: %i[create destroy]
+        resources :attachments, only: %i[create destroy show] do
+          member do
+            get '(:preview_type)', action: :show
+          end
+        end
         resources :assigns, only: %i[index create]
         resources :transitions, only: [:index]
         post :flags, to: 'flags#create_bulk', on: :collection
         get :record_history, to: 'record_histories#index'
+
+        get :access_log, to: 'record_access#index'
         get :get_case_to_link, to: 'incidents#get_case_to_link', on: :collection
         collection do
           post :assigns, to: 'assigns#create_bulk'
@@ -88,10 +100,16 @@ Rails.application.routes.draw do
         resources :flags, only: %i[index create update]
         resources :alerts, only: [:index]
         resources :approvals, only: [:update]
-        resources :attachments, only: %i[create destroy]
+        resources :attachments, only: %i[create destroy show] do
+          member do
+            get '(:preview_type)', action: :show
+          end
+        end
         get :traces, to: 'tracing_requests#traces'
         post :flags, to: 'flags#create_bulk', on: :collection
         get :record_history, to: 'record_histories#index'
+
+        get :access_log, to: 'record_access#index'
       end
 
       resources :traces, only: %i[show update] do
@@ -110,8 +128,13 @@ Rails.application.routes.draw do
           get :'assign-to', to: 'users_transitions#assign_to'
           get :'transfer-to', to: 'users_transitions#transfer_to'
           get :'refer-to', to: 'users_transitions#refer_to'
+          get :access, to: 'users_access#access'
+          get :identified, to: 'users_identified#index'
           post :'password-reset-request', to: 'password_reset#password_reset_request'
           post :'password-reset', to: 'password_reset#password_reset'
+          post :'self-register', to: 'self_register#create'
+          post :update_bulk, to: 'users#update_bulk'
+          post :send_emails, to: 'users#send_emails'
         end
       end
       resources :identity_providers, only: [:index]
@@ -128,7 +151,9 @@ Rails.application.routes.draw do
           post :update_bulk, to: 'locations#update_bulk'
         end
       end
-      resources :bulk_exports, as: :exports, path: :exports, only: %i[index show create destroy]
+      resources :bulk_exports, as: :exports, path: :exports, only: %i[index show create destroy] do
+        get :export_file, to: 'bulk_exports#export_file'
+      end
       get 'alerts', to: 'alerts#bulk_index'
       # TODO: Make usage_reports a resourceful route if/when they start getting saved
       get 'usage_reports/current', to: 'usage_reports#show'
@@ -154,19 +179,34 @@ Rails.application.routes.draw do
         resources :flags, only: %i[index create update]
         resources :alerts, only: [:index]
         get :record_history, to: 'record_histories#index'
+
+        get :access_log, to: 'record_access#index'
       end
 
       resources :families do
         resources :flags, only: %i[index create update]
         resources :alerts, only: [:index]
+        resources :assigns, only: %i[index create]
         post :case, to: 'families#create_case'
         get :record_history, to: 'record_histories#index'
+        get :access_log, to: 'record_access#index'
+        collection do
+          post :assigns, to: 'assigns#create_bulk'
+        end
       end
+
+      post 'intakes/:id', to: 'intakes#create'
+      get 'intakes/:id/forms',   to: 'intake_form_sections#index'
+      get 'intakes/:id/lookups', to: 'intake_lookups#index'
 
       scope '/webpush' do
         get 'config', action: :config, controller: 'webpush_config'
         patch 'subscriptions/current', action: :current, controller: 'webpush_subscriptions'
         resources :webpush_subscriptions, path: :subscriptions, only: %i[index create]
+      end
+
+      scope '/unused_fields_report' do
+        get 'current', action: :current, controller: 'unused_fields_report'
       end
     end
   end

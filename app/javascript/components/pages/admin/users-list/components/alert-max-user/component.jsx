@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import PropTypes from "prop-types";
 import { fromJS } from "immutable";
 
@@ -17,7 +15,7 @@ function Component({ maximumUsers, totalUsersEnabled, limitUsersReached }) {
     }
   ]);
 
-  if (!limitUsersReached) {
+  if (limitUsersReached || !maximumUsers || !totalUsersEnabled) {
     return null;
   }
 

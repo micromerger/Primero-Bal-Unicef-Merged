@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Exports Incident Recorder to an Excel File
 # rubocop:disable Metrics/ClassLength
 class Exporters::IncidentRecorderExporter < Exporters::BaseExporter
@@ -95,6 +93,7 @@ class Exporters::IncidentRecorderExporter < Exporters::BaseExporter
       @workbook = WriteXLSX.new(exporter.buffer)
       @data_worksheet = @workbook.add_worksheet('Incident Data')
       @menu_worksheet = @workbook.add_worksheet('Menu Data')
+      @forced_string_format = @workbook.add_format(num_format: '@')
     end
 
     def initialize_fields
@@ -113,8 +112,11 @@ class Exporters::IncidentRecorderExporter < Exporters::BaseExporter
       return unless @data_headers.blank?
 
       @data_headers = true
-      @data_worksheet.write_row(
-        0, 0, @props.keys.map { |prop| I18n.t("exports.incident_recorder_xls.headers.#{prop}", **locale_hash) }
+      @data_worksheet.write(
+        0,
+        0,
+        @props.keys.map { |prop| I18n.t("exports.incident_recorder_xls.headers.#{prop}", **locale_hash) },
+        @forced_string_format
       )
       # TODO: revisit, there is a bug in the gem.
       # set_column_widths(@data_worksheet, props.keys)
@@ -125,8 +127,11 @@ class Exporters::IncidentRecorderExporter < Exporters::BaseExporter
 
       @menu_headers = true
       header = %w[case_worker_code ethnicity location county district camp]
-      @menu_worksheet.write_row(
-        0, 0, header.map { |prop| I18n.t("exports.incident_recorder_xls.headers.#{prop}", **locale_hash) }
+      @menu_worksheet.write(
+        0,
+        0,
+        header.map { |prop| I18n.t("exports.incident_recorder_xls.headers.#{prop}", **locale_hash) },
+        @forced_string_format
       )
       # TODO: revisit, there is a bug in the gem.
       # set_column_widths(@menu_worksheet, header)
@@ -254,6 +259,24 @@ class Exporters::IncidentRecorderExporter < Exporters::BaseExporter
     def incident_recorder_service_referral(service)
       # The services use the same lookup... using safehouse service field for purpose of translation
       export_value(service, @fields['service_safehouse_referral']) if service.present?
+    end
+
+    def services_from_subforms?
+      ActiveModel::Type::Boolean.new.cast(exporter.options&.dig(:old_incident_recorder_format))
+    end
+
+    def service_referral_value(model, subform_section, field_name)
+      return model.data[field_name] unless services_from_subforms?
+
+      model.data[subform_section].try(:first).try(:[], field_name)
+    end
+
+    def pursue_legal_action_values(model)
+      return Array(model.data['service_legal_pursue_legal_action']).compact unless services_from_subforms?
+
+      Array(model.data['legal_assistance_services_subform_section']).map do |entry|
+        entry['pursue_legal_action']
+      end.compact
     end
 
     def primary_alleged_perpetrator(model)
@@ -446,25 +469,25 @@ class Exporters::IncidentRecorderExporter < Exporters::BaseExporter
 
     def service_medical_referral_props
       lambda do |model|
-        service_value = model.health_medical_referral_subform_section.try(:first).try(:[], 'service_medical_referral')
+        service_value = service_referral_value(model, 'health_medical_referral_subform_section',
+                                               'service_medical_referral')
         incident_recorder_service_referral(service_value) if service_value.present?
       end
     end
 
     def service_psycho_referral_props
       lambda do |model|
-        service_value = model.psychosocial_counseling_services_subform_section.try(:first)
-                             .try(:[], 'service_psycho_referral')
+        service_value = service_referral_value(model, 'psychosocial_counseling_services_subform_section',
+                                               'service_psycho_referral')
         incident_recorder_service_referral(service_value) if service_value.present?
       end
     end
 
     def service_legal_assistance_props
       lambda do |model|
-        legal_counseling = model.try(:legal_assistance_services_subform_section)
-        return if legal_counseling.blank?
+        actions = pursue_legal_action_values(model)
+        return if actions.blank?
 
-        actions = legal_counseling.map { |l| l.try(:[], 'pursue_legal_action') }
         if actions.include?('true') then I18n.t('exports.incident_recorder_xls.yes', **locale_hash)
         elsif actions.include?('false') then I18n.t('exports.incident_recorder_xls.no', **locale_hash)
         elsif actions.include?('undecided')
@@ -475,32 +498,32 @@ class Exporters::IncidentRecorderExporter < Exporters::BaseExporter
 
     def service_legal_referral_props
       lambda do |model|
-        service_value = model.legal_assistance_services_subform_section.try(:first)
-                             .try(:[], 'service_legal_referral')
+        service_value = service_referral_value(model, 'legal_assistance_services_subform_section',
+                                               'service_legal_referral')
         incident_recorder_service_referral(service_value) if service_value.present?
       end
     end
 
     def service_police_referral_props
       lambda do |model|
-        service_value = model.police_or_other_type_of_security_services_subform_section
-                             .try(:first).try(:[], 'service_police_referral')
+        service_value = service_referral_value(model, 'police_or_other_type_of_security_services_subform_section',
+                                               'service_police_referral')
         incident_recorder_service_referral(service_value) if service_value.present?
       end
     end
 
     def service_livelihoods_props
       lambda do |model|
-        service_value = model.livelihoods_services_subform_section
-                             .try(:first).try(:[], 'service_livelihoods_referral')
+        service_value = service_referral_value(model, 'livelihoods_services_subform_section',
+                                               'service_livelihoods_referral')
         incident_recorder_service_referral(service_value) if service_value.present?
       end
     end
 
     def service_protection_referral
       lambda do |model|
-        service_value = model.child_protection_services_subform_section
-                             .try(:first).try(:[], 'service_protection_referral')
+        service_value = service_referral_value(model, 'child_protection_services_subform_section',
+                                               'service_protection_referral')
         incident_recorder_service_referral(service_value) if service_value.present?
       end
     end
@@ -539,8 +562,20 @@ class Exporters::IncidentRecorderExporter < Exporters::BaseExporter
         next unless prop.present?
 
         value = prop.is_a?(Proc) ? prop.call(model) : model.data[prop]
-        formatted_value = format_value(prop, value).to_s
-        @data_worksheet.write(@row_data, index, formatted_value) unless formatted_value.nil?
+        formatted_value = format_value(prop, value)
+        write_export_value(index, formatted_value) unless formatted_value.nil?
+      end
+    end
+
+    def write_export_value(column, value)
+      case value
+      when String
+        # Force string format for string values in order to prevent formula injections
+        @data_worksheet.write_string(@row_data, column, value)
+      when TrueClass, FalseClass
+        @data_worksheet.write_string(@row_data, column, value.to_s)
+      else
+        @data_worksheet.write(@row_data, column, value)
       end
     end
 
@@ -566,7 +601,7 @@ class Exporters::IncidentRecorderExporter < Exporters::BaseExporter
         # Cell where the data should be push.
         j = menu[:cell_index]
         menu[:values].each do |value|
-          @menu_worksheet.write(i, j, value)
+          @menu_worksheet.write_string(i, j, value)
           i += 1
         end
       end

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 require 'cancan/matchers'
 
@@ -1096,7 +1094,7 @@ describe Ability do
   end
 
   describe 'Other resources' do
-    it 'allows viewing and editing of Metadata resources if that permission is set along with "read" and "write"' do
+    it 'allows viewing and editing of Metadata resources if that permission is set along with "manage"' do
       permission_metadata = Permission.new(
         resource: Permission::METADATA, actions: [Permission::READ, Permission::WRITE, Permission::CREATE]
       )
@@ -1107,6 +1105,22 @@ describe Ability do
       ability = Ability.new @user1
 
       [FormSection, Field, Location, Lookup, PrimeroModule, PrimeroProgram].each do |resource|
+        expect(ability).to authorize(:read, resource)
+        expect(ability).to authorize(:write, resource)
+      end
+    end
+
+    it 'allows viewing and editing of Metadata resources if that permission is set along with "manage_restricted"' do
+      permission_metadata = Permission.new(
+        resource: Permission::METADATA, actions: [Permission::MANAGE_RESTRICTED]
+      )
+      role = create :role, permissions: [permission_metadata]
+      @user1.role = role
+      @user1.save
+
+      ability = Ability.new @user1
+
+      [FormSection, Field, Lookup].each do |resource|
         expect(ability).to authorize(:read, resource)
         expect(ability).to authorize(:write, resource)
       end
@@ -1130,9 +1144,11 @@ describe Ability do
   end
 
   describe 'Attachments' do
-    let(:attachment_user) { create :user }
+    let(:user_group) { UserGroup.create!(unique_id: 'shared-group') }
 
-    let(:referred_user) { create :user }
+    let(:attachment_user) { create :user, user_groups: [user_group] }
+
+    let(:referred_user) { create :user, user_groups: [user_group] }
 
     let(:preview_user) { create :user }
 
@@ -1192,9 +1208,14 @@ describe Ability do
       [
         FormSection.create!(
           unique_id: 'form1', name: 'Form 1', parent_form: 'case', form_group_id: 'form1', fields: [
-            Field.new(name: Attachable::PHOTOS_FIELD_NAME, display_name: 'Photos', type: Field::PHOTO_UPLOAD_BOX),
-            Field.new(name: Attachable::AUDIOS_FIELD_NAME, display_name: 'Recorded Audio',
-                      type: Field::AUDIO_UPLOAD_BOX),
+            Field.new(
+              name: Attachable::PHOTOS_FIELD_NAME, display_name: 'Photos', type: Field::PHOTO_UPLOAD_BOX,
+              show_on_minify_form: true
+            ),
+            Field.new(
+              name: Attachable::AUDIOS_FIELD_NAME, display_name: 'Recorded Audio',
+              type: Field::AUDIO_UPLOAD_BOX, show_on_minify_form: true
+            ),
             Field.new(name: Attachable::DOCUMENTS_FIELD_NAME, display_name: 'Other Documents',
                       type: Field::DOCUMENT_UPLOAD_BOX)
           ]

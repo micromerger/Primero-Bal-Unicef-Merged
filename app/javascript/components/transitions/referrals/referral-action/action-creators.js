@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 /* eslint-disable import/prefer-default-export */
 import { push } from "connected-react-router";
 
@@ -8,13 +6,18 @@ import { ENQUEUE_SNACKBAR, generate } from "../../../notifier";
 import { CLEAR_DIALOG, clearDialog, SET_DIALOG_PENDING } from "../../../action-dialog";
 import { redirectCheckAccessDenied } from "../../utils";
 import { setTempInitialValues } from "../../../record-form/action-creators";
+import { fetchRecord } from "../../../records/action-creators";
 
 import actions from "./actions";
 
-const referralAction = (type, { data, message, failureMessage, recordId, recordType, transistionId }) => ({
+const referralAction = (
+  type,
+  { data, message, failureMessage, recordId, recordType, transitionId },
+  additionalSuccessCallbacks = []
+) => ({
   type,
   api: {
-    path: `${recordType}/${recordId}/referrals/${transistionId}`,
+    path: `${recordType}/${recordId}/referrals/${transitionId}`,
     method: "PATCH",
     body: { data },
     successCallback: [
@@ -31,6 +34,7 @@ const referralAction = (type, { data, message, failureMessage, recordId, recordT
       {
         action: CLEAR_DIALOG
       },
+      ...additionalSuccessCallbacks,
       redirectCheckAccessDenied(recordType)
     ],
     failureCallback: [
@@ -59,7 +63,9 @@ export const referralRejected = ({ data, ...rest }) =>
   referralAction(actions.REFERRAL_REJECTED, { data: { status: REJECTED, ...data }, ...rest });
 
 export const referralAccepted = params =>
-  referralAction(actions.REFERRAL_ACCEPTED, { data: { status: ACCEPTED }, ...params });
+  referralAction(actions.REFERRAL_ACCEPTED, { data: { status: ACCEPTED }, ...params }, [
+    fetchRecord(params.recordType, params.recordId, true)
+  ]);
 
 export const referralCaseCreation = payload => async dispatch => {
   dispatch(setTempInitialValues(payload));

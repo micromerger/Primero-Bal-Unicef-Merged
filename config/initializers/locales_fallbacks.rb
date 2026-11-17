@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 I18n::Backend::Simple.include(I18n::Backend::Fallbacks)
 
 EN_FALLBACK = %i[en].freeze
@@ -27,6 +25,7 @@ I18n.fallbacks = {
   'es-GT': ES_FALLBACK,
   'fa-AF': EN_FALLBACK,
   fr: EN_FALLBACK,
+  'hi-IN': EN_FALLBACK,
   hu: EN_FALLBACK,
   hy: EN_FALLBACK,
   id: EN_FALLBACK,
@@ -35,18 +34,22 @@ I18n.fallbacks = {
   ku: AR_FALLBACK,
   'ku-IQ': KU_FALLBACK,
   mn: EN_FALLBACK,
+  mr: EN_FALLBACK,
   my: EN_FALLBACK,
   om: EN_FALLBACK,
   pl: EN_FALLBACK,
   'ps-AF': EN_FALLBACK,
   pt: EN_FALLBACK,
+  'pt-AO': PT_FALLBACK,
   'pt-BR': PT_FALLBACK,
+  'pt-MZ': PT_FALLBACK,
   ro: EN_FALLBACK,
   ru: EN_FALLBACK,
   sk: EN_FALLBACK,
   so: EN_FALLBACK,
   'sw-KE': EN_FALLBACK,
   'sw-TZ': EN_FALLBACK,
+  tg: EN_FALLBACK,
   th: EN_FALLBACK,
   uk: EN_FALLBACK,
   ti: EN_FALLBACK,

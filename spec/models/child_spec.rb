@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 require 'sunspot' if Rails.configuration.solr_enabled
 
@@ -79,7 +77,7 @@ describe Child do
     end
   end
 
-  describe 'incidents from case' do
+  describe 'incidents' do
     describe 'update_properties' do
       let(:case1) { Child.create!(age: 12, sex: 'male') }
       let(:incident1) { Incident.create!(case: case1, description: 'incident1') }
@@ -122,6 +120,42 @@ describe Child do
         incident2.reload
         expect(incident2).to be
         expect(incident2.incident_case_id).to eq(case1.id)
+      end
+    end
+
+    describe 'incident_types' do
+      let!(:case1) { Child.create!(age: 12, sex: 'male') }
+      let!(:incident1) { Incident.create!(case: case1, cp_incident_violence_type: 'type1') }
+
+      it "stamps the incident's violence type on the case from the incident" do
+        expect(case1.incident_types).to eq(['type1'])
+      end
+
+      it "stamps the incident's violence type on the case when a new incident is created on the case" do
+        data = case1.data.clone
+        data['incident_details'] = [
+          { 'unique_id' => SecureRandom.uuid, 'cp_incident_violence_type' => 'type2' }
+        ]
+        case1.update_properties(fake_user, data)
+        case1.save!
+
+        expect(case1.incident_types).to match_array(%w[type1 type2])
+      end
+
+      it 'stores the incident types in the searchable column' do
+        expect(case1.reload.srch_incident_types).to eq(['type1'])
+      end
+
+      it "stamps the GBV incident's sexual violence type on the case" do
+        gbv_case = Child.create!(age: 15, sex: 'female', module_id: PrimeroModule::GBV)
+        Incident.create!(case: gbv_case, module_id: PrimeroModule::GBV, gbv_sexual_violence_type: 'rape')
+
+        expect(gbv_case.reload.incident_types).to eq(['rape'])
+        expect(gbv_case.srch_incident_types).to eq(['rape'])
+      end
+
+      after :all do
+        clean_data(Incident, Child)
       end
     end
   end
@@ -177,6 +211,7 @@ describe Child do
 
     it 'links a family and a family_member to a case' do
       expect(case1.family).to eq(family1)
+      family1.reload
       expect(family1.cases).to include(case1)
 
       family_member = family1.family_members.find { |member| member['unique_id'] == '001' }
@@ -360,7 +395,7 @@ describe Child do
     end
 
     it 'should be set from user' do
-      User.stub(:find_by_user_name).with('mj').and_return(double(organization: double(unique_id: 'UNICEF')))
+      User.stub(:find_by_user_name).with('mj').and_return(double(agency: double(unique_id: 'UNICEF')))
       child = Child.create(data: { 'name' => 'Jaco', :created_by => 'mj' })
 
       child.created_organization.should == 'UNICEF'
@@ -647,7 +682,7 @@ describe Child do
   describe 'syncing of protection concerns' do
     before do
       clean_data(SearchableIdentifier, Child)
-      User.stub(:find_by_user_name).and_return(double(organization: double(unique_id: 'UNICEF')))
+      User.stub(:find_by_user_name).and_return(double(agency: double(unique_id: 'UNICEF')))
       @protection_concerns = %w[Separated Unaccompanied]
     end
 
@@ -1067,6 +1102,12 @@ describe Child do
     end
   end
 
+  describe '.summary_field_names' do
+    it 'includes the pending transition fields' do
+      expect(Child.summary_field_names).to include('referred_users_pending', 'transferred_to_users')
+    end
+  end
+
   describe 'calculate_has_case_plan' do
     before do
       clean_data(SearchableIdentifier, Child)
@@ -1269,6 +1310,35 @@ describe Child do
 
       expect(child.followup_due_dates.size).to eq(2)
       expect(child.followup_due_dates).to match_array([Date.new(2021, 10, 18), Date.new(2021, 10, 20)])
+    end
+  end
+
+  describe 'mark_identified' do
+    before do
+      travel_to Time.zone.parse('2023-08-10 12:00:00')
+    end
+
+    it 'sets the identified fields' do
+      user = fake_user(group_permission: Permission::IDENTIFIED, user_category: Role::CATEGORY_IDENTIFIED)
+      user.stub(:full_name).and_return('Fake User Name')
+      child = Child.new_with_user(user, { name: 'Identified Case', sex: 'male', age: 10 })
+      child.save!
+      child.reload
+
+      expect(child.status).to eq(Child::STATUS_IDENTIFIED)
+      expect(child.identified_by).to eq('faketest')
+      expect(child.identified_by_full_name).to eq('Fake User Name')
+      expect(child.identified_at).to eq(Time.zone.parse('2023-08-10 12:00:00'))
+    end
+
+    it 'returns a validation error if the user has an identified record' do
+      user = fake_user(group_permission: Permission::IDENTIFIED, user_category: Role::CATEGORY_IDENTIFIED)
+      user.stub(:full_name).and_return('Fake User Name')
+      child = Child.new_with_user(user, { name: 'Identified Case', sex: 'male', age: 10 })
+      child.save!
+
+      duplicated = Child.new_with_user(user, { name: 'Duplicated Identified Case', sex: 'male', age: 10 })
+      duplicated.should_not be_valid
     end
   end
 

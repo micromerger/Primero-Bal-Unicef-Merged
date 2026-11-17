@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 services_subform = [
   Field.new(
     'name' => 'service_response_type',
@@ -121,7 +119,7 @@ services_fields = [
     'name' => 'services_section',
     'type' => 'subform',
     'editable' => true,
-    'subform_section' => services_section,
+    'subform' => services_section,
     'display_name_en' => 'Services',
     'subform_sort_by' => 'service_appointment_date'
   )

@@ -1,10 +1,12 @@
-/* Copyright (c) 2014 - 2023 UNICEF. All rights reserved. */
-
 .toggleContainer {
   display: flex;
   justify-content: center;
   flex: 1;
   width: 100%;
+}
+
+.toggleFormControl {
+  margin: 0;
 }
 
 .panelContent {

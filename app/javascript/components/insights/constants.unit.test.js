@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import * as constants from "./constants";
 
 describe("<Report /> - constants", () => {
@@ -29,9 +27,13 @@ describe("<Report /> - constants", () => {
       "DELETE_MODAL",
       "EXPORT_INSIGHTS_PATH",
       "FILTER_BY_DATE_DISPLAY_NAME",
+      "FILTER_BY_HAS_LATE_VERIFIED_VIOLATIONS_DISPLAY_NAME",
       "FILTER_BY_VERIFICATION_STATUS_DISPLAY_NAME",
       "FILTER_BY_VIOLATION_TYPE_DISPLAY_NAME",
+      "FILTER_BY_AGE_DISPLAY_NAME",
+      "FILTER_BY_SERVICE_IMPLEMENTED_DISPLAY_NAME",
       "GROUPED_BY",
+      "IMPLEMENTED",
       "INSIGHTS_CONFIG",
       "INSIGHTS_EXPORTER_DIALOG",
       "LAST_MONTH",
@@ -115,7 +117,10 @@ describe("<Report /> - constants", () => {
       "process_quality_average_cases",
       "process_quality_successful_referrals",
       "process_quality_implemented_referrals",
-      "case_characteristics"
+      "case_characteristics",
+      "case_management_kpis_report",
+      "case_management_kpis_service_referrals_report",
+      "distribution_users_role_report"
     ]);
   });
 });

@@ -1,8 +1,9 @@
 import { fromJS, Map, OrderedMap } from "immutable";
 
-import { mountedComponent, screen } from "../../../test-utils";
+import { fireEvent, mountedComponent, screen, waitFor } from "../../../test-utils";
 import { FieldRecord, FormSectionRecord } from "../../record-form/records";
 import { RECORD_PATH } from "../../../config";
+import { PrimeroModuleRecord } from "../../application/records";
 
 import AddIncident from "./component";
 
@@ -130,5 +131,66 @@ describe("<AddIncident />", () => {
   it("renders Fields", () => {
     mountedComponent(<AddIncident {...props} />, initialState);
     expect(screen.queryAllByRole("textbox")).toHaveLength(1);
+  });
+
+  it("renders the overridden Add Incident dialog title", () => {
+    const stateWithFieldLabels = initialState.setIn(["user", "modules"], fromJS(["primeromodule-cp"])).setIn(
+      ["application", "modules"],
+      fromJS([
+        PrimeroModuleRecord({
+          unique_id: "primeromodule-cp",
+          name: "CP",
+          field_labels: { "actions.incident_details_from_case": { en: "Add Monitoring Report" } }
+        })
+      ])
+    );
+
+    mountedComponent(<AddIncident {...props} />, stateWithFieldLabels);
+
+    expect(screen.getByText("Add Monitoring Report")).toBeInTheDocument();
+  });
+
+  it("uses the overridden creation message when saving", async () => {
+    const stateWithFieldLabels = initialState.setIn(["user", "modules"], fromJS(["primeromodule-cp"])).setIn(
+      ["application", "modules"],
+      fromJS([
+        PrimeroModuleRecord({
+          unique_id: "primeromodule-cp",
+          name: "CP",
+          field_labels: {
+            "incident.messages.creation_success": { en: "Monitoring Report record successfully created." }
+          }
+        })
+      ])
+    );
+
+    const { store } = mountedComponent(<AddIncident {...props} />, stateWithFieldLabels);
+
+    fireEvent.click(screen.getByText("buttons.save"));
+
+    await waitFor(() => {
+      const messages = store
+        .getActions()
+        .flatMap(action => action.api?.successCallback || [])
+        .map(callback => callback.payload?.message);
+
+      expect(messages).toContain("Monitoring Report record successfully created.");
+    });
+  });
+
+  describe("when the selected record has a pending transition", () => {
+    const pendingProps = { ...props, pendingTransitionIds: ["d9df44fb-95d0-4407-91fd-ed18c19be1ad"] };
+
+    it("shows the pending transition message", () => {
+      mountedComponent(<AddIncident {...pendingProps} />, initialState);
+
+      expect(screen.getByText("case.messages.pending_transition_excluded")).toBeInTheDocument();
+    });
+
+    it("disables the save button", () => {
+      mountedComponent(<AddIncident {...pendingProps} />, initialState);
+
+      expect(screen.getByText("buttons.save").closest("button")).toBeDisabled();
+    });
   });
 });

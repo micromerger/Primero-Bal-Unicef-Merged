@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Accordion, AccordionSummary, AccordionDetails, IconButton } from "@mui/material";
@@ -15,7 +13,18 @@ import useSystemStrings, { FILTER } from "../../application/use-system-strings";
 
 import css from "./styles.css";
 
-function Panel({ filter, getValues, selectedDefaultValueField, handleReset, moreSectionFilters = {}, children }) {
+function Panel({
+  filter,
+  getValues,
+  selectedDefaultValueField,
+  handleReset,
+  moreSectionFilters = {},
+  fnSelectValueOpen = null,
+  fnSelectValueOpenValue = null,
+  children,
+  disabled = false,
+  helpText
+}) {
   const { isRTL } = useThemeHelper();
   const { name, field_name: fieldName } = filter;
 
@@ -25,6 +34,10 @@ function Panel({ filter, getValues, selectedDefaultValueField, handleReset, more
   const [open, setOpen] = useState(false);
   const { label } = useSystemStrings(FILTER);
   const handleChange = () => {
+    // if fnSelectValueOpen is present and the panel will be open and the fnSelectValueOpenValue is present
+    if (fnSelectValueOpen && !open === true && fnSelectValueOpenValue) {
+      fnSelectValueOpen(fnSelectValueOpenValue);
+    }
     setOpen(!open);
   };
 
@@ -32,15 +45,19 @@ function Panel({ filter, getValues, selectedDefaultValueField, handleReset, more
     setOpen(hasValue);
   }, [hasValue]);
 
-  const expanded = open || Object.keys(moreSectionFilters).includes(selectedDefaultValueField || fieldName);
+  const expanded =
+    !disabled && (open || Object.keys(moreSectionFilters).includes(selectedDefaultValueField || fieldName));
 
   const filterLabel = buildNameFilter(name, fieldName, label, approvalsLabels);
 
   return (
-    <Accordion className={css.panel} elevation={0} expanded={expanded} onChange={handleChange}>
+    <Accordion className={css.panel} elevation={0} expanded={expanded} onChange={handleChange} disabled={disabled}>
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <div className={css.heading}>
-          <div className={css.panelTitle}>{filterLabel}</div>
+          <div className={css.panelTitle}>
+            {filterLabel}
+            {helpText && <div className={css.helpText}>{helpText}</div>}
+          </div>
           {handleReset && (
             <IconButton
               aria-label={i18n.t("buttons.delete")}
@@ -62,9 +79,13 @@ Panel.displayName = "Panel";
 
 Panel.propTypes = {
   children: PropTypes.node.isRequired,
+  disabled: PropTypes.bool,
   filter: PropTypes.object.isRequired,
+  fnSelectValueOpen: PropTypes.func,
+  fnSelectValueOpenValue: PropTypes.string,
   getValues: PropTypes.func.isRequired,
   handleReset: PropTypes.func,
+  helpText: PropTypes.string,
   moreSectionFilters: PropTypes.object,
   selectedDefaultValueField: PropTypes.string
 };

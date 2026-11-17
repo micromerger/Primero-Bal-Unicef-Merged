@@ -1,12 +1,11 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Main API controller for Case records
 class Api::V2::ChildrenController < ApplicationApiController
   include Api::V2::Concerns::Pagination
   include Api::V2::Concerns::Record
   include Api::V2::Concerns::Referrable
+  include Api::V2::Concerns::PendingTransitionRestriction
 
   def traces
     authorize! :read, Child
@@ -14,6 +13,15 @@ class Api::V2::ChildrenController < ApplicationApiController
     authorize! :read, record
     @traces = record.matched_traces
     render 'api/v2/traces/index'
+  end
+
+  def identified
+    authorize! :read, model_class
+    @record = model_class.find_by!(srch_identified_by: current_user.user_name)
+    authorize! :read, @record
+    permit_readable_fields
+    select_fields_for_show
+    render 'api/v2/records/show'
   end
 
   alias select_updated_fields_super select_updated_fields
@@ -26,6 +34,7 @@ class Api::V2::ChildrenController < ApplicationApiController
   def create_family
     authorize! :case_from_family, Child
     @current_record = Child.find(family_params[:case_id])
+    authorize! :read, @current_record
     @record = FamilyLinkageService.new_family_linked_child(
       current_user, @current_record, family_params[:family_detail_id]
     )
@@ -46,5 +55,9 @@ class Api::V2::ChildrenController < ApplicationApiController
     return @record_id ||= request.path.split('/')[4] if action_name == 'traces'
 
     super
+  end
+
+  def authorize_update!
+    super && authorize_pending_transition!(@record)
   end
 end

@@ -1,10 +1,7 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # An indicator that returns the survivors by number of services provided
 class ManagedReports::Indicators::SurvivorsNumberOfServicesProvidedOther < ManagedReports::SqlReportIndicator
-  OTHER_REFERRALS = "'internal_referral', 'external_referral', 'referred'"
   class << self
     def id
       'number_of_services_provided_other'
@@ -16,132 +13,96 @@ class ManagedReports::Indicators::SurvivorsNumberOfServicesProvidedOther < Manag
     # rubocop:disable Metrics/PerceivedComplexity
     def sql(current_user, params = {})
       date_param = filter_date(params)
-      %{
-        select
+      grouped_by_date = grouped_date_query(params['grouped_by'], date_param)
+      group_column = grouped_by_date.present? ? 'group_id' : nil
+      <<~SQL
+        WITH filtered_incidents AS (
+          SELECT
+            id,
+            #{grouped_by_date&.dup&.concat(' AS group_id,')}
+            data
+          FROM incidents
+          WHERE srch_record_state = TRUE
+          AND data @? '$[*] ? (@.consent_reporting == "true")'
+          #{date_range_query(date_param)&.prepend('AND ')}
+          #{equal_value_query(params['module_id'])&.prepend('AND ')}
+          #{user_scope_query(current_user)&.prepend('AND ')}
+        )
+        SELECT
           *
-        from (
-          select
-            'service_safehouse_referral' as id,
-            #{grouped_date_query(params['grouped_by'], date_param)&.concat(' as group_id,')}
-            count(*) as total
-          from
-            incidents
-          where data ->> 'service_safehouse_referral' in (#{OTHER_REFERRALS})
-          #{date_range_query(date_param)&.prepend('and ')}
-          #{equal_value_query(params['module_id'])&.prepend('and ')}
-          #{user_scope_query(current_user)&.prepend('and ')}
-          #{grouped_date_query(params['grouped_by'], date_param)&.prepend('group by ')}
-          union
-          select
-            'service_medical_referral' as id,
-            #{grouped_date_query(params['grouped_by'], date_param)&.concat(' as group_id,')}
-            count(health_medical_referral_subform_section.*) as total
-          from
-            incidents,
-            jsonb_to_recordset(
-              data #> '{health_medical_referral_subform_section}'
-            ) as health_medical_referral_subform_section (
-              unique_id text,
-              service_medical_referral text
-            )
-          where service_medical_referral in (#{OTHER_REFERRALS})
-          #{date_range_query(date_param)&.prepend('and ')}
-          #{equal_value_query(params['module_id'])&.prepend('and ')}
-          #{user_scope_query(current_user)&.prepend('and ')}
-          #{grouped_date_query(params['grouped_by'], date_param)&.prepend('group by ')}
-          union
-          select
-            'service_psycho_referral' as id,
-            #{grouped_date_query(params['grouped_by'], date_param)&.concat(' as group_id,')}
-            count(psychosocial_counseling_services_subform_section.*) as total
-          from
-            incidents,
-            jsonb_to_recordset(
-              data #> '{psychosocial_counseling_services_subform_section}'
-            ) as psychosocial_counseling_services_subform_section (
-              unique_id text,
-              service_psycho_referral text
-            )
-          where service_psycho_referral in (#{OTHER_REFERRALS})
-          #{date_range_query(date_param)&.prepend('and ')}
-          #{equal_value_query(params['module_id'])&.prepend('and ')}
-          #{user_scope_query(current_user)&.prepend('and ')}
-          #{grouped_date_query(params['grouped_by'], date_param)&.prepend('group by ')}
-          union
-          select
-            'service_legal_referral' as id,
-            #{grouped_date_query(params['grouped_by'], date_param)&.concat(' as group_id,')}
-            count(legal_assistance_services_subform_section.*) as total
-          from
-            incidents,
-            jsonb_to_recordset(
-              data #> '{legal_assistance_services_subform_section}'
-            ) as legal_assistance_services_subform_section (
-              unique_id text,
-              service_legal_referral text
-            )
-          where service_legal_referral in (#{OTHER_REFERRALS})
-          #{date_range_query(date_param)&.prepend('and ')}
-          #{equal_value_query(params['module_id'])&.prepend('and ')}
-          #{user_scope_query(current_user)&.prepend('and ')}
-          #{grouped_date_query(params['grouped_by'], date_param)&.prepend('group by ')}
-          union
-          select
-          'service_police_referral' as id,
-          #{grouped_date_query(params['grouped_by'], date_param)&.concat(' as group_id,')}
-          count(police_or_other_type_of_security_services_subform_section.*) as total
-          from
-            incidents,
-            jsonb_to_recordset(
-              data #> '{police_or_other_type_of_security_services_subform_section}'
-            ) as police_or_other_type_of_security_services_subform_section (
-              unique_id text,
-              service_police_referral text
-            )
-          where service_police_referral in (#{OTHER_REFERRALS})
-          #{date_range_query(date_param)&.prepend('and ')}
-          #{equal_value_query(params['module_id'])&.prepend('and ')}
-          #{user_scope_query(current_user)&.prepend('and ')}
-          #{grouped_date_query(params['grouped_by'], date_param)&.prepend('group by ')}
-          union
-          select
-            'service_livelihoods_referral' as id,
-            #{grouped_date_query(params['grouped_by'], date_param)&.concat(' as group_id,')}
-            count(livelihoods_services_subform_section.*) as total
-          from
-            incidents,
-            jsonb_to_recordset(
-              data #> '{livelihoods_services_subform_section}'
-            ) as livelihoods_services_subform_section (
-              unique_id text,
-              service_livelihoods_referral text
-            )
-          where service_livelihoods_referral in (#{OTHER_REFERRALS})
-          #{date_range_query(date_param)&.prepend('and ')}
-          #{equal_value_query(params['module_id'])&.prepend('and ')}
-          #{user_scope_query(current_user)&.prepend('and ')}
-          #{grouped_date_query(params['grouped_by'], date_param)&.prepend('group by ')}
-          union
-          select
-            'service_protection_referral' as id,
-            #{grouped_date_query(params['grouped_by'], date_param)&.concat(' as group_id,')}
-            count(child_protection_services_subform_section.*) as total
-          from
-            incidents,
-            jsonb_to_recordset(
-              data #> '{child_protection_services_subform_section}'
-            ) as child_protection_services_subform_section (
-              unique_id text,
-              service_protection_referral text
-            )
-          where service_protection_referral in (#{OTHER_REFERRALS})
-          #{date_range_query(date_param)&.prepend('and ')}
-          #{equal_value_query(params['module_id'])&.prepend('and ')}
-          #{user_scope_query(current_user)&.prepend('and ')}
-          #{grouped_date_query(params['grouped_by'], date_param)&.prepend('group by ')}
-        ) as referrals
-        order by id
-      }
+        FROM (
+          SELECT
+            #{group_column&.dup&.+(',')}
+            'service_safehouse_referral' AS name,
+            COALESCE(data->>'service_safehouse_referral', 'incomplete_data') AS key,
+            COUNT(*) AS sum,
+            SUM(COUNT(*)) OVER (#{group_column&.dup&.prepend('PARTITION BY ')})::INTEGER AS total
+          FROM filtered_incidents
+          WHERE data @? '$[*] ? (@.service_safehouse_referral != null)'
+          GROUP BY #{group_column&.dup&.+(',')} name, key
+          UNION
+          SELECT
+            #{group_column&.dup&.+(',')}
+            'service_medical_referral' AS name,
+            COALESCE(data->>'service_medical_referral', 'incomplete_data') AS key,
+            COUNT(*) AS sum,
+            SUM(COUNT(*)) OVER (#{group_column&.dup&.prepend('PARTITION BY ')})::INTEGER AS total
+          FROM filtered_incidents
+          WHERE data @? '$[*] ? (@.service_medical_referral != null)'
+          GROUP BY #{group_column&.dup&.+(',')} name, key
+          UNION
+          SELECT
+            #{group_column&.dup&.+(',')}
+            'service_psycho_referral' AS name,
+            COALESCE(data->>'service_psycho_referral', 'incomplete_data') AS key,
+            COUNT(*) AS sum,
+            SUM(COUNT(*)) OVER (#{group_column&.dup&.prepend('PARTITION BY ')})::INTEGER AS total
+          FROM filtered_incidents
+          WHERE data @? '$[*] ? (@.service_psycho_referral != null)'
+          GROUP BY #{group_column&.dup&.+(',')} name, key
+          UNION
+          SELECT
+            #{group_column&.dup&.+(',')}
+            'service_legal_referral' AS name,
+            COALESCE(data->>'service_legal_referral', 'incomplete_data') AS key,
+            COUNT(*) AS sum,
+            SUM(COUNT(*)) OVER (#{group_column&.dup&.prepend('PARTITION BY ')})::INTEGER AS total
+          FROM filtered_incidents
+          WHERE data @? '$[*] ? (@.service_legal_referral != null)'
+          GROUP BY #{group_column&.dup&.+(',')} name, key
+          UNION
+          SELECT
+            #{group_column&.dup&.+(',')}
+            'service_police_referral' as name,
+            COALESCE(data->>'service_police_referral', 'incomplete_data') AS key,
+            COUNT(*) AS sum,
+            SUM(COUNT(*)) OVER (#{group_column&.dup&.prepend('PARTITION BY ')})::INTEGER AS total
+          FROM filtered_incidents
+          WHERE data @? '$[*] ? (@.service_police_referral != null)'
+          GROUP BY #{group_column&.dup&.+(',')} name, key
+          UNION
+          SELECT
+            #{group_column&.dup&.+(',')}
+            'service_livelihoods_referral' AS name,
+            COALESCE(data->>'service_livelihoods_referral', 'incomplete_data') AS key,
+            COUNT(*) AS sum,
+            SUM(COUNT(*)) OVER (#{group_column&.dup&.prepend('PARTITION BY ')})::INTEGER AS total
+          FROM filtered_incidents
+          WHERE data @? '$[*] ? (@.service_livelihoods_referral != null)'
+          GROUP BY #{group_column&.dup&.+(',')} name, key
+          UNION
+          SELECT
+            #{group_column&.dup&.+(',')}
+            'service_protection_referral' AS name,
+            COALESCE(data->>'service_protection_referral', 'incomplete_data') AS key,
+            COUNT(*) AS sum,
+            SUM(COUNT(*)) OVER (#{group_column&.dup&.prepend('PARTITION BY ')})::INTEGER AS total
+          FROM filtered_incidents
+          WHERE data @? '$[*] ? (@.service_protection_referral != null)'
+          GROUP BY #{group_column&.dup&.+(',')} name, key
+        ) AS services
+        ORDER BY name
+      SQL
     end
     # rubocop:enable Metrics/MethodLength
     # rubocop:enable Metrics/AbcSize

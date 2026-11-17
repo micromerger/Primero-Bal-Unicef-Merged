@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # An indicator that returns the perpetators of violation type Denials
 class ManagedReports::Indicators::PerpetratorsDenials < ManagedReports::SqlReportIndicator
   class << self
@@ -10,11 +8,10 @@ class ManagedReports::Indicators::PerpetratorsDenials < ManagedReports::SqlRepor
     end
 
     # rubocop:disable Metrics/AbcSize
-    # rubocop:disable Metrics/MethodLength
     # rubocop:disable Metrics/CyclomaticComplexity
     # rubocop:disable Metrics/PerceivedComplexity
     def sql(current_user, params = {})
-      %{
+      <<~SQL
         select
           p."data"->>'armed_force_group_party_name' as name,
           'total' as key,
@@ -27,6 +24,8 @@ class ManagedReports::Indicators::PerpetratorsDenials < ManagedReports::SqlRepor
           inner join perpetrators p on p.id = pv.perpetrator_id
           inner join incidents incidents
             on incidents.id = violations.incident_id
+            AND incidents.srch_status = 'open'
+            AND incidents.srch_record_state = TRUE
             #{user_scope_query(current_user, 'incidents')&.prepend('and ')}
           where
           p.data->>'armed_force_group_party_name' is not null
@@ -35,13 +34,13 @@ class ManagedReports::Indicators::PerpetratorsDenials < ManagedReports::SqlRepor
           #{date_range_query(params['ctfmr_verified_date'], 'violations')&.prepend('and ')}
           #{equal_value_query(params['ctfmr_verified'], 'violations')&.prepend('and ')}
           #{equal_value_query(params['type'], 'violations')&.prepend('and ')}
+          #{equal_value_query(params['has_late_verified_violations'], 'incidents')&.prepend('and ')}
         group by p."data"->>'armed_force_group_party_name'
         #{group_id_alias(params['grouped_by'])&.dup&.prepend(', ')}
         order by name
-      }
+      SQL
     end
     # rubocop:enable Metrics/AbcSize
-    # rubocop:enable Metrics/MethodLength
     # rubocop:enable Metrics/CyclomaticComplexity
     # rubocop:enable Metrics/PerceivedComplexity
   end

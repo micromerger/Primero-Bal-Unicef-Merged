@@ -1,0 +1,139 @@
+# frozen_string_literal: true
+
+require 'rails_helper'
+
+describe ManagedReports::Indicators::VerifiedViolationsByPerpetrator do
+  let(:managed_report_user) do
+    fake_user(
+      permissions: [
+        Permission.new(
+          resource: Permission::MANAGED_REPORT,
+          managed_report_scope: Permission::ALL,
+          actions: [Permission::VIOLATION_REPORT]
+        )
+      ]
+    )
+  end
+
+  before do
+    clean_data(Perpetrator, Violation, Incident)
+
+    incident0 = Incident.new_with_user(
+      managed_report_user,
+      {
+        incident_date: Date.new(2022, 4, 23),
+        date_of_first_report: Date.new(2022, 4, 23),
+        status: 'open',
+        module_id: PrimeroModule::MRM,
+        attack_on_schools: [
+          {
+            unique_id: 'bbfd214c-77c4-11f0-8941-7c10c98b54af',
+            ctfmr_verified: 'verified',
+            ctfmr_verified_date: Date.new(2022, 4, 23)
+          }
+        ],
+        maiming: [
+          {
+            unique_id: '8edd80b2-76d9-11f0-8338-7c10c98b54af',
+            ctfmr_verified: 'report_pending_verification',
+            violation_tally: { boys: 2, girls: 3, unknown: 2, total: 7 }
+          },
+          {
+            unique_id: '76d2adba-8752-11f0-accf-7c10c98b54af',
+            ctfmr_verified: 'verified',
+            ctfmr_verified_date: Date.new(2022, 4, 23),
+            violation_tally: { boys: 2, girls: 3, unknown: 2, total: 7 }
+          }
+        ],
+        deprivation_liberty: [
+          {
+            unique_id: '270c64ce-cf9b-11f0-b430-7c10c98b54af',
+            ctfmr_verified: 'verified',
+            ctfmr_verified_date: Date.new(2022, 4, 23),
+            violation_tally: { boys: 1, girls: 0, unknown: 1, total: 2 }
+          }
+        ],
+        killing: [
+          {
+            unique_id: '52477e6c-8752-11f0-9c81-7c10c98b54af',
+            ctfmr_verified: 'verified',
+            ctfmr_verified_date: Date.new(2022, 4, 23),
+            violation_tally: { boys: 2, girls: 0, unknown: 2, total: 4 }
+          }
+        ],
+        military_use: [
+          {
+            unique_id: '47eb357e-d20e-11f0-bb57-7c10c98b54af',
+            ctfmr_verified: 'verified',
+            ctfmr_verified_date: Date.new(2022, 4, 23),
+            violation_tally: { boys: 2, girls: 1, unknown: 0, total: 3 }
+          }
+        ],
+        perpetrators: [
+          {
+            unique_id: 'e13ffb2e-77c3-11f0-ba4b-7c10c98b54af',
+            armed_force_group_party_name: 'armed_force_2',
+            violations_ids: %w[bbfd214c-77c4-11f0-8941-7c10c98b54af 52477e6c-8752-11f0-9c81-7c10c98b54af]
+          },
+          {
+            unique_id: '20f8b6a2-77c4-11f0-b34b-7c10c98b54af',
+            armed_force_group_party_name: 'armed_force_1',
+            violations_ids: %w[8edd80b2-76d9-11f0-8338-7c10c98b54af 76d2adba-8752-11f0-accf-7c10c98b54af]
+          },
+          {
+            unique_id: '666bfa8a-cf9b-11f0-8a14-7c10c98b54af',
+            armed_force_group_party_name: 'armed_force_3',
+            violations_ids: %w[270c64ce-cf9b-11f0-b430-7c10c98b54af 47eb357e-d20e-11f0-bb57-7c10c98b54af]
+          }
+        ]
+      }.with_indifferent_access
+    )
+    incident0.save!
+
+    incident1 = Incident.new_with_user(
+      managed_report_user,
+      {
+        incident_date: Date.new(2022, 4, 18),
+        date_of_first_report: Date.new(2022, 4, 15),
+        status: 'closed',
+        module_id: PrimeroModule::MRM,
+        attack_on_schools: [
+          {
+            unique_id: '13c77d2c-be57-11f0-b9eb-7c10c98b54af',
+            ctfmr_verified: 'verified',
+            ctfmr_verified_date: Date.new(2022, 4, 23)
+          }
+        ],
+        perpetrators: [
+          {
+            unique_id: '458356e2-be57-11f0-acb2-7c10c98b54af',
+            armed_force_group_party_name: 'armed_force_3',
+            violations_ids: %w[13c77d2c-be57-11f0-b9eb-7c10c98b54af]
+          }
+        ]
+      }.with_indifferent_access
+    )
+    incident1.save!
+  end
+
+  it 'return data for verified violations by perpetrator' do
+    data = ManagedReports::Indicators::VerifiedViolationsByPerpetrator.build(
+      nil,
+      {
+        'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
+        'ghn_date_filter' => SearchFilters::DateRange.new(
+          field_name: 'ghn_date_filter',
+          from: Date.parse('2022-04-01'),
+          to: Date.parse('2022-04-23')
+        )
+      }
+    ).data
+
+    expect(data).to match_array(
+      [
+        { id: 'armed_force_1', maiming: 7, total: 7 },
+        { id: 'armed_force_2', attack_on_schools: 1, killing: 4, total: 5 }
+      ]
+    )
+  end
+end

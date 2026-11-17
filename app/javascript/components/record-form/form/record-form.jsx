@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { memo, useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { object, ValidationError } from "yup";
@@ -12,19 +10,20 @@ import { clearCaseFromIncident } from "../../records/action-creators";
 import { useI18n } from "../../i18n";
 import { constructInitialValues, sortSubformValues } from "../utils";
 import { useMemoizedSelector } from "../../../libs";
-import { INCIDENT_FROM_CASE, RECORD_TYPES } from "../../../config";
+import { INCIDENT_FROM_CASE, MAXIMUM_ATTACHMENTS_PER_RECORD, RECORD_TYPES } from "../../../config";
 import { getDataProtectionInitialValues, getInitalValuesFromStore } from "../selectors";
 import { AUDIO_FIELD, DOCUMENT_FIELD, PHOTO_FIELD } from "../constants";
 import { LEGITIMATE_BASIS } from "../../record-creation-flow/components/consent-prompt/constants";
 import renderFormSections from "../components/render-form-sections";
 import { useApp } from "../../application";
-import { parseExpression } from "../../../libs/expressions";
+import { getExpressionFields, parseExpression } from "../../../libs/expressions";
 
 import { RECORD_FORM_NAME } from "./constants";
 import { fieldValidations } from "./validations";
 import FormikForm from "./formik-form";
 
 function RecordForm({
+  captcha,
   attachmentForms,
   bindSubmitForm,
   forms,
@@ -41,7 +40,8 @@ function RecordForm({
   userPermittedFormsIds,
   externalComponents,
   primeroModule,
-  setFormikValuesForNav
+  setFormikValuesForNav,
+  forcePermitFormReadWrite
 }) {
   const i18n = useI18n();
   const dispatch = useDispatch();
@@ -103,7 +103,7 @@ function RecordForm({
             0
           );
 
-          if (totalAttachments <= maximumttachmentsPerRecord) return true;
+          if (totalAttachments <= (maximumttachmentsPerRecord || MAXIMUM_ATTACHMENTS_PER_RECORD)) return true;
 
           const errors = attachmentsKeys.map(key => {
             return new ValidationError(
@@ -187,7 +187,15 @@ function RecordForm({
     }
   }, [mode.isNew, dataProtectionInitialValues]);
 
-  const calculatedFields = forms.flatMap(fs => fs.fields.filter(field => field.calculation?.expression));
+  const permittedFieldNames = forms.flatMap(fs => fs.fields.map(field => field.name)).toSet();
+
+  const calculatedFields = forms.flatMap(fs =>
+    fs.fields.filter(
+      field =>
+        field.calculation?.expression &&
+        getExpressionFields(field.calculation.expression).every(name => permittedFieldNames.has(name))
+    )
+  );
 
   useEffect(() => {
     if (typeof bindedRecalculateFields.current === "function") {
@@ -249,6 +257,7 @@ function RecordForm({
               <FormikForm
                 {...props}
                 handleConfirm={handleConfirm}
+                captcha={captcha}
                 renderFormSections={renderFormSections(
                   externalForms,
                   selectedForm,
@@ -260,7 +269,8 @@ function RecordForm({
                   attachmentForms,
                   mode,
                   record,
-                  primeroModule
+                  primeroModule,
+                  forcePermitFormReadWrite
                 )}
                 forms={forms}
                 mode={mode}
@@ -288,9 +298,11 @@ RecordForm.whyDidYouRender = true;
 RecordForm.propTypes = {
   attachmentForms: PropTypes.object,
   bindSubmitForm: PropTypes.func,
+  captcha: PropTypes.bool,
   externalComponents: PropTypes.func,
   externalForms: PropTypes.func,
   fetchFromCaseId: PropTypes.bool,
+  forcePermitFormReadWrite: PropTypes.bool,
   forms: PropTypes.object.isRequired,
   handleToggleNav: PropTypes.func.isRequired,
   incidentFromCase: PropTypes.object,

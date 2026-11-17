@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import handleFilterChange, { valueParser, getFilterProps } from "./value-handlers";
 
 describe("<IndexFilters />/filter-types/value-handlers", () => {
@@ -116,12 +114,49 @@ describe("<IndexFilters />/filter-types/value-handlers", () => {
             id: "assigned_user_names=josh",
             key: "assigned_user_names",
             display_name: "cases.filter_by.referred_cases"
+          },
+          {
+            id: "assign=josh",
+            key: "assign",
+            display_name: "cases.filter_by.assigned_to_me"
           }
         ],
         isObject: true,
         fieldName: "or"
       };
-      const output = getFilterProps({ filter, user, i18n });
+
+      // This mock just regurgitates the i18n key.
+      const label = jest.fn((_labelName, i18nString) => i18nString);
+
+      const output = getFilterProps({ filter, user, i18n, label });
+
+      expect(output).toEqual(expected);
+    });
+
+    it("returns properties for my_families filter from filter object", () => {
+      filter.field_name = "my_families";
+
+      const expected = {
+        options: [
+          {
+            id: "owned_by=josh",
+            key: "owned_by",
+            display_name: "families.filter_by.my_families"
+          },
+          {
+            id: "assigned_user_names=josh",
+            key: "assigned_user_names",
+            display_name: "families.filter_by.family_linked_to_my_cases"
+          }
+        ],
+        isObject: true,
+        fieldName: "or"
+      };
+
+      // This mock just regurgitates the i18n key.
+      const label = jest.fn((_labelName, i18nString) => i18nString);
+
+      const output = getFilterProps({ filter, user, i18n, label });
 
       expect(output).toEqual(expected);
     });

@@ -1,9 +1,15 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Helpers for request specs that require a logged in user.
 module FakeDeviseLogin
+  FAMILY_DETAILS_FIELDS = [
+    Field.new(name: 'relation_name', type: Field::TEXT_FIELD),
+    Field.new(name: 'relation', type: Field::SELECT_BOX),
+    Field.new(name: 'relation_type', type: Field::SELECT_BOX),
+    Field.new(name: 'relation_age', type: Field::NUMERIC_FIELD),
+    Field.new(name: 'relation_is_caregiver', type: Field::TICK_BOX)
+  ].freeze
+
   COMMON_PERMITTED_FIELDS = [
     Field.new(name: 'name', type: Field::TEXT_FIELD, display_name_en: 'Name'),
     Field.new(name: 'age', type: Field::NUMERIC_FIELD, display_name_en: 'Age'),
@@ -17,13 +23,7 @@ module FakeDeviseLogin
       display_name_en: 'A',
       type: Field::SUBFORM,
       subform: FormSection.new(
-        fields: [
-          Field.new(name: 'relation_name', type: Field::TEXT_FIELD),
-          Field.new(name: 'relation', type: Field::SELECT_BOX),
-          Field.new(name: 'relation_type', type: Field::SELECT_BOX),
-          Field.new(name: 'relation_age', type: Field::NUMERIC_FIELD),
-          Field.new(name: 'relation_is_caregiver', type: Field::TICK_BOX)
-        ]
+        unique_id: 'family_details_section', parent_form: 'case', is_nested: true, fields: FAMILY_DETAILS_FIELDS
       )
     ),
     Field.new(name: 'description', type: Field::TEXT_AREA, display_name_en: 'Current Address', visible: false),
@@ -38,16 +38,28 @@ module FakeDeviseLogin
       display_name_en: 'A',
       type: Field::SUBFORM,
       subform: FormSection.new(
+        unique_id: 'tracing_request_subform_section',
+        parent_form: 'tracing_request',
+        is_nested: true,
         fields: [
           Field.new(name: 'relation_name', type: Field::TEXT_FIELD),
           Field.new(name: 'relation_type', type: Field::SELECT_BOX)
         ]
       )
     ),
+    Field.new(name: 'farm_cooperative', type: Field::REGISTRY, display_name_en: 'Farm Cooperative'),
     Field.new(name: 'registry_type', type: Field::TEXT_FIELD, display_name_en: 'Registry Type'),
     Field.new(name: 'family_number', type: Field::TEXT_FIELD, display_name_en: 'Family Number'),
     Field.new(name: 'family_notes', type: Field::TEXT_FIELD, display_name_en: 'Family Notes'),
-    Field.new(name: 'family_size', type: Field::NUMERIC_FIELD, display_name_en: 'Family Size')
+    Field.new(name: 'family_size', type: Field::NUMERIC_FIELD, display_name_en: 'Family Size'),
+    Field.new(
+      name: 'family_members',
+      display_name_en: 'Family Members',
+      type: Field::SUBFORM,
+      subform: FormSection.new(
+        unique_id: 'family_members', parent_form: 'family', is_nested: true, fields: FAMILY_DETAILS_FIELDS
+      )
+    )
   ].freeze
 
   SERVICE_FIELDS = [
@@ -59,7 +71,8 @@ module FakeDeviseLogin
         unique_id: 'services_section', parent_form: 'case', name_en: 'services_section', is_nested: true,
         fields: [
           Field.new(name: 'service_type', type: Field::TEXT_FIELD, display_name_en: 'A'),
-          Field.new(name: 'separator3', type: Field::SEPARATOR, display_name_en: 'A'),
+          Field.new(name: 'service_provider', type: Field::REGISTRY, display_name_en: 'A'),
+          Field.new(name: 'separator3', type: Field::SEPARATOR, display_name_en: 'A')
         ]
       )
     )
@@ -116,6 +129,14 @@ module FakeDeviseLogin
     ]
   end
 
+  def permission_bulk_flag_record
+    @permission_bulk_flag_record = [
+      Permission.new(resource: Permission::CASE,
+                     actions: [Permission::READ, Permission::WRITE, Permission::CREATE,
+                               Permission::BULK_FLAG])
+    ]
+  end
+
   def common_permitted_field_names
     COMMON_PERMITTED_FIELDS.map(&:name)
   end
@@ -132,9 +153,10 @@ module FakeDeviseLogin
     role = Role.new(
       permissions: role_permissions,
       group_permission:,
+      user_category: opts[:user_category],
       form_sections: opts[:form_sections] || []
     )
-    role.stub(:modules).and_return(opts[:modules] || [])
+    role.stub(:primero_modules).and_return(opts[:modules] || [])
     role
   end
 

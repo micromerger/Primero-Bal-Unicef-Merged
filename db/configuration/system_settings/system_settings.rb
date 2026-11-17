@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 def create_or_update_system_setting(setting_hash)
   # There should only be 1 row in system settings
 
@@ -59,13 +57,6 @@ create_or_update_system_setting(
   },
   duplicate_export_field: 'national_id_no',
   approvals_labels_en: {
-    assessment: 'Assessment',
-    case_plan: 'Case Plan',
-    closure: 'Closure',
-    action_plan: 'Action Plan',
-    gbv_closure: 'GBV Closure'
-  },
-  approvals_labels_ar: {
     assessment: 'Assessment',
     case_plan: 'Case Plan',
     closure: 'Closure',

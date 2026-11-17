@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 
 import toProtectionConcernTable from "./to-protection-concern-table";
@@ -8,6 +6,8 @@ import defaultBodyRender from "./default-body-render";
 describe("toProtectionConcernTable - pages/dashboard/utils/", () => {
   it("should convert the data for DashboardTable", () => {
     const i18nMock = { t: () => ({}), locale: "en" };
+    const label = jest.fn().mockReturnValue({});
+
     const lookups = [
       {
         id: "sexually_exploited",
@@ -100,7 +100,7 @@ describe("toProtectionConcernTable - pages/dashboard/utils/", () => {
       ]
     };
 
-    const converted = toProtectionConcernTable(data, i18nMock, lookups);
+    const converted = toProtectionConcernTable(data, i18nMock, lookups, label);
 
     expect(converted).toEqual(expected);
   });

@@ -1,10 +1,10 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import isEmpty from "lodash/isEmpty";
 import every from "lodash/every";
 
 import { CONSENT_GIVEN_FIELD_BY_MODULE, MODULE_TYPE_FIELD } from "../../../../config";
 import buildAppliedFilters from "../../utils/build-applied-filters";
+
+export { hasPendingReferral, hasPendingTransfer } from "../../../records/utils";
 
 export const getInternalFields = (values, fields) => {
   return Object.entries(values).reduce((obj, item) => {

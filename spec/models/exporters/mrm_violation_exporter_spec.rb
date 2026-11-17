@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 module Exporters
@@ -60,7 +58,7 @@ module Exporters
         FormSection.create!(
           name:, parent_form: 'incident', visible: true, order_form_group: 0, order: index, order_subform: 0,
           form_group_id: 'violations', unique_id: name, fields: [Field.new(
-            name: unique_id, display_name: unique_id.capitalize, type: 'subform', subform_section: subforms[unique_id]
+            name: unique_id, display_name: unique_id.capitalize, type: 'subform', subform: subforms[unique_id]
           )]
         )
       end
@@ -248,7 +246,7 @@ module Exporters
           [
             'Killing - Field 1', 'Maiming - Field 1', 'Recruitment - Field 1', 'Sexual_violence - Field 1',
             'Abduction - Field 1', 'Attack_on_hospitals - Field 1', 'Attack_on_schools - Field 1',
-            'Military_use - Field 1', 'Denial_humanitarian_access - Field 1'
+            'Military_use - Field 1', 'Denial_humanitarian_access - Field 1', 'Deprivation_liberty - Field 1'
           ]
         )
       end
@@ -294,7 +292,7 @@ module Exporters
             'Incident 1 - Value 1', nil,
             nil, nil,
             1, 3, 0, 4,
-            'Killing Value 1', nil, nil, nil, nil, nil, nil, nil, nil
+            'Killing Value 1', nil, nil, nil, nil, nil, nil, nil, nil, nil
           ]
         )
         expect(workbook.sheet(0).row(5)).to eq(
@@ -304,7 +302,7 @@ module Exporters
             'Incident 2 - Value 1', nil,
             nil, nil,
             1, 0, 0, 1,
-            nil, nil, nil, nil, nil, nil, nil, nil, nil
+            nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
           ]
         )
         expect(workbook.sheet(0).row(6)).to eq(
@@ -314,7 +312,7 @@ module Exporters
             'Incident 2 - Value 1', nil,
             nil, nil,
             1, 0, 1, 2,
-            nil, nil, nil, nil, nil, nil, nil, nil, nil
+            nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
           ]
         )
         expect(workbook.sheet(0).row(7)).to eq(
@@ -324,7 +322,7 @@ module Exporters
             'Incident 3 - Value 1', nil,
             nil, nil,
             1, 2, 1, 4,
-            nil, nil, nil, nil, nil, nil, nil, nil, nil
+            nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
           ]
         )
 
@@ -335,7 +333,7 @@ module Exporters
             'Incident 3 - Value 1', nil,
             nil, nil,
             1, 1, 1, 3,
-            nil, nil, nil, nil, nil, nil, nil, 'Military Value 1', nil
+            nil, nil, nil, nil, nil, nil, nil, 'Military Value 1', nil, nil
           ]
         )
       end

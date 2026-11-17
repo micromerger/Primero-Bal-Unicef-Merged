@@ -1,10 +1,19 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 
 import { FILTER_TYPES } from "../../../index-filters";
+import { LOOKUPS } from "../../../../config";
 
-import { AGENCY, DISABLED, USER_GROUP } from "./constants";
+import {
+  AGENCY,
+  DISABLED,
+  USER_GROUP,
+  LAST_DATE,
+  DISABLE_DIALOG_NAME,
+  SEND_EMAIL_DIALOG_NAME,
+  ACTION_NAMES,
+  ACTION_IDS,
+  FILTER_BY_AGENCY
+} from "./constants";
 
 const searchableAgencies = (data, i18n) => {
   return data.reduce(
@@ -13,25 +22,32 @@ const searchableAgencies = (data, i18n) => {
   );
 };
 
-const userGroupOptions = data => {
+const searchableRoles = data => {
+  return data?.reduce((acc, role) => [...acc, { id: role.get("id"), display_name: role.get("name") }], []);
+};
+
+const userGroupOptions = (data, agencies) => {
   return data
-    ? data.reduce((acc, group) => [...acc, { id: group.get("unique_id"), display_name: group.get("name") }], [])
+    ? data.reduce(
+        (acc, group) => [
+          ...acc,
+          {
+            id: group.get("unique_id"),
+            display_name: group.get("name"),
+            agency_unique_ids: group
+              .get("agency_unique_ids")
+              .reduce(
+                (prev, uniqueID) => [...prev, agencies.find(agency => agency.get("unique_id") === uniqueID)?.get("id")],
+                []
+              )
+          }
+        ],
+        []
+      )
     : [];
 };
 
-export const buildUsersQuery = data => {
-  return Object.entries(data).reduce((acc, obj) => {
-    const [key, value] = obj;
-
-    if ([AGENCY, USER_GROUP].includes(key)) {
-      return { ...acc, [key]: value?.id };
-    }
-
-    return { ...acc, [key]: value };
-  }, {});
-};
-
-export const getFilters = (i18n, filterAgencies, filterUserGroups, filterPermission) => [
+export const getFilters = (i18n, filterAgencies, filterUserGroups, filterPermission, roles) => [
   {
     name: "cases.filter_by.enabled_disabled",
     field_name: DISABLED,
@@ -48,24 +64,96 @@ export const getFilters = (i18n, filterAgencies, filterUserGroups, filterPermiss
     name: "cases.filter_by.agency",
     field_name: AGENCY,
     options: searchableAgencies(filterAgencies, i18n),
+    clearDependentValues: [USER_GROUP, FILTER_BY_AGENCY],
     type: FILTER_TYPES.MULTI_SELECT,
-    multiple: false,
+    multiple: true,
     permitted_filter: filterPermission?.agency
+  },
+  {
+    name: "cases.filter_by.role",
+    field_name: "role_id",
+    options: searchableRoles(roles),
+    type: FILTER_TYPES.MULTI_SELECT,
+    multiple: true
   },
   {
     name: "cases.filter_by.user_group",
     field_name: USER_GROUP,
-    options: userGroupOptions(filterUserGroups),
+    options: userGroupOptions(filterUserGroups, filterAgencies),
+    watchedInputs: [AGENCY, FILTER_BY_AGENCY],
+    filterFn: (options, watchedValues) => {
+      if (watchedValues?.[AGENCY]?.length && watchedValues?.[FILTER_BY_AGENCY]) {
+        return options.filter(option => {
+          return option.agency_unique_ids.some(
+            id => watchedValues[AGENCY].includes(id) || watchedValues[AGENCY].includes(String(id))
+          );
+        });
+      }
+
+      return options;
+    },
     type: FILTER_TYPES.MULTI_SELECT,
-    multiple: false
+    toggleName: FILTER_BY_AGENCY,
+    toggleLabel: i18n.t("users.filters.filter_by_agency"),
+    multiple: true
+  },
+  {
+    name: "cases.filter_by.by_date",
+    field_name: LAST_DATE,
+    type: FILTER_TYPES.DATES,
+    options: {
+      [i18n.locale]: [
+        { id: "last_access", display_name: i18n.t("users.filters.date_last_login") },
+        { id: "last_case_viewed", display_name: i18n.t("users.filters.date_last_case_view") },
+        { id: "last_case_updated", display_name: i18n.t("users.filters.date_last_case_updated") }
+      ]
+    }
+  },
+  {
+    name: "cases.filter_by.location",
+    field_name: "location",
+    option_strings_source: LOOKUPS.locations,
+    type: FILTER_TYPES.MULTI_SELECT,
+    multiple: true
   }
 ];
 
 export const agencyBodyRender = (i18n, agencies, value) =>
   agencies.get(String(value), fromJS({})).getIn(["name", i18n.locale]);
 
+export const roleBodyRender = (roles, value) => {
+  return roles.filter(role => role.get("unique_id") === value).getIn([0, "name"]);
+};
+
 export const buildObjectWithIds = elems =>
   elems.reduce(
     (previousValue, currentValue) => previousValue.merge(fromJS({ [currentValue.get("id")]: currentValue })),
     fromJS({})
   );
+
+export const buildActionList = ({ i18n, handleDialogClick, canDisableMultiple, canSendEmailMultiple }) => {
+  const actions = [
+    {
+      id: ACTION_IDS.disable,
+      name: i18n.t("actions.disable"),
+      disableOffline: true,
+      condition: canDisableMultiple,
+      action: () => handleDialogClick(DISABLE_DIALOG_NAME, ACTION_NAMES.disable)
+    },
+    {
+      id: ACTION_IDS.sendEmail,
+      name: i18n.t("users.send_email_title"),
+      disableOffline: true,
+      condition: canSendEmailMultiple,
+      action: () => handleDialogClick(SEND_EMAIL_DIALOG_NAME, ACTION_NAMES.sendEmail)
+    }
+  ];
+
+  return actions.filter(action => {
+    if (action.condition) {
+      return action;
+    }
+
+    return null;
+  });
+};

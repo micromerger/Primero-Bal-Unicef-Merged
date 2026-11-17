@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Supporting logic and fields for transitions
+# rubocop:disable Metrics/ModuleLength
 module Transitionable
   extend ActiveSupport::Concern
 
@@ -10,12 +9,27 @@ module Transitionable
     has_many :transitions, as: :record
 
     store_accessor :data, :transfer_status, :reassigned_transferred_on, :referred_users, :transferred_to_users,
-                   :transferred_to_user_groups, :referred_users_present
+                   :transferred_to_user_groups, :referred_users_present, :referred_users_pending,
+                   :referred_users_pending_present, :referred_users_accepted, :referred_users_accepted_present,
+                   :last_referral_rejected_at, :last_referral_done_at
 
     before_save :calculate_transferred_to_users
     before_save :calculate_transferred_to_user_groups
     before_save :calculate_referred_users
     before_save :calculate_referred_users_present
+    before_save :calculate_referred_users_pending
+    before_save :calculate_referred_users_pending_present
+    before_save :calculate_referred_users_accepted
+    before_save :calculate_referred_users_accepted_present
+    before_save :calculate_last_referral_rejected_at
+    before_save :calculate_last_referral_done_at
+  end
+
+  # Class methods for transitionable records
+  module ClassMethods
+    def transition_summary_field_names
+      %w[referred_users_pending transferred_to_users]
+    end
   end
 
   def assigns
@@ -77,27 +91,63 @@ module Transitionable
     referred_users
   end
 
+  def calculate_referred_users_pending
+    self.referred_users_pending = referrals.where(status: [Transition::STATUS_INPROGRESS])
+                                           .pluck(:transitioned_to).compact.uniq
+    referred_users_pending
+  end
+
+  def calculate_referred_users_pending_present
+    self.referred_users_pending_present = referred_users_pending.present?
+    referred_users_pending_present
+  end
+
+  def calculate_referred_users_accepted
+    self.referred_users_accepted = referrals.where(status: [Transition::STATUS_ACCEPTED]).pluck(:transitioned_to).uniq
+    referred_users_accepted
+  end
+
+  def calculate_referred_users_accepted_present
+    self.referred_users_accepted_present = referred_users_accepted.present?
+    referred_users_accepted_present
+  end
+
   def calculate_referred_users_present
     self.referred_users_present = referred_users.present?
     referred_users_present
   end
 
+  def calculate_last_referral_rejected_at
+    self.last_referral_rejected_at = referrals.where(status: [Transition::STATUS_REJECTED]).maximum(:responded_at)
+    last_referral_rejected_at
+  end
+
+  def calculate_last_referral_done_at
+    self.last_referral_done_at = referrals.where(status: [Transition::STATUS_DONE]).maximum(:responded_at)
+    last_referral_done_at
+  end
+
   def referrals_self_scope(user)
     return referrals if owner?(user)
+    return referrals.where(transitioned_to: user.user_name) unless user.can_view_referrals?
 
-    referrals.where(transitioned_to: user.user_name)
+    referrals.where(transitioned_to: user.user_name).or(referrals_by_user(user))
   end
 
   def referrals_group_scope(user)
-    return referrals if owner?(user) || (owned_by_groups & user.user_group_unique_ids).present?
+    return referrals if owner?(user) || (owned_by_any_groups?(user.user_group_unique_ids) && user.can_view_referrals?)
+    return referrals_to_user(user) unless user.can_view_referrals?
 
-    referrals.where(transitioned_to: User.by_user_group(user.user_groups.ids).pluck(:user_name))
+    referrals.where(transitioned_to: User.by_user_group(user.user_groups.ids).pluck(:user_name)).or(
+      referrals_by_user(user)
+    )
   end
 
   def referrals_agency_scope(user)
-    return referrals if owner?(user) || user.agency_id == owner.agency_id
+    return referrals if owner?(user) || (user.agency_id == owner.agency_id && user.can_view_referrals?)
+    return referrals_to_user(user) unless user.can_view_referrals?
 
-    referrals.where(transitioned_to_agency: user.agency.unique_id)
+    referrals.where(transitioned_to_agency: user.agency.unique_id).or(referrals_by_user(user))
   end
 
   # Returns the referrals for a user in the record
@@ -107,7 +157,16 @@ module Transitionable
     )
   end
 
+  def referrals_by_user(user)
+    referrals.where(transitioned_by: user.user_name)
+  end
+
   def can_be_assigned?
     true
   end
+
+  def pending_transition_for?(user)
+    ((referred_users_pending || []) + (transferred_to_users || [])).include?(user.user_name)
+  end
 end
+# rubocop:enable Metrics/ModuleLength

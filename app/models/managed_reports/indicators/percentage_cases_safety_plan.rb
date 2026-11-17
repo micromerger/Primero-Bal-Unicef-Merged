@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # An indicator that returns % of clients with a safety plan
 class ManagedReports::Indicators::PercentageCasesSafetyPlan < ManagedReports::SqlReportIndicator
   include ManagedReports::PercentageIndicator
@@ -15,14 +13,16 @@ class ManagedReports::Indicators::PercentageCasesSafetyPlan < ManagedReports::Sq
     def sql(current_user, params = {})
       date_group_query = build_date_group(params, {}, Child)
       group_id = date_group_query.present? ? 'group_id' : nil
-      %(
+
+      <<~SQL
         WITH disability_cases AS (
           SELECT
             #{date_group_query&.+(' AS group_id,')}
             srch_begin_safety_plan_prompt AS safety_plan,
             COALESCE(srch_gender, 'incomplete_data') AS gender
           FROM cases
-          WHERE srch_next_steps && '{a_continue_protection_assessment}'
+          WHERE srch_record_state = TRUE
+          AND srch_next_steps && '{a_continue_protection_assessment}'
           #{build_filter_query(current_user, params)&.prepend('AND ')}
         )
         SELECT
@@ -32,7 +32,7 @@ class ManagedReports::Indicators::PercentageCasesSafetyPlan < ManagedReports::Sq
           COUNT(*)
         FROM disability_cases
         GROUP BY #{group_id&.+(',')} safety_plan, gender
-      )
+      SQL
     end
     # rubocop:enable Metrics/MethodLength
 

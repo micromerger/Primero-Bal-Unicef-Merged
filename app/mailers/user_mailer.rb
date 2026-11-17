@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Sends out notifications to the email associated with this User.
 class UserMailer < ApplicationMailer
   def welcome(user_id, one_time_password = nil)
@@ -12,7 +10,20 @@ class UserMailer < ApplicationMailer
     @locale = @user.locale
 
     mail(
-      to: @user.email,
+      to: email_address_with_name(@user.email, @user.full_name),
+      subject: @subject
+    )
+  end
+
+  def bulk_email(recipient_id, sender_id, subject, message)
+    load_users!(recipient_id)
+    @sender_user_name = User.find(sender_id).user_name
+    @message = message
+    @subject = subject
+    @locale = @user.locale
+
+    mail(
+      to: email_address_with_name(@user.email, @user.full_name),
       subject: @subject
     )
   end

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # A shared concern for all core Primero record types: Cases (child), Incidents, Tracing Requests
 module Record
   extend ActiveSupport::Concern
@@ -9,6 +7,7 @@ module Record
   STATUS_OPEN = 'open'
   STATUS_CLOSED = 'closed'
   STATUS_TRANSFERRED = 'transferred'
+  STATUS_IDENTIFIED = 'identified'
 
   included do
     store_accessor :data, :unique_identifier, :short_id, :record_state, :status, :marked_for_mobile
@@ -48,7 +47,7 @@ module Record
     end
 
     def preview_field_names
-      PermittedFieldService::ID_SEARCH_FIELDS + Field.joins(:form_section).where(
+      Field.joins(:form_section).where(
         form_sections: { parent_form: },
         show_on_minify_form: true
       ).pluck(:name)
@@ -67,7 +66,7 @@ module Record
 
   def create_identification
     self.unique_identifier ||= SecureRandom.uuid
-    self.short_id ||= self.unique_identifier.to_s.last(7)
+    self.short_id ||= unique_identifier.to_s.last(7)
     set_instance_id
   end
 
@@ -77,6 +76,10 @@ module Record
 
   def associations_as_data_keys
     []
+  end
+
+  def pending_transition_for?(_user)
+    false
   end
 
   def display_id

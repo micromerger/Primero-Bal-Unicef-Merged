@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Shared code for all record-type controllers.
 # This will be a long module, by it's nature,
 # but we'll need to be careful to extract as much code as possible into services
@@ -17,7 +15,7 @@ module Api::V2::Concerns::Record
   end
 
   def index
-    authorize! :index, model_class
+    authorize_index!
     result = search_records
     @total = result[:total]
     @records = result[:records]
@@ -25,9 +23,9 @@ module Api::V2::Concerns::Record
   end
 
   def show
-    authorize! :read, model_class
+    authorize_read!(model_class)
     @record = find_record
-    authorize! :read, @record
+    authorize_read!(@record)
     permit_readable_fields
     select_fields_for_show
     render 'api/v2/records/show'
@@ -39,6 +37,7 @@ module Api::V2::Concerns::Record
     @record.save!
     permit_readable_fields
     select_updated_fields
+
     status = params[:data][:id].present? ? 204 : 200
      if @record.is_a?(Child) && @record.id.present? && current_user.present?
     SendSmsJob.perform_later(@record.id, current_user)
@@ -62,6 +61,7 @@ module Api::V2::Concerns::Record
   def destroy
     authorize! :enable_disable_record, model_class
     @record = find_record
+    authorize! :read, @record
     @record.update_properties(current_user, record_state: false)
     @record.save!
     render 'api/v2/records/destroy'
@@ -72,7 +72,7 @@ module Api::V2::Concerns::Record
 
     @index_params = params.permit(
       :fields, :order, :order_by, :page, :per, :total,
-      :id_search, :query, :query_scope, :phonetic, :format,
+      :id_search, :query, :query_scope, :phonetic, :phone_number, :format,
       *permitted_index_params(params)
     )
   end
@@ -80,12 +80,15 @@ module Api::V2::Concerns::Record
   def json_validation_service
     return @json_validation_service if @json_validation_service
 
+    action_fields_schema = @permitted_field_service.permitted_fields_schema(update?)
     permitted_fields = @permitted_form_fields_service.permitted_fields(
-      authorized_roles, model_class.parent_form, module_unique_id, write?
+      authorized_roles, model_class.parent_form, module_unique_id, action_name,
+      { action_schema_field_names: action_fields_schema.keys }
     )
-    action_fields = @permitted_field_service.permitted_fields_schema(update?)
-    @json_validation_service = RecordJsonValidatorService.new(fields: permitted_fields,
-                                                              schema_supplement: action_fields)
+    permitted_field_values = @permitted_field_values_service.permitted_field_values(permitted_fields)
+    @json_validation_service = RecordJsonValidatorService.new(
+      fields: permitted_fields, schema_supplement: action_fields_schema, field_values: permitted_field_values
+    )
   end
 
   def validate_json!
@@ -93,7 +96,7 @@ module Api::V2::Concerns::Record
   end
 
   def authorized_roles
-    @authorized_roles ||= [current_user.role]
+    @authorized_roles ||= [authorized_user.role]
   end
 
   def permit_readable_fields
@@ -109,7 +112,7 @@ module Api::V2::Concerns::Record
 
   def select_fields_for_index
     params_for_fields = params
-    params_for_fields = { fields: 'short', id_search: true } if params[:id_search]
+    params_for_fields = { fields: 'short', record_search: true } if record_search?
     @selected_field_names = FieldSelectionService.select_fields_to_show(
       params_for_fields, model_class, @permitted_field_names, current_user
     )
@@ -142,16 +145,21 @@ module Api::V2::Concerns::Record
   def instantiate_app_services
     @record_data_service = RecordDataService.new
     @permitted_form_fields_service = PermittedFormFieldsService.instance
+    @permitted_field_values_service = PermittedFieldValuesService.instance
     @permitted_field_service = PermittedFieldService.new(
-      current_user,
+      authorized_user,
       model_class,
       @permitted_form_fields_service,
       { action_name: params[:record_action], id_search: params[:id_search] }
     )
   end
 
+  def authorized_user
+    current_user
+  end
+
   def query_scope
-    current_user.record_query_scope(model_class, params[:id_search])
+    current_user.record_query_scope(model_class, record_search?)
   end
 
   def search_filters
@@ -171,20 +179,31 @@ module Api::V2::Concerns::Record
   private
 
   def search_records
-    search = PhoneticSearchService.search(
-      model_class, {
-        query: index_params[:query], phonetic: index_params[:phonetic], filters: search_filters,
-        sort: sort_order, scope: query_scope, pagination:
-      }
-    )
+    search = PhoneticSearchService.search(model_class, search_params)
     { total: search.total, records: search.records }
   rescue ActiveRecord::StatementInvalid => e
     Rails.logger.error(e)
     { total: 0, records: model_class.none }
   end
 
-  def write?
-    action_name.in?(%w[create update])
+  def search_params
+    {
+      query: index_params[:query],
+      phonetic: index_params[:phonetic],
+      phone_number: index_params[:phone_number],
+      filters: search_filters,
+      sort: sort_order,
+      scope: query_scope,
+      pagination:
+    }
+  end
+
+  def record_search?
+    # TODO: We'll have a search_type param instead of three different
+    #       id_search, phonetic and phone_number params
+    action_name == 'index' && index_params[:query].present? && index_params.slice(
+      :id_search, :phonetic, :phone_number
+    ).values.include?('true')
   end
 
   def update?
@@ -198,9 +217,23 @@ module Api::V2::Concerns::Record
   def authorize_update!
     if params[:record_action].present?
       authorize!(params[:record_action].to_sym, model_class)
+
+      unless [Permission::INCIDENT_DETAILS_FROM_CASE,
+              Permission::SERVICES_SECTION_FROM_CASE].include?(params[:record_action]) &&
+             current_user.can?(:search_owned_by_others, model_class)
+        authorize!(:read, @record)
+      end
     else
       authorize!(:update, @record)
     end
+  end
+
+  def authorize_index!
+    authorize!(:index, model_class)
+  end
+
+  def authorize_read!(model)
+    authorize!(:read, model)
   end
 
   def permitted_index_params(params)

@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { getIsDashboardGroupLoading, getReportingLocation } from "../../selectors";
 import { useI18n } from "../../../../i18n";
 import { toReportingLocationTable } from "../../utils";
@@ -10,6 +8,7 @@ import { getReportingLocationConfig } from "../../../../user/selectors";
 import { ROUTES } from "../../../../../config";
 import { useMemoizedSelector } from "../../../../../libs";
 import { DASHBOARD_GROUP } from "../../constants";
+import useSystemStrings from "../../../../application/use-system-strings";
 
 import { NAME } from "./constants";
 
@@ -19,6 +18,7 @@ function Component() {
   const locations = useMemoizedSelector(state => getLocations(state));
   const reportingLocationConfig = useMemoizedSelector(state => getReportingLocationConfig(state));
   const reportingLocation = useMemoizedSelector(state => getReportingLocation(state));
+  const { label } = useSystemStrings("dashboard");
 
   return (
     <Permission resources={RESOURCES.dashboards} actions={ACTIONS.DASH_REPORTING_LOCATION}>
@@ -26,7 +26,7 @@ function Component() {
         <DashboardTable
           pathname={ROUTES.cases}
           title={i18n.t("cases.label")}
-          {...toReportingLocationTable(reportingLocation, reportingLocationConfig, i18n, locations)}
+          {...toReportingLocationTable(reportingLocation, reportingLocationConfig, i18n, locations, label)}
         />
       </OptionsBox>
     </Permission>

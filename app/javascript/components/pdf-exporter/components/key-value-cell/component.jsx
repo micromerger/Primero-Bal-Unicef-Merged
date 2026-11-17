@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import PropTypes from "prop-types";
 import { List } from "immutable";
 import { isEmpty } from "lodash";
@@ -9,11 +7,13 @@ import RadioButtonChecked from "@mui/icons-material/RadioButtonChecked";
 import RadioButtonUnchecked from "@mui/icons-material/RadioButtonUnchecked";
 import { cx } from "@emotion/css";
 
+import RegistrySummary from "../../../registry-summary";
 import { optionText } from "../../../form/utils";
 import { useI18n } from "../../../i18n";
-import { DATE_TIME_FORMAT, DATE_FORMAT } from "../../../../config";
-import { DATE_FIELD, TICK_FIELD, RADIO_FIELD } from "../../../form";
+import { DATE_FIELD, TICK_FIELD, RADIO_FIELD, SIGNATURE_FIELD, REGISTRY_FIELD } from "../../../form";
 import useOptions from "../../../form/use-options";
+import { AssetJwt } from "../../../asset-jwt";
+import { selectedDateFormat } from "../../../../libs/date-picker-localization";
 
 import css from "./styles.css";
 
@@ -26,13 +26,18 @@ function Component({
   options,
   optionsStringSource = null,
   type,
-  value = ""
+  value = "",
+  signatureProvidedByLabel,
+  helperText,
+  recordType
 }) {
   const i18n = useI18n();
 
   const isDateField = type === DATE_FIELD;
   const isBooleanField = type === TICK_FIELD;
   const isRadioField = type === RADIO_FIELD;
+  const isSignatureField = type === SIGNATURE_FIELD;
+  const isRegistryField = type === REGISTRY_FIELD;
 
   const hasOptions = optionsStringSource || !isEmpty(options);
   const isAgency = optionsStringSource === "Agency";
@@ -40,8 +45,20 @@ function Component({
 
   const lookups = useOptions({ source: optionsStringSource, options, useUniqueId: isAgency });
 
+  const signatureInfo = (fieldValue, signatureMetaField, label) => {
+    const metaValue = fieldValue?.get(signatureMetaField);
+
+    if (!metaValue) return false;
+
+    return (
+      <div>
+        {label?.[i18n.locale] || i18n.t(`fields.${signatureMetaField}`)}: <span>{metaValue}</span>
+      </div>
+    );
+  };
+
   const renderValue = fieldValue => {
-    if (Array.isArray(fieldValue) || List.isList(fieldValue)) {
+    if ((Array.isArray(fieldValue) || List.isList(fieldValue)) && !isSignatureField) {
       return fieldValue
         .map(val => renderValue(val))
         ?.flatten()
@@ -59,7 +76,7 @@ function Component({
     }
 
     if (isDateField && fieldValue) {
-      return i18n.localizeDate(fieldValue, isDateWithTime ? DATE_TIME_FORMAT : DATE_FORMAT);
+      return i18n.localizeDate(fieldValue, selectedDateFormat(isDateWithTime, i18n.locale));
     }
 
     if (isRadioField) {
@@ -86,6 +103,26 @@ function Component({
       );
     }
 
+    if (isSignatureField) {
+      const signatureField = List.isList(fieldValue) ? fieldValue.first() : fieldValue;
+
+      return (
+        <div>
+          <AssetJwt src={signatureField?.get("attachment_url")} alt="Signature" className={css.signatureImage} />
+          <div className={css.signatureDetails}>
+            {signatureInfo(signatureField, "signature_provided_on")}
+            {signatureInfo(signatureField, "signature_provided_by", signatureProvidedByLabel)}
+            {signatureInfo(signatureField, "signature_created_by_user")}
+            {helperText?.[i18n.locale]}
+          </div>
+        </div>
+      );
+    }
+
+    if (isRegistryField) {
+      return <RegistrySummary value={value} disabled recordType={recordType} noStyling />;
+    }
+
     return fieldValue;
   };
   const kevValueCellClasses = cx(classes.cell, {
@@ -106,10 +143,13 @@ Component.propTypes = {
   classes: PropTypes.object.isRequired,
   defaultValue: PropTypes.any,
   displayName: PropTypes.string.isRequired,
+  helperText: PropTypes.object,
   isDateWithTime: PropTypes.bool,
   isSubform: PropTypes.bool,
   options: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),
   optionsStringSource: PropTypes.string,
+  recordType: PropTypes.string,
+  signatureProvidedByLabel: PropTypes.object,
   type: PropTypes.string.isRequired,
   value: PropTypes.any
 };

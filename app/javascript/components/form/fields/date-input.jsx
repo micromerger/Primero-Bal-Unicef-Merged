@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 /* eslint-disable react/display-name, react/no-multi-comp */
 import PropTypes from "prop-types";
 import { Controller, useWatch } from "react-hook-form";
@@ -19,7 +17,7 @@ function DateInput({ commonInputProps, metaInputProps = {}, formMethods }) {
   const { setValue, control } = formMethods;
   const { name, label, helperText, error, disabled, placeholder, fullWidth, required } = commonInputProps;
 
-  const currentValue = useWatch({ name, control });
+  const currentValue = useWatch({ name, control, disabled: i18n.locale !== LOCALE_KEYS.ne });
 
   const dialogLabels = {
     clearLabel: i18n.t("buttons.clear"),
@@ -45,40 +43,20 @@ function DateInput({ commonInputProps, metaInputProps = {}, formMethods }) {
     value: currentValue
   };
 
-  const fieldValue = isEmpty(currentValue) ? null : parseISO(currentValue);
-
   const inputProps = {
+    views: ["year", "month", "day"],
     slotProps: {
       actionBar: {
         actions: ["clear", "accept"]
       },
-      textField: { InputLabelProps: { shrink: true }, fullWidth, required, helperText, clearable: true }
+      textField: {
+        fullWidth,
+        required,
+        helperText,
+        clearable: true,
+        slotProps: { inputLabel: { shrink: true } }
+      }
     }
-  };
-
-  const renderPicker = () => {
-    if (dateIncludeTime) {
-      return (
-        <DateTimePicker
-          {...dialogLabels}
-          {...commonInputProps}
-          {...inputProps}
-          onChange={handleChange}
-          value={fieldValue}
-        />
-      );
-    }
-
-    return (
-      <DatePicker
-        {...dialogLabels}
-        {...commonInputProps}
-        {...inputProps}
-        onChange={handleChange}
-        value={fieldValue}
-        dayOfWeekFormatter={dayOfWeekFormatter(i18n)}
-      />
-    );
   };
 
   if (i18n.locale === LOCALE_KEYS.ne) {
@@ -89,10 +67,44 @@ function DateInput({ commonInputProps, metaInputProps = {}, formMethods }) {
     <DateProvider>
       <Controller
         control={control}
-        as={renderPicker}
+        render={({ value: dateFieldValue, onChange: fieldOnChange }) => {
+          const _fieldValue = isEmpty(dateFieldValue) ? null : parseISO(dateFieldValue);
+
+          const onFieldChange = date => {
+            fieldOnChange(date ? toServerDateFormat(date, { includeTime: dateIncludeTime }) : "");
+          };
+
+          if (dateIncludeTime) {
+            return (
+              <DateTimePicker
+                {...dialogLabels}
+                {...commonInputProps}
+                {...inputProps}
+                onChange={onFieldChange}
+                value={_fieldValue}
+              />
+            );
+          }
+
+          return (
+            <DatePicker
+              {...dialogLabels}
+              {...commonInputProps}
+              {...inputProps}
+              onChange={onFieldChange}
+              value={_fieldValue}
+              dayOfWeekFormatter={dayOfWeekFormatter(i18n)}
+            />
+          );
+        }}
         {...commonInputProps}
-        helperText={<>{helperText}</>}
         defaultValue=""
+        slotProps={{
+          textField: {
+            error,
+            helperText: error || helperText
+          }
+        }}
       />
     </DateProvider>
   );

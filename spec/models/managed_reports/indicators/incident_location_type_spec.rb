@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ManagedReports::Indicators::IncidentLocationType do
@@ -121,6 +119,10 @@ describe ManagedReports::Indicators::IncidentLocationType do
       @all_user,
       { incident_date: Date.new(2022, 10, 8), incident_location_type: 'farm' }
     ).save!
+    Incident.new_with_user(
+      @all_user,
+      { incident_date: Date.new(2022, 10, 8), incident_location_type: 'farm', gbv_reported_elsewhere: 'gbvims-org' }
+    ).save!
   end
 
   it 'returns the number of incidents grouped by incident_location_type' do
@@ -192,8 +194,8 @@ describe ManagedReports::Indicators::IncidentLocationType do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'year'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2022-10-10'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2022-10-10')
             )
           }
         ).data
@@ -216,8 +218,8 @@ describe ManagedReports::Indicators::IncidentLocationType do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'month'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2022-10-10'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2022-10-10')
             )
           }
         ).data
@@ -249,8 +251,8 @@ describe ManagedReports::Indicators::IncidentLocationType do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2022-10-10'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2022-10-10')
             )
           }
         ).data

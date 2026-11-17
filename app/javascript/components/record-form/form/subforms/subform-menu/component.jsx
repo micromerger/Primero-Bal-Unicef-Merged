@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { batch, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { CircularProgress } from "@mui/material";
@@ -15,6 +13,8 @@ import { serviceIsReferrable } from "../../utils";
 import css from "../styles.css";
 import Permission, { RESOURCES, REFER_FROM_SERVICE } from "../../../../permissions";
 import { currentUser } from "../../../../user";
+import { getSelectedRecordData, usePendingTransition } from "../../../../records";
+import { RECORD_PATH } from "../../../../../config";
 import DisableOffline from "../../../../disable-offline";
 import { useMemoizedSelector } from "../../../../../libs";
 
@@ -30,6 +30,8 @@ function Component({ index, values }) {
   const loading = useMemoizedSelector(state => getLoadingTransitionType(state, REFERRAL_TYPE));
   const userName = useMemoizedSelector(state => currentUser(state));
   const agencies = useMemoizedSelector(state => getEnabledAgencies(state));
+  const selectedCase = useMemoizedSelector(state => getSelectedRecordData(state, RECORD_PATH.cases));
+  const { hasPendingTransition, tooltip: pendingTransitionTooltip } = usePendingTransition(selectedCase);
 
   const handleReferral = () => {
     batch(() => {
@@ -51,7 +53,13 @@ function Component({ index, values }) {
     <DisableOffline>
       <Permission resources={RESOURCES.cases} actions={REFER_FROM_SERVICE}>
         {serviceIsReferrable(values[index], services, agencies, referralUsers) ? (
-          <ReferAction index={index} handleReferral={handleReferral} values={values} />
+          <ReferAction
+            index={index}
+            handleReferral={handleReferral}
+            values={values}
+            disabled={hasPendingTransition}
+            tooltip={pendingTransitionTooltip}
+          />
         ) : (
           loading && <CircularProgress className={css.loadingIndicator} />
         )}

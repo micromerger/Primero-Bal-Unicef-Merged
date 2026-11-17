@@ -1,10 +1,9 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { connect, getIn } from "formik";
 import { useEffect } from "react";
 import { FormHelperText, InputLabel } from "@mui/material";
 import PropTypes from "prop-types";
 import compact from "lodash/compact";
+import isEmpty from "lodash/isEmpty";
 
 import { TALLY_FIELD_NAME } from "../constants";
 import { buildTallyErrors } from "../utils";
@@ -24,8 +23,9 @@ function TallyField({ name, formik, field, helperText, InputLabelProps, label, m
   useEffect(() => {
     if (!mode.isShow && field.autosum_total) {
       const total = tallyValues.reduce((acc, value) => acc + value, 0);
+      const totalValue = isEmpty(tallyValues) ? null : total;
 
-      formik.setFieldValue(totalName, total === 0 ? "" : total);
+      formik.setFieldValue(totalName, totalValue);
     }
   }, [JSON.stringify(tallyValues)]);
 
@@ -36,7 +36,13 @@ function TallyField({ name, formik, field, helperText, InputLabelProps, label, m
       </InputLabel>
       <div className={css.inputTally} data-testid="tally-field">
         {field.tally.map(option => (
-          <TallyFieldContainer name={`${name}.${option.id}`} option={option} error={hasError} {...rest} />
+          <TallyFieldContainer
+            key={`${name}.${option.id}`}
+            name={`${name}.${option.id}`}
+            option={option}
+            error={hasError}
+            {...rest}
+          />
         ))}
         <TallyFieldContainer name={totalName} isTotal={field.autosum_total} {...rest} error={hasError} />
       </div>

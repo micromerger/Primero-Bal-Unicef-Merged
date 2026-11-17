@@ -1,6 +1,51 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
+require 'json'
+
+positive_integer = lambda do |name, default|
+  value = ENV.fetch(name, default).to_i
+  value.positive? ? value : default
+end
+boolean_type = ActiveModel::Type::Boolean.new
+
+Rack::Attack.throttled_responder = lambda do |request|
+  match_data = request.env.fetch('rack.attack.match_data')
+  retry_after = match_data[:period] - (match_data[:epoch_time] % match_data[:period])
+
+  if match_data[:count] == match_data[:limit] + 1
+    Rails.logger.warn(
+      "Rate limit exceeded: throttle=#{request.env.fetch('rack.attack.matched')} " \
+      "method=#{request.request_method} path=#{request.path} " \
+      "limit=#{match_data[:limit]} period=#{match_data[:period]}"
+    )
+  end
+
+  body = JSON.generate(
+    errors: [
+      { status: 429, resource: request.path, message: 'errors.api.too_many_requests' }
+    ]
+  )
+
+  [
+    429,
+    {
+      'content-type' => 'application/json; charset=utf-8',
+      'retry-after' => retry_after.to_s
+    },
+    [body]
+  ]
+end
+
+Rack::Attack.throttle(
+  'API requests',
+  limit: ->(_request) { positive_integer.call('PRIMERO_API_RATE_LIMIT_REQUESTS', 300) },
+  period: ->(_request) { positive_integer.call('PRIMERO_API_RATE_LIMIT_PERIOD', 60) }
+) do |request|
+  enabled = boolean_type.cast(ENV.fetch('PRIMERO_API_RATE_LIMIT_ENABLED', false))
+  next unless enabled && request.path.match?(%r{\A/api/v2(?:/|\z)})
+
+  request.remote_ip
+end
 
 # This will return HTTP 429 once the rate limit is exceeded
 
@@ -27,4 +72,32 @@ Rack::Attack.throttle('Password resets', limit: 10, period: 60) do |request|
   next unless request.path == '/api/v2/users/password-reset' && request.post?
 
   'throttle-always'
+end
+
+# 6 registrations allowed per ip per minute
+Rack::Attack.throttle('Self registration', limit: 6, period: 60) do |request|
+  next unless request.path == '/api/v2/self-register' && request.post?
+
+  request.remote_ip
+end
+
+# 1 intake form get request allowed per ip, per 10 seconds
+Rack::Attack.throttle('Intake form', limit: 1, period: 10) do |request|
+  next unless request.get? && request.path =~ %r{^/api/v2/intakes/[^/]+/forms$}
+
+  request.remote_ip
+end
+
+# 1 intake lookup get request allowed per ip, per 10 seconds
+Rack::Attack.throttle('Intake lookups', limit: 1, period: 10) do |request|
+  next unless request.get? && request.path =~ %r{^/api/v2/intakes/[^/]+/lookups$}
+
+  request.remote_ip
+end
+
+# 1 intake form submission post request allowed per ip, per 10 seconds
+Rack::Attack.throttle('Intake form submissions', limit: 1, period: 10) do |request|
+  next unless request.post? && request.path =~ %r{^/api/v2/intakes/[^/]+$}
+
+  request.remote_ip
 end

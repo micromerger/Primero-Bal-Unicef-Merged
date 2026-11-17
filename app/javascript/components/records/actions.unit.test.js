@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import * as actions from "./actions";
 
 describe("records - Actions", () => {
@@ -96,6 +94,7 @@ describe("records - Actions", () => {
       "RECORDS_STARTED",
       "RECORDS_SUCCESS",
       "RECORDS",
+      "REDIRECT_TO_NEW_IDENTIFIED_RECORD",
       "REMOVE_RECORD_RELATIONSHIP",
       "SAVE_ATTACHMENT_SUCCESS",
       "SAVE_RECORD_FAILURE",
@@ -108,6 +107,7 @@ describe("records - Actions", () => {
       "SET_CASE_ID_FOR_INCIDENT",
       "SET_CASE_ID_REDIRECT",
       "SET_CASE_POTENTIAL_MATCH",
+      "SET_IS_RECORD_CREATION_FLOW",
       "SET_MACHED_CASE_FOR_TRACE_FAILURE",
       "SET_MACHED_CASE_FOR_TRACE_FINISHED",
       "SET_MACHED_CASE_FOR_TRACE_STARTED",
@@ -115,13 +115,19 @@ describe("records - Actions", () => {
       "SET_MACHED_CASE_FOR_TRACE",
       "SET_SELECTED_POTENTIAL_MATCH",
       "SET_SELECTED_RECORD",
+      "SET_SELECTED_IDENTIFIED_RECORD",
       "TRACING_REQUESTS_RECORDS",
       "UNMATCH_CASE_FOR_TRACE_FAILURE",
       "UNMATCH_CASE_FOR_TRACE_FINISHED",
       "UNMATCH_CASE_FOR_TRACE_STARTED",
       "UNMATCH_CASE_FOR_TRACE_SUCCESS",
       "UNMATCH_CASE_FOR_TRACE",
-      "UPDATE_ATTACHMENTS"
+      "UPDATE_ATTACHMENTS",
+      "FETCH_RECORD_RELATED_RECORDS",
+      "FETCH_RECORD_RELATED_RECORDS_FAILURE",
+      "FETCH_RECORD_RELATED_RECORDS_FINISHED",
+      "FETCH_RECORD_RELATED_RECORDS_STARTED",
+      "FETCH_RECORD_RELATED_RECORDS_SUCCESS"
     ].forEach(property => {
       expect(cloneActions).toHaveProperty(property);
       expect(typeof cloneActions[property]).toBe("string");

@@ -1,13 +1,14 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # An audit log record is created for every invocation of a Primero endpoint.
+# rubocop:disable Metrics/ClassLength
 class AuditLog < ApplicationRecord
   attr_accessor :display_name
 
   LOGIN = 'login'
   WEBHOOK = 'webhook'
+  BULK_EMAIL = 'bulk_email'
+  DESCRIPTION_KEY_ACTIONS = [BULK_EMAIL].freeze
   # Webhook statuses
   FAILED = 'failed'        # Failed the HTTP send request
   NOT_FOUND = 'not_found'  # The HTTP request is successful, but it does not find a record in the external system
@@ -15,13 +16,15 @@ class AuditLog < ApplicationRecord
   SENT = 'sent'            # Completed HTTP send request successfully
   SYNCED = 'synced'        # The downstream system processed the send request and reverted
   AUDIT_LOG_STATISTIC = '[AuditLogStatistic]'
+  FAILED_LOGIN = 'failed_login'
   ACTIONS = %w[list index bulk_index show login logout show_alerts create update traces assessment_requested refer_to
                enable_disable_record refer transfer_accepted transfer transfer_to refer_rejected assign assign_to
                unflag flag delete password_reset_request bulk_assign export password_reset update_bulk current
                refer_done refer_accepted assessment_approved detach attach reopen close transfer_revoked
                transfer_rejected case_plan_approved case_plan_requested refer_revoke closure_approved create_family
                import closure_requested case_plan_rejected closure_rejected assessment_rejected add_note
-               user_password_reset_request transfer_request family incident_details_from_case].freeze
+               user_password_reset_request transfer_request family incident_details_from_case failed_login
+               bulk_email].freeze
   RECORD_TYPES = %w[agency alert audit_log bulk_export child code_of_conduct dashboard form_section incident location
                     lookup permission primero_configuration report role saved_search system_settings
                     task tracing_request user user_group].freeze
@@ -36,6 +39,8 @@ class AuditLog < ApplicationRecord
     'Agency' => :agency_code,
     'Report' => Arel.sql("name_i18n->>'en' as name")
   }.freeze
+
+  RECORD_VIEWS_EDIT = %w[show update].freeze
 
   ALLOWED_MODELS = [Child, Incident, TracingRequest, User, Role, Agency, UserGroup, Report].freeze
 
@@ -83,6 +88,16 @@ class AuditLog < ApplicationRecord
     logs
   end
 
+  # The last time a user has successfully logged into the system
+  # By default returns for standrad users
+  def self.last_login(user_category = nil)
+    joins(user: :role)
+      .where(action: AuditLog::LOGIN)
+      .where(users: { roles: { user_category: } })
+      .order(timestamp: :desc)
+      .first
+  end
+
   def display_id
     # TODO: In order to fix this, we should add new column for Records not storaged in the database
     return '' if record_type.in?(%w[ManagedReport])
@@ -100,13 +115,19 @@ class AuditLog < ApplicationRecord
 
   def log_message
     log_message_hash = {}
-    log_message_hash[:prefix] = { key: "logger.actions.#{action}", approval_type: }
+    log_message_hash[:prefix] = { key: log_message_prefix_key, approval_type: }
     log_message_hash[:identifier] = display_id.present? ? "#{record_type} '#{display_id}'" : record_type
     log_message_hash[:suffix] = {
       key: 'logger.by_user',
       user: user_name
     }
     log_message_hash
+  end
+
+  def log_message_prefix_key
+    return "logger.descriptions.#{action}" if DESCRIPTION_KEY_ACTIONS.include?(action)
+
+    "logger.actions.#{action}"
   end
 
   def statistic_message
@@ -163,3 +184,4 @@ class AuditLog < ApplicationRecord
     end
   end
 end
+# rubocop:enable Metrics/ClassLength

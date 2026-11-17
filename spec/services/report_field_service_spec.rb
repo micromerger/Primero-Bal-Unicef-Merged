@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ReportFieldService do
@@ -116,6 +114,51 @@ describe ReportFieldService do
     expect(vertical_fields.first).to eq(vertical_field)
   end
 
+  it 'returns the horizontal fields when a report contains a non-existent field' do
+    report = Report.create!(
+      name_en: 'Report with non-existent field',
+      description_en: '',
+      module_id: PrimeroModule::CP,
+      record_type: 'case',
+      aggregate_by: ['non_existent_field'],
+      filters: [],
+      editable: false
+    )
+
+    horizontal_field = {
+      name: 'non_existent_field',
+      display_name: nil,
+      position: { type: 'horizontal', order: 0 }
+    }
+
+    horizontal_fields = ReportFieldService.horizontal_fields(report)
+
+    expect(horizontal_fields.first).to eq(horizontal_field)
+  end
+
+  it 'returns vertical fields when a report contains a non-existent field' do
+    report = Report.create!(
+      name_en: 'Report with non-existent field',
+      description_en: '',
+      module_id: PrimeroModule::CP,
+      record_type: 'case',
+      aggregate_by: ['non_existent_field'],
+      disaggregate_by: ['non_existent_field'],
+      filters: [],
+      editable: false
+    )
+
+    vertical_field = {
+      name: 'non_existent_field',
+      display_name: nil,
+      position: { type: 'vertical', order: 0 }
+    }
+
+    vertical_fields = ReportFieldService.vertical_fields(report)
+
+    expect(vertical_fields.first).to eq(vertical_field)
+  end
+
   it 'returns a field withs options from lookup' do
     report_risk_field = {
       name: 'risk_level',
@@ -131,7 +174,7 @@ describe ReportFieldService do
         'fr' => []
       }
     }
-    report_field = ReportFieldService.report_field(@risk_level_field, 'risk_level', 'horizontal', 0, Child.parent_form)
+    report_field = ReportFieldService.report_field(@risk_level_field, 'risk_level', 'horizontal', 0, @report1)
     expect(report_field).to eq(report_risk_field)
   end
 
@@ -143,7 +186,7 @@ describe ReportFieldService do
       option_strings_source: 'Location'
     }
     report_field = ReportFieldService.report_field(
-      @owned_by_location_field, 'owned_by_location', 'horizontal', 0, Child.parent_form
+      @owned_by_location_field, 'owned_by_location', 'horizontal', 0, @report1
     )
     expect(report_field).to eq(report_owned_by_location_field)
   end
@@ -157,7 +200,7 @@ describe ReportFieldService do
       admin_level: 2
     }
     report_field = ReportFieldService.report_field(
-      @owned_by_location_field, 'owned_by_location2', 'horizontal', 0, Child.parent_form
+      @owned_by_location_field, 'owned_by_location2', 'horizontal', 0, @report1
     )
     expect(report_field).to eq(report_owned_by_location_field)
   end
@@ -170,7 +213,7 @@ describe ReportFieldService do
       option_strings_source: 'Agency'
     }
     report_field = ReportFieldService.report_field(
-      @owned_by_agency_field, 'owned_by_agency', 'horizontal', 0, Child.parent_form
+      @owned_by_agency_field, 'owned_by_agency', 'horizontal', 0, @report1
     )
     expect(report_field).to eq(report_owned_by_agency_field)
   end
@@ -189,7 +232,38 @@ describe ReportFieldService do
         'fr' => []
       }
     }
-    report_field = ReportFieldService.report_field(@sex_field, 'sex_field', 'horizontal', 0, Child.parent_form)
+    report_field = ReportFieldService.report_field(@sex_field, 'sex_field', 'horizontal', 0, @report1)
     expect(report_field).to eq(report_sex_field)
+  end
+
+  describe '.user_groups_options' do
+    before do
+      clean_data(User, UserGroup)
+
+      allow(I18n).to receive(:available_locales).and_return(%i[es en])
+    end
+
+    let!(:group1) { UserGroup.create!(unique_id: 'group_1', name: 'User Group 1') }
+    let!(:group2) { UserGroup.create!(unique_id: 'group_2', name: 'User Group 2') }
+    let!(:group3) { UserGroup.create!(unique_id: 'group_3', name: 'User Group 3') }
+    let!(:disabled_group) { UserGroup.create!(unique_id: 'group_4', name: 'User Group 4', disabled: true) }
+
+    it 'returns option_labels for all available locales with enabled user groups' do
+      result = ReportFieldService.user_groups_options
+      expect(result).to eq(
+        option_labels: {
+          en: [
+            { display_text: 'User Group 1', id: 'group_1' },
+            { display_text: 'User Group 2', id: 'group_2' },
+            { display_text: 'User Group 3', id: 'group_3' }
+          ],
+          es: [
+            { display_text: 'User Group 1', id: 'group_1' },
+            { display_text: 'User Group 2', id: 'group_2' },
+            { display_text: 'User Group 3', id: 'group_3' }
+          ]
+        }
+      )
+    end
   end
 end

@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useForm, FormProvider } from "react-hook-form";
@@ -13,6 +11,7 @@ import FilterContainer from "../../../record-list/components/filter-container";
 import Actions from "../../../index-filters/components/actions";
 import { useMemoizedSelector, useThemeHelper } from "../../../../libs";
 import SearchBox from "../../../index-filters/components/search-box";
+import useQueryParams from "../../../record-list/use-query-params";
 
 import { FILTERS_DRAWER, NAME } from "./constants";
 import css from "./styles.css";
@@ -29,13 +28,16 @@ function Component({
   searchFieldLabel,
   showSearchField = false
 }) {
-  const methods = useForm();
+  const { queryParams, search } = useQueryParams();
+  const methods = useForm({
+    defaultValues: initialFilters
+  });
 
   const { mobileDisplay } = useThemeHelper();
 
   const userName = useMemoizedSelector(state => currentUser(state));
 
-  const { drawerOpen, toggleDrawer, setDrawer } = useDrawer(FILTERS_DRAWER);
+  const { toggleDrawer, setDrawer } = useDrawer(FILTERS_DRAWER);
 
   const showFilterIcon = mobileDisplay && showDrawer && (
     <IconButton size="large" onClick={toggleDrawer} color="primary">
@@ -44,23 +46,28 @@ function Component({
   );
 
   const defaultFiltersKeys = Object.keys(defaultFilters);
-  const setDefaultFilters = () =>
-    Object.entries(defaultFilters).forEach(defaultFilter => {
+  const setDefaultFilters = (reset = false) => {
+    const filterObject = reset ? defaultFilters : { ...defaultFilters?.toJS(), ...queryParams };
+
+    Object.entries(filterObject).forEach(defaultFilter => {
       const [key, value] = defaultFilter;
 
-      methods.setValue(key, value);
+      methods.setValue(key, value, { shouldDirty: true, shouldTouch: true });
     });
+  };
 
   const onClear = () => {
     clearFields.map(field => methods.setValue(field, undefined));
     if (defaultFiltersKeys.length) {
-      setDefaultFilters();
+      setDefaultFilters(true);
       methods.reset(initialFilters);
     }
+    search({});
     onSubmit(clearFields.reduce((acc, field) => ({ ...acc, [field]: undefined }), {}));
   };
 
   const handleOnSubmit = data => {
+    search(data);
     onSubmit(data);
 
     if (showDrawer && mobileDisplay && closeDrawerOnSubmit) {
@@ -69,11 +76,10 @@ function Component({
   };
 
   useEffect(() => {
-    methods.reset(initialFilters);
     if (defaultFiltersKeys.length) {
       setDefaultFilters();
     }
-  }, []);
+  }, [setDefaultFilters]);
 
   const renderFilters = () => {
     return filters.map(filter => {
@@ -81,24 +87,19 @@ function Component({
 
       if (!Filter || filter.permitted_filter === false) return null;
 
-      return <Filter key={filter.field_name} filter={filter} multiple={filter.multiple} />;
+      return <Filter key={filter.field_name} filter={filter} multiple={filter.multiple} mode={filter.mode} />;
     });
   };
 
   return (
     <div className={css.recordFormFilters} data-testid="form-filter">
       {showFilterIcon}
-      <FilterContainer
-        drawer={drawerOpen}
-        handleDrawer={toggleDrawer}
-        mobileDisplay={mobileDisplay && showDrawer}
-        noMargin={noMargin}
-      >
+      <FilterContainer drawerName={FILTERS_DRAWER} mobileDisplay={mobileDisplay && showDrawer} noMargin={noMargin}>
         <div className={css.filtersContainer} role="form">
-          <FormProvider {...methods} user={userName}>
+          <FormProvider {...methods} user={userName} initialFilters={initialFilters}>
             <form onSubmit={methods.handleSubmit(handleOnSubmit)}>
               {showSearchField && (
-                <SearchBox showSearchNameToggle={false} searchFieldLabel={searchFieldLabel} useFullWidth={noMargin} />
+                <SearchBox showFieldToggle={false} searchFieldLabel={searchFieldLabel} useFullWidth={noMargin} />
               )}
               <Actions handleClear={onClear} />
               {renderFilters()}

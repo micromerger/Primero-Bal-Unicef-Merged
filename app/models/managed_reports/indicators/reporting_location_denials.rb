@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # An indicator that returns the reporting locations of violation type denial
 class ManagedReports::Indicators::ReportingLocationDenials < ManagedReports::SqlReportIndicator
   class << self
@@ -26,13 +24,15 @@ class ManagedReports::Indicators::ReportingLocationDenials < ManagedReports::Sql
         count(violations.id) as sum
         from violations violations
         inner join incidents incidents on incidents.id = violations.incident_id
-        where
-        incidents.data->>'reporting_location_hierarchy' is not null
+        where incidents.data->>'reporting_location_hierarchy' is not null
+        AND incidents.srch_status = 'open'
+        AND incidents.srch_record_state = TRUE
         #{date_range_query(params['incident_date'], 'incidents')&.prepend('and ')}
         #{date_range_query(params['date_of_first_report'], 'incidents')&.prepend('and ')}
         #{date_range_query(params['ctfmr_verified_date'], 'violations')&.prepend('and ')}
         #{equal_value_query(params['ctfmr_verified'], 'violations')&.prepend('and ')}
         #{equal_value_query(params['type'], 'violations')&.prepend('and ')}
+        #{equal_value_query(params['has_late_verified_violations'], 'incidents')&.prepend('and ')}
         group by (string_to_array(incidents."data" ->> 'reporting_location_hierarchy', '.'))[#{admin_level}]
         #{group_id_alias(params['grouped_by'])&.dup&.prepend(', ')}
         order by name

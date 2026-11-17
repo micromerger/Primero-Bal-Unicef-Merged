@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # An indicator that returns the sexual violence type of violation type rape
 class ManagedReports::Indicators::SexualViolenceType < ManagedReports::SqlReportIndicator
   class << self
@@ -10,11 +8,10 @@ class ManagedReports::Indicators::SexualViolenceType < ManagedReports::SqlReport
     end
 
     # rubocop:disable Metrics/AbcSize
-    # rubocop:disable Metrics/MethodLength
     # rubocop:disable Metrics/CyclomaticComplexity
     # rubocop:disable Metrics/PerceivedComplexity
     def sql(current_user, params = {})
-      %{
+      <<~SQL
         select detention_type as name, json_object_agg(key, sum) as data
         #{group_id_alias(params['grouped_by'])&.dup&.prepend(', ')}
         from (
@@ -29,6 +26,8 @@ class ManagedReports::Indicators::SexualViolenceType < ManagedReports::SqlReport
         cross join json_each_text((violations.data->>'violation_tally')::JSON)
         inner join incidents incidents
           on incidents.id = violations.incident_id
+          and incidents.srch_status = 'open'
+          AND incidents.srch_record_state = TRUE
           #{user_scope_query(current_user, 'incidents')&.prepend('and ')}
         where violations.data->>'violation_tally' is not null
         and violations.data->>'sexual_violence_type' is not null
@@ -37,16 +36,16 @@ class ManagedReports::Indicators::SexualViolenceType < ManagedReports::SqlReport
         #{date_range_query(params['ctfmr_verified_date'], 'violations')&.prepend('and ')}
         #{equal_value_query(params['ctfmr_verified'], 'violations')&.prepend('and ')}
         #{equal_value_query(params['type'], 'violations')&.prepend('and ')}
+        #{equal_value_query(params['has_late_verified_violations'], 'incidents')&.prepend('and ')}
         group by detention_type, key
         #{group_id_alias(params['grouped_by'])&.dup&.prepend(', ')}
         ) as violation_data
         group by detention_type
         #{group_id_alias(params['grouped_by'])&.dup&.prepend(', ')}
         order by name
-      }
+      SQL
     end
     # rubocop:enable Metrics/AbcSize
-    # rubocop:enable Metrics/MethodLength
     # rubocop:enable Metrics/CyclomaticComplexity
     # rubocop:enable Metrics/PerceivedComplexity
   end

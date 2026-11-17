@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Model representing an event. Some events are correlated to a case, forming a historical record.
 # rubocop:disable Metrics/ClassLength
 class Incident < ApplicationRecord
@@ -22,6 +20,7 @@ class Incident < ApplicationRecord
   include LocationCacheable
   include PhoneticSearchable
   include Normalizeable
+  include AccessLoggable
 
   store_accessor(
     :data,
@@ -32,7 +31,8 @@ class Incident < ApplicationRecord
     :health_medical_referral_subform_section, :psychosocial_counseling_services_subform_section,
     :legal_assistance_services_subform_section, :police_or_other_type_of_security_services_subform_section,
     :livelihoods_services_subform_section, :child_protection_services_subform_section, :violation_category,
-    :incident_date_end, :is_incident_date_range, :incident_date_derived
+    :incident_date_end, :is_incident_date_range, :incident_date_derived,
+    :cp_incident_violence_type, :gbv_sexual_violence_type
   )
 
   DEFAULT_ALERT_FORM_UNIQUE_ID = 'incident_from_case'
@@ -84,6 +84,7 @@ class Incident < ApplicationRecord
   # TODO: Reconsider whether this is necessary.
   # We will only be creating an incident from a case using a special business logic that
   # will certainly trigger a reindex on the case
+  after_save :stamp_case_with_incident_type
   after_save :index_record
   after_create :add_alert_on_case, :add_case_history
 
@@ -124,6 +125,13 @@ class Incident < ApplicationRecord
     self.case&.case_id_display
   end
 
+  def incident_type
+    return if module_id == PrimeroModule::MRM
+    return gbv_sexual_violence_type if module_id == PrimeroModule::GBV
+
+    cp_incident_violence_type
+  end
+
   def add_alert_on_case
     form_name = alert_form_unique_id
 
@@ -148,6 +156,17 @@ class Incident < ApplicationRecord
     )
 
     mark_case_updated!
+  end
+
+  def stamp_case_with_incident_type
+    incident_type_change =
+      saved_change_to_attribute?(:incident_case_id) ||
+      (saved_changes_to_record.keys & %w[cp_incident_violence_type gbv_sexual_violence_type]).present?
+    return unless incident_type_change
+    return unless incident_case_id.present? && self.case.present?
+
+    self.case.mark_recalculate_incident_types
+    self.case.save!
   end
 
   def mark_case_updated!

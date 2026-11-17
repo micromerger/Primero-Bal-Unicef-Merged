@@ -1,10 +1,10 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 /* eslint-disable import/prefer-default-export */
 
+import { ACCEPTED } from "../../../../config";
 import { ENQUEUE_SNACKBAR, generate } from "../../../notifier";
 import { CLEAR_DIALOG, SET_DIALOG_PENDING } from "../../../action-dialog";
 import { redirectCheckAccessDenied } from "../../utils";
+import { fetchRecord } from "../../../records/action-creators";
 
 import actions from "./actions";
 
@@ -28,6 +28,7 @@ export const approvalTransfer = ({ body, message, failureMessage, recordId, reco
       {
         action: CLEAR_DIALOG
       },
+      ...(body?.data?.status === ACCEPTED ? [fetchRecord(recordType, recordId, true)] : []),
       redirectCheckAccessDenied(recordType)
     ],
     failureCallback: [

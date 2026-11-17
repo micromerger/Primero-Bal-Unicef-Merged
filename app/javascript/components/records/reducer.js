@@ -1,9 +1,8 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS, Map, List } from "immutable";
 
 import { mergeRecord } from "../../libs";
 import { DEFAULT_METADATA, INCIDENT_CASE_ID_FIELD, INCIDENT_CASE_ID_DISPLAY_FIELD, RECORD_TYPES } from "../../config";
+import referralActions from "../transitions/referrals/referral-action/actions";
 
 import {
   RECORDS_STARTED,
@@ -86,7 +85,9 @@ import {
   FETCH_RELATED_RECORDS_FAILURE,
   ADD_RECORD_RELATIONSHIP,
   REMOVE_RECORD_RELATIONSHIP,
-  CLEAR_RECORD_RELATIONSHIPS
+  CLEAR_RECORD_RELATIONSHIPS,
+  SET_SELECTED_IDENTIFIED_RECORD,
+  SET_IS_RECORD_CREATION_FLOW
 } from "./actions";
 
 const DEFAULT_STATE = Map({ data: List([]) });
@@ -96,7 +97,7 @@ export default namespace =>
     switch (type) {
       case `${namespace}/${RECORDS_STARTED}`:
       case `${namespace}/${RECORD_STARTED}`:
-        return state.set("loading", fromJS(payload)).set("errors", false);
+        return state.set("loading", fromJS(payload)).set("errors", false).set("serverErrors", fromJS([]));
       case `${namespace}/${RECORDS_FAILURE}`:
         return state.set("errors", true).set("loading", false);
       case `${namespace}/${MARK_FOR_OFFLINE_STARTED}`: {
@@ -176,7 +177,8 @@ export default namespace =>
             .updateIn(["data", index], u =>
               mergeRecord(u, fromJS(incidents?.length || services?.length ? stateWithAlertCount : data))
             )
-            .set("errors", false);
+            .set("errors", false)
+            .set("serverErrors", fromJS([]));
         }
 
         return state
@@ -187,10 +189,20 @@ export default namespace =>
 
             return u;
           })
-          .set("errors", false);
+          .set("errors", false)
+          .set("serverErrors", fromJS([]));
       }
-      case `${namespace}/${RECORD_FAILURE}`:
-        return state.set("errors", true);
+      case `${namespace}/${RECORD_FAILURE}`: {
+        // TODO: Set loading to false because fetchSinglePayload is not calling RECORD_FINISHED
+        const newState = state.set("errors", true).set("loading", false);
+
+        // TODO: This shouldn't be needed but for some reason this is called twice in fetchSinglePayload
+        if (payload.errors) {
+          return newState.set("serverErrors", fromJS(payload.errors));
+        }
+
+        return newState;
+      }
       case `${namespace}/${RECORD_FINISHED}`:
         return state.set("loading", false);
       case `${namespace}/${DELETE_ALERT_FROM_RECORD_SUCCESS}`:
@@ -258,6 +270,9 @@ export default namespace =>
       }
       case `${namespace}/${SET_SELECTED_RECORD}`: {
         return state.setIn(["selectedRecord"], payload.id);
+      }
+      case `${namespace}/${SET_SELECTED_IDENTIFIED_RECORD}`: {
+        return state.setIn(["selectedRecord"], payload?.json?.data?.id);
       }
       case `${namespace}/${CLEAR_SELECTED_RECORD}`: {
         return state.delete("selectedRecord");
@@ -477,6 +492,20 @@ export default namespace =>
       }
       case `${namespace}/${CLEAR_RECORD_RELATIONSHIPS}`: {
         return state.set("relationships", fromJS({}));
+      }
+      case `${namespace}/${SET_IS_RECORD_CREATION_FLOW}`: {
+        return state.set("isRecordCreationFlow", payload);
+      }
+      case referralActions.REFERRAL_REJECTED_SUCCESS:
+      case referralActions.REFERRAL_ACCEPTED_SUCCESS: {
+        const { record, record_type: recordType } = payload.data;
+        const index = state.get("data", List([])).findIndex(current => current.get("id") === record?.id);
+
+        if (RECORD_TYPES[namespace] !== recordType || index === -1) {
+          return state;
+        }
+
+        return state.updateIn(["data", index], current => mergeRecord(current, fromJS(record)));
       }
       default:
         return state;

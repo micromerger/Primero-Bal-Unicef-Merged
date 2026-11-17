@@ -1,4 +1,4 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
+import isEmpty from "lodash/isEmpty";
 
 import { getIsDashboardGroupLoading, getWorkflowTeamCases } from "../../selectors";
 import { useI18n } from "../../../../i18n";
@@ -27,7 +27,11 @@ function Component() {
       userModules.size === 1
         ? label("dashboard.workflow_team")
         : i18n.t("dashboard.workflow_team_module", { module_name: userModule.name });
-    const labels = workflowLabels.filter(moduleWorkflow => moduleWorkflow?.[2] === userModule.unique_id)?.[0];
+    const labels = workflowLabels.filter(moduleWorkflow => moduleWorkflow?.[2] === userModule.unique_id)?.[0]?.[1];
+
+    if (isEmpty(labels)) {
+      return null;
+    }
 
     return (
       <Permission resources={RESOURCES.dashboards} actions={ACTIONS.DASH_WORKFLOW_TEAM}>
@@ -35,8 +39,8 @@ function Component() {
           <DashboardTable
             pathname={ROUTES.cases}
             title={title}
-            {...toListTable(casesWorkflowTeam, labels?.[1], [], i18n.locale, indicators => {
-              return indicators[`workflow_team_${userModule.unique_id}`];
+            {...toListTable(casesWorkflowTeam, labels, [], i18n.locale, indicators => {
+              return indicators[`workflow_team_${userModule.unique_id}`] || {};
             })}
           />
         </OptionsBox>

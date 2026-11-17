@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe Workflow do
@@ -135,6 +133,13 @@ describe Workflow do
     context 'when case is new' do
       it 'workflow status should be NEW' do
         expect(@case1.workflow).to eq(Workflow::WORKFLOW_NEW)
+      end
+
+      it 'populates srch_workflow on create' do
+        user = User.new(user_name: 'test_user')
+        record = Child.new_with_user(user, name: 'Test Record')
+        record.save!
+        expect(record.srch_workflow).to eq(Workflow::WORKFLOW_NEW)
       end
     end
 

@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 /* eslint-disable camelcase */
 
 import CheckIcon from "@mui/icons-material/Check";
@@ -121,7 +119,7 @@ function Container({ mode }) {
         ...(fields.length && { fields }),
         filters: indexes.map(({ data: filter }) => ({
           ...filter,
-          value: checkValue(filter)
+          value: checkValue(filter, i18n)
         }))
       }
     };

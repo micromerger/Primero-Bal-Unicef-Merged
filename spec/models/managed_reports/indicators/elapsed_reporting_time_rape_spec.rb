@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ManagedReports::Indicators::ElapsedReportingTimeRape do
@@ -106,7 +104,8 @@ describe ManagedReports::Indicators::ElapsedReportingTimeRape do
       {
         incident_date: Date.new(2020, 8, 10),
         date_of_first_report: Date.new(2020, 8, 12),
-        gbv_sexual_violence_type: 'rape'
+        gbv_sexual_violence_type: 'rape',
+        consent_reporting: 'true'
       }
     ).save!
     Incident.new_with_user(
@@ -114,7 +113,8 @@ describe ManagedReports::Indicators::ElapsedReportingTimeRape do
       {
         incident_date: Date.new(2021, 9, 3),
         date_of_first_report: Date.new(2021, 9, 8),
-        gbv_sexual_violence_type: 'rape'
+        gbv_sexual_violence_type: 'rape',
+        consent_reporting: 'true'
       }
     ).save!
     Incident.new_with_user(
@@ -122,7 +122,8 @@ describe ManagedReports::Indicators::ElapsedReportingTimeRape do
       {
         incident_date: Date.new(2021, 9, 9),
         date_of_first_report: Date.new(2021, 9, 10),
-        gbv_sexual_violence_type: 'rape'
+        gbv_sexual_violence_type: 'rape',
+        consent_reporting: 'true'
       }
     ).save!
     Incident.new_with_user(
@@ -130,7 +131,8 @@ describe ManagedReports::Indicators::ElapsedReportingTimeRape do
       {
         incident_date: Date.new(2020, 8, 12),
         date_of_first_report: Date.new(2020, 9, 12),
-        gbv_sexual_violence_type: 'rape'
+        gbv_sexual_violence_type: 'rape',
+        consent_reporting: 'true'
       }
     ).save!
     Incident.new_with_user(
@@ -138,6 +140,16 @@ describe ManagedReports::Indicators::ElapsedReportingTimeRape do
       {
         incident_date: Date.new(2022, 8, 8),
         date_of_first_report: Date.new(2022, 10, 8)
+      }
+    ).save!
+    Incident.new_with_user(
+      @all_user,
+      {
+        incident_date: Date.new(2022, 8, 8),
+        date_of_first_report: Date.new(2022, 10, 8),
+        gbv_sexual_violence_type: 'rape',
+        consent_reporting: 'true',
+        gbv_reported_elsewhere: 'gbvims-org'
       }
     ).save!
   end
@@ -210,8 +222,8 @@ describe ManagedReports::Indicators::ElapsedReportingTimeRape do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'year'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2022-10-10'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2022-10-10')
             )
           }
         ).data
@@ -234,8 +246,8 @@ describe ManagedReports::Indicators::ElapsedReportingTimeRape do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'month'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2021-10-10'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2021-10-10')
             )
           }
         ).data
@@ -273,8 +285,8 @@ describe ManagedReports::Indicators::ElapsedReportingTimeRape do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2021-09-30'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2021-09-30')
             )
           }
         ).data

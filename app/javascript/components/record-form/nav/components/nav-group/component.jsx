@@ -1,10 +1,8 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import PropTypes from "prop-types";
 import { List, Collapse } from "@mui/material";
 
 import NavItem from "../nav-item";
-import { useI18n } from "../../../../i18n";
+import useSystemStrings, { FORMS } from "../../../../application/use-system-strings";
 
 import { NAME } from "./constants";
 import { getFormGroupName } from "./utils";
@@ -24,7 +22,7 @@ function Component({
   const isNested = forms.length > 1;
   const parentForm = forms[0];
   const { group: formGroupID } = parentForm;
-  const i18n = useI18n();
+  const { label } = useSystemStrings(FORMS);
 
   const groupName = getFormGroupName(formGroupLookup, formGroupID);
 
@@ -32,7 +30,7 @@ function Component({
 
   const formHasError = form => Boolean(validationErrors?.find(error => error.get("unique_id") === form.formId));
 
-  const navItemName = form => (form.i18nName ? i18n.t(form.name) : form.name);
+  const navItemName = form => (form.i18nName ? label(form.name) : form.name);
 
   const parentFormProps = {
     form: parentForm,

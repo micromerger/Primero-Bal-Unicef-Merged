@@ -1,5 +1,3 @@
-// Copyright (c) 2014 UNICEF. All rights reserved.
-
 import { ROUTES } from "../../../../../../config";
 
 export const ACTIONS_WITH_RECORD_ID = Object.freeze([
@@ -18,6 +16,7 @@ export const ACTIONS_WITH_RECORD_ID = Object.freeze([
   "attach",
   "detach",
   "add_note",
+  "bulk_email",
   "case_plan_approved",
   "case_plan_requested",
   "case_plan_rejected",

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 incident_details_subform_fields = [
   Field.new('name' => 'cp_incident_identification_violence',
             'type' => 'select_box',
@@ -105,7 +103,7 @@ incident_details_fields = [
   Field.new(
     'name' => 'incident_details',
     'type' => 'subform', 'editable' => true,
-    'subform_section' => incident_details_subform_section,
+    'subform' => incident_details_subform_section,
     'display_name_en' => 'Incident Details',
     'subform_sort_by' => 'summary_date'
   )

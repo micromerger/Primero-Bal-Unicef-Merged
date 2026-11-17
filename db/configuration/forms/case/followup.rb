@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 followup_subform_fields = [
   Field.new('name' => 'followup_type',
             'type' => 'select_box',
@@ -61,7 +59,7 @@ followup_subform_section = FormSection.create_or_update!(
 followup_fields = [
   Field.new('name' => 'followup_subform_section',
             'type' => 'subform', 'editable' => true,
-            'subform_section' => followup_subform_section,
+            'subform' => followup_subform_section,
             'display_name_en' => 'Follow Up',
             'subform_sort_by' => 'followup_date')
 ]

@@ -1,6 +1,7 @@
-import { Map } from "immutable";
+import { Map, fromJS } from "immutable";
 
 import { mountedComponent, screen } from "../../../../test-utils";
+import { PrimeroModuleRecord } from "../../../application/records";
 
 import TransitionDialog from "./transition-dialog";
 
@@ -68,6 +69,33 @@ describe("<TransitionDialog />", () => {
     });
   });
 
+  describe("when the incident record type label is overridden", () => {
+    it("renders the overridden record type in the 'Assign Incident' title", () => {
+      mountedComponent(
+        <TransitionDialog
+          {...props}
+          transitionType="reassign"
+          recordType="incidents"
+          record={Map({ incident_code: "abc1234" })}
+        />,
+        fromJS({
+          application: {
+            modules: [
+              PrimeroModuleRecord({
+                unique_id: "primeromodule-cp",
+                name: "CP",
+                field_labels: { "forms.record_types.incident": { en: "Monitoring Report" } }
+              })
+            ]
+          },
+          user: { modules: ["primeromodule-cp"] }
+        })
+      );
+
+      expect(screen.getByText("transition.type.reassign Monitoring Report abc1234")).toBeInTheDocument();
+    });
+  });
+
   describe("when transitionType is 'reassign' for bulk operations", () => {
     const propsForBulk = {
       ...props,
@@ -83,6 +111,30 @@ describe("<TransitionDialog />", () => {
     it("should render 'Assign Cases' as title", () => {
       mountedComponent(<TransitionDialog {...reassignBulkProps} />);
       expect(screen.getByText(/transition.type.reassign forms.record_types.case/i)).toBeInTheDocument();
+    });
+
+    it("renders the overridden incident labels in the bulk 'Assign Incidents' dialog", () => {
+      mountedComponent(
+        <TransitionDialog {...reassignBulkProps} recordType="incidents" selectedRecordsLength={2} />,
+        fromJS({
+          application: {
+            modules: [
+              PrimeroModuleRecord({
+                unique_id: "primeromodule-cp",
+                name: "CP",
+                field_labels: {
+                  "incidents.label": { en: "Monitoring Reports" },
+                  "incidents.selected_records_assign": { en: "%{select_records} monitoring report(s) selected." }
+                }
+              })
+            ]
+          },
+          user: { modules: ["primeromodule-cp"] }
+        })
+      );
+
+      expect(screen.getByText(/^transition.type.reassign Monitoring Reports/)).toBeInTheDocument();
+      expect(screen.getByText("2 monitoring report(s) selected.")).toBeInTheDocument();
     });
   });
 });

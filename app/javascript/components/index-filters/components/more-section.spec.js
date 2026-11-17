@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS, List } from "immutable";
 
 import { mountedFormComponent, screen } from "../../../test-utils";
@@ -31,7 +29,8 @@ describe("<MoreSection>", () => {
     primaryFilters: fromJS([]),
     recordType: "cases",
     setMore: () => {},
-    setMoreSectionFilters: () => {}
+    setMoreSectionFilters: () => {},
+    queryParams: {}
   };
 
   it("renders MoreSection filters", () => {

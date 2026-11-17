@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { useRef, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
@@ -58,7 +56,8 @@ function Referrals({
     getRecordForms(state, {
       recordType: RECORD_TYPES[recordType],
       primeroModule: record?.get("module_id"),
-      includeDefaultForms: false
+      includeDefaultForms: false,
+      checkPermittedForms: true
     })
   );
 
@@ -152,7 +151,7 @@ function Referrals({
             formsSelectedField={FIELDS.ROLE}
             formsSelectedSelector={OPTION_TYPES.MANAGED_ROLE_FORM_SECTIONS}
             customFilenameField={CUSTOM_EXPORT_FILE_NAME_FIELD}
-            customFormProps={customReferralFormProps(i18n)}
+            customFormProps={customReferralFormProps(i18n, formValues)}
             includeAllFormsWhenEmpty={false}
           />
         )}

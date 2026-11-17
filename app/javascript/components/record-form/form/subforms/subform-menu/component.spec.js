@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 
 import { ACTIONS } from "../../../../permissions";
@@ -100,6 +98,25 @@ describe("<SubformMenu />", () => {
       );
 
       expect(screen.getAllByRole("button")).toHaveLength(1);
+    });
+
+    describe("when the current user has a pending referral for the selected case", () => {
+      const pendingState = initialState
+        .setIn(["user", "username"], "user_2")
+        .setIn(["records", "cases", "selectedRecord"], "case_1")
+        .setIn(["records", "cases", "data"], fromJS([{ id: "case_1", referred_users_pending: ["user_2"] }]));
+
+      it("disables the ReferAction", () => {
+        mountedComponent(<SubformMenu {...props} />, pendingState);
+
+        expect(screen.getByRole("button")).toBeDisabled();
+      });
+
+      it("labels the ReferAction with the referral restriction tooltip", () => {
+        mountedComponent(<SubformMenu {...props} />, pendingState);
+
+        expect(screen.getByLabelText("referral.pending_restriction")).toBeInTheDocument();
+      });
     });
 
     it("does not render the ReferAction if service is referrable and the user has no permission", () => {

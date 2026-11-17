@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { FieldRecord, FormSectionRecord, TICK_FIELD, TEXT_FIELD, SELECT_FIELD } from "../../../../form";
 import { FIELD_NAMES } from "../constants";
 
@@ -57,6 +55,7 @@ export default (groupPermissions, i18n, adminLevelMap) => {
         name: FIELD_NAMES.moduleIds,
         type: SELECT_FIELD,
         option_strings_source: "Module",
+        required: true,
         multi_select: true
       }),
       FieldRecord({

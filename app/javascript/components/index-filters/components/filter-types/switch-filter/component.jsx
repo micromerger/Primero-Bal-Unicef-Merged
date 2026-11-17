@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { useEffect, useState, useRef } from "react";
 import PropTypes from "prop-types";
 import { Checkbox, FormControl, FormGroup, FormControlLabel } from "@mui/material";
@@ -12,7 +10,16 @@ import handleFilterChange from "../value-handlers";
 
 import { NAME } from "./constants";
 
-function Component({ filter, moreSectionFilters = {}, setMoreSectionFilters, mode, reset, setReset }) {
+function Component({
+  filter,
+  moreSectionFilters = {},
+  setMoreSectionFilters,
+  mode,
+  reset,
+  setReset,
+  disabled,
+  helpText
+}) {
   const i18n = useI18n();
   const { register, unregister, setValue, getValues } = useFormContext();
   const [inputValue, setInputValue] = useState();
@@ -70,7 +77,14 @@ function Component({ filter, moreSectionFilters = {}, setMoreSectionFilters, mod
   }, [register, unregister, fieldName]);
 
   return (
-    <Panel filter={filter} getValues={getValues} handleReset={handleReset} moreSectionFilters={moreSectionFilters}>
+    <Panel
+      filter={filter}
+      getValues={getValues}
+      handleReset={handleReset}
+      moreSectionFilters={moreSectionFilters}
+      disabled={disabled}
+      helpText={helpText}
+    >
       <FormControl>
         <FormGroup>
           <FormControlLabel
@@ -87,7 +101,9 @@ function Component({ filter, moreSectionFilters = {}, setMoreSectionFilters, mod
 Component.displayName = NAME;
 
 Component.propTypes = {
+  disabled: PropTypes.bool,
   filter: PropTypes.object.isRequired,
+  helpText: PropTypes.string,
   mode: PropTypes.shape({
     defaultFilter: PropTypes.bool,
     secondary: PropTypes.bool

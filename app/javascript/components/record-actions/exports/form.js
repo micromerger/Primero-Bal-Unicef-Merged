@@ -1,11 +1,15 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import isEmpty from "lodash/isEmpty";
 import uniqBy from "lodash/uniqBy";
 
 import { FieldRecord, SELECT_FIELD, RADIO_FIELD, TEXT_FIELD, TICK_FIELD, TOGGLE_FIELD } from "../../form";
 
-import { isCustomExport, isPdfExport, allowedExports, buildAgencyLogoPdfOptions } from "./utils";
+import {
+  isCustomExport,
+  isPdfExport,
+  isIncidentRecorderExport,
+  allowedExports,
+  buildAgencyLogoPdfOptions
+} from "./utils";
 import {
   CASE_WORKER,
   CLIENT,
@@ -23,6 +27,7 @@ import {
   INCLUDE_OTHER_LOGOS,
   INDIVIDUAL_FIELDS_FIELD,
   MODULE_FIELD,
+  OLD_INCIDENT_RECORDER_FORMAT,
   PASSWORD_FIELD,
   RECIPIENT,
   SIGNATURES
@@ -49,6 +54,13 @@ export default (
       },
       multi_select: false,
       required: true
+    }),
+    FieldRecord({
+      display_name: i18n.t("exports.incident_recorder_xls.old_format_label"),
+      name: OLD_INCIDENT_RECORDER_FORMAT,
+      type: TICK_FIELD,
+      watchedInputs: EXPORT_TYPE_FIELD,
+      showIf: value => isIncidentRecorderExport(value)
     }),
     FieldRecord({
       display_name: i18n.t("report.modules"),

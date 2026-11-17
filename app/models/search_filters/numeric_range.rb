@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Transform API query parameter field_name=m..n into a sql query
 class SearchFilters::NumericRange < SearchFilters::SearchFilter
   attr_accessor :from, :to
@@ -9,7 +7,7 @@ class SearchFilters::NumericRange < SearchFilters::SearchFilter
   def json_path_query
     return if from.blank? && to.blank?
 
-    "(#{ActiveRecord::Base.sanitize_sql_for_conditions(['data->? IS NOT NULL', field_name])} AND #{super})"
+    "#{safe_json_column} @? '#{json_field_query} ? (#{json_path_predicate})'"
   end
 
   def json_path_predicate

@@ -1,4 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
 import { RECORD_PATH } from "../../../config";
 
 import buildActionList from "./build-action-list";
@@ -54,6 +53,7 @@ describe("record-actions/utils/build-action-list", () => {
       canAssign: true,
       canCreateIncident: false,
       canEnable: false,
+      canAttributeCase: false,
       canOnlyExportPdf: true,
       canOpenOrClose: false,
       canRefer: false,
@@ -89,7 +89,9 @@ describe("record-actions/utils/build-action-list", () => {
       "approve",
       "export",
       "markForOffline",
-      "linkIncidentToCase"
+      "bulkFlag",
+      "linkIncidentToCase",
+      "attributeCase"
     ]);
   });
 
@@ -125,6 +127,65 @@ describe("record-actions/utils/build-action-list", () => {
         "incidents.export",
         "incident.link_incident_to_case"
       ]);
+    });
+  });
+
+  describe("when the incident labels are overridden", () => {
+    const overrides = {
+      "forms.record_types.incident": "Monitoring Report",
+      "actions.incident_from_case": "Create Monitoring Report",
+      "incident.link_incident_to_case": "Link Monitoring Report to Case",
+      "actions.incident_details_from_case": "Add Monitoring Report"
+    };
+    const label = key => overrides[key] || key;
+
+    it("uses the overridden labels for the incident actions", () => {
+      const response = buildActionList({
+        recordType: RECORD_PATH.incidents,
+        i18n,
+        label,
+        requestsApproval,
+        approvals,
+        enableState: "enable",
+        canAssign: true,
+        canShowExports: true
+      });
+
+      expect(response.actions.map(action => action.name)).toEqual([
+        "buttons.reassign Monitoring Report",
+        "actions.enable",
+        "incidents.export",
+        "Link Monitoring Report to Case"
+      ]);
+    });
+
+    it("uses the overridden label for the create incident action", () => {
+      const response = buildActionList({
+        recordType: RECORD_PATH.cases,
+        i18n,
+        label,
+        requestsApproval,
+        approvals,
+        canCreateIncident: true,
+        isShow: true
+      });
+
+      expect(response.actions.map(action => action.name)).toContain("Create Monitoring Report");
+    });
+
+    it("uses the overridden label for the add incident action", () => {
+      const response = buildActionList({
+        recordType: RECORD_PATH.cases,
+        i18n,
+        label,
+        requestsApproval,
+        approvals,
+        canAddIncident: true,
+        hasIncidentSubform: true,
+        showListActions: true
+      });
+
+      expect(response.actions.map(action => action.name)).toContain("Add Monitoring Report");
     });
   });
 });

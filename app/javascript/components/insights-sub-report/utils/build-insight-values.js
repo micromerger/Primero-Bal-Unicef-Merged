@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import first from "lodash/first";
 import sortBy from "lodash/sortBy";
 import isEmpty from "lodash/isEmpty";
@@ -9,16 +7,14 @@ import buildSingleRows from "./build-single-rows";
 import buildGroupedRows from "./build-grouped-rows";
 
 export default {
-  ghn_report: ({ data, getLookupValue, key }) => {
-    const grouped = data.some(fs => fs.get("group_id"));
-
+  ghn_report: ({ data, getLookupValue, key, subColumnItems, isGrouped }) => {
     if (data === 0) return [];
 
-    if (grouped) {
-      return buildGroupedRows({ data, key, getLookupValue, groupedBy: "year" });
+    if (isGrouped) {
+      return buildGroupedRows({ data, key, getLookupValue, groupedBy: "year", subColumnItems });
     }
 
-    return buildSingleRows({ data, getLookupValue, key });
+    return buildSingleRows({ data, getLookupValue, key, subColumnItems });
   },
   default: ({
     getLookupValue,
@@ -28,11 +24,9 @@ export default {
     groupedBy,
     ageRanges,
     lookupValues,
-    incompleteDataLabel,
-    totalText,
+    labels,
     subColumnItems = [],
     indicatorRows,
-    hasTotalColumn,
     includeZeros = false
   }) => {
     if (data === 0) return [];
@@ -49,25 +43,35 @@ export default {
       rowTitles = !isEmpty(lookupDisplayTexts) ? lookupDisplayTexts : indicatorRowDisplaytexts;
     }
 
-    const rows =
+    const separators = indicatorRows?.reduce((acc, elem) => {
+      if (elem.separator) {
+        return [...acc, elem.display_text];
+      }
+
+      return acc;
+    }, []);
+
+    const generatedRows =
       isGrouped && groupedBy
-        ? buildGroupedRows({ data, key, getLookupValue, groupedBy, subColumnItems, hasTotalColumn, rowTitles })
-        : buildSingleRows({ data, getLookupValue, key, subColumnItems, hasTotalColumn, rowTitles });
+        ? buildGroupedRows({ data, key, getLookupValue, groupedBy, subColumnItems, rowTitles })
+        : buildSingleRows({ data, getLookupValue, key, subColumnItems, rowTitles });
+
+    const rows = generatedRows.map(current => ({ ...current, separator: separators?.includes(current.row[0]) }));
 
     if (!isEmpty(lookupDisplayTexts)) {
-      const sortArray = [...lookupDisplayTexts, incompleteDataLabel, totalText];
+      const sortArray = [...lookupDisplayTexts, labels.incompleteData, labels.total];
 
       return sortWithSortedArray(rows, sortArray, sortByFn);
     }
 
     if (!isEmpty(indicatorRowDisplaytexts)) {
-      const sortArray = [...indicatorRowDisplaytexts, incompleteDataLabel, totalText];
+      const sortArray = [...indicatorRowDisplaytexts, labels.incompleteData, labels.total];
 
       return sortWithSortedArray(rows, sortArray, sortByFn);
     }
 
     if (key === "age" || key?.includes("_age")) {
-      const sortArray = [...ageRanges, incompleteDataLabel, totalText];
+      const sortArray = [...ageRanges, labels.incompleteData, labels.total];
 
       return sortWithSortedArray(rows, sortArray, sortByFn);
     }

@@ -1,16 +1,15 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
-import { DATE_FORMAT, MONTH_AND_YEAR_FORMAT } from "../../../config";
+import { MONTH_AND_YEAR_FORMAT } from "../../../config";
+import { selectedDateFormat } from "../../../libs/date-picker-localization";
 import { DATE_PATTERN } from "../constants";
 
 import isDateRange from "./is-date-range";
 
-export default value => {
+export default (value, i18n) => {
   if (value.match(/^\w{3}-\d{4}$/)) {
     return MONTH_AND_YEAR_FORMAT;
   }
   if (value.match(new RegExp(`^${DATE_PATTERN}$`)) || isDateRange(value)) {
-    return DATE_FORMAT;
+    return selectedDateFormat(false, i18n.locale);
   }
 
   return null;

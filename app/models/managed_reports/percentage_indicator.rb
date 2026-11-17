@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Helper methods for percentange indicators
 module ManagedReports::PercentageIndicator
   extend ActiveSupport::Concern
@@ -13,6 +11,7 @@ module ManagedReports::PercentageIndicator
     end
 
     def results_in_percentages(results)
+      return [] unless results.present?
       return in_percentages_by_group(results) if results.any? { |result| result.key?('group_id') }
 
       in_percentages(results)

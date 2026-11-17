@@ -1,11 +1,13 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { isImmutable } from "immutable";
 import isEmpty from "lodash/isEmpty";
 
 export default (name, currLocale) => {
   if (isEmpty(name)) {
     return "";
+  }
+
+  if (typeof name === "string") {
+    return name;
   }
 
   if (isImmutable(name)) {

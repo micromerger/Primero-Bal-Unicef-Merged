@@ -1,9 +1,8 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 
 import { useI18n } from "../../i18n";
+import useSystemStrings, { PAGE } from "../../application/use-system-strings";
 import ActionDialog from "../../action-dialog";
 import { saveRecord } from "../../records";
 import { RECORD_TYPES_PLURAL } from "../../../config";
@@ -12,6 +11,7 @@ import { NAME } from "./constants";
 
 function Component({ close, open, record, recordType }) {
   const i18n = useI18n();
+  const { label } = useSystemStrings(PAGE);
   const dispatch = useDispatch();
   const enableState = record && !record.get("record_state") ? "enable" : "disable";
   const setValue = record ? !record.get("record_state") : true;
@@ -27,7 +27,7 @@ function Component({ close, open, record, recordType }) {
           record_action: "enable_disable_record"
         },
         record.get("id"),
-        i18n.t(`${recordTypeWithStatus}_success`),
+        label(`${recordTypeWithStatus}_success`),
         i18n.t("offline_submitted_changes"),
         false,
         false,
@@ -47,8 +47,8 @@ function Component({ close, open, record, recordType }) {
       open={open}
       successHandler={handleOk}
       cancelHandler={close}
-      dialogTitle={i18n.t(`${recordTypeWithStatus}_dialog_title`)}
-      dialogText={i18n.t(`${recordTypeWithStatus}_dialog`)}
+      dialogTitle={label(`${recordTypeWithStatus}_dialog_title`)}
+      dialogText={label(`${recordTypeWithStatus}_dialog`)}
       confirmButtonLabel={i18n.t("cases.ok")}
     />
   );

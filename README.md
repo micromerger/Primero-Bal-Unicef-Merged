@@ -1,4 +1,3 @@
-<!-- Copyright (c) 2014 - 2023 UNICEF. All rights reserved. -->
 Primero
 ========
 [![DPG Badge](https://img.shields.io/badge/Verified-DPG-3333AB?logo=data:image/svg%2bxml;base64,PHN2ZyB3aWR0aD0iMzEiIGhlaWdodD0iMzMiIHZpZXdCb3g9IjAgMCAzMSAzMyIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE0LjIwMDggMjEuMzY3OEwxMC4xNzM2IDE4LjAxMjRMMTEuNTIxOSAxNi40MDAzTDEzLjk5MjggMTguNDU5TDE5LjYyNjkgMTIuMjExMUwyMS4xOTA5IDEzLjYxNkwxNC4yMDA4IDIxLjM2NzhaTTI0LjYyNDEgOS4zNTEyN0wyNC44MDcxIDMuMDcyOTdMMTguODgxIDUuMTg2NjJMMTUuMzMxNCAtMi4zMzA4MmUtMDVMMTEuNzgyMSA1LjE4NjYyTDUuODU2MDEgMy4wNzI5N0w2LjAzOTA2IDkuMzUxMjdMMCAxMS4xMTc3TDMuODQ1MjEgMTYuMDg5NUwwIDIxLjA2MTJMNi4wMzkwNiAyMi44Mjc3TDUuODU2MDEgMjkuMTA2TDExLjc4MjEgMjYuOTkyM0wxNS4zMzE0IDMyLjE3OUwxOC44ODEgMjYuOTkyM0wyNC44MDcxIDI5LjEwNkwyNC42MjQxIDIyLjgyNzdMMzAuNjYzMSAyMS4wNjEyTDI2LjgxNzYgMTYuMDg5NUwzMC42NjMxIDExLjExNzdMMjQuNjI0MSA5LjM1MTI3WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cg==)](https://www.digitalpublicgoods.net/r/primero)
@@ -22,5 +21,21 @@ A guide to getting started with Primero development is available [here](doc/gett
 - If you are contributing via the DAO, make sure to read the relevant documents [here](doc/dao/README.md).
 
 ## Production
-
 Primero is deployed in production using Ansible. Detailed Ansible instructions exist in the file [ansible/README.md](ansible/README.md)
+
+## Acknowledgement
+
+We would like to thank all the maintainers, developers, designers, security researchers, and testers who contributed to this project over the years. 
+
+Some of the organizations that made this project possible:
+ * [UNICEF](https://unicef.org)
+ * [Salus CM](https://salus-cm.care)
+ * [Quoin](https://quoininc.com)
+ * [Jozian](https://jozian.com)
+ * [Trigyn Technologies](https://trigyn.com)
+ * [Microsoft](https://www.microsoft.com)
+ * [ThoughtWorks](https://www.thoughtworks.com)
+ * [International Rescue Committee](https://rescue.org)
+ * [Save the Children](https://www.savethechildren.org)
+ * [Terre des hommes](https://www.tdh.org)
+ * [GSoC](https://summerofcode.withgoogle.com)

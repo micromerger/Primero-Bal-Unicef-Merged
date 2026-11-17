@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import clone from "lodash/clone";
 
 import * as index from "./index";
@@ -15,7 +13,7 @@ describe("<Dashboard /> - index", () => {
       "reducer",
       "selectFlags",
       "selectIsOpenPageActions",
-      "fetchDashboards",
+      "fetchDashboardsByName",
       "DASHBOARD_NAMES"
     ].forEach(property => {
       expect(indexValues).toHaveProperty(property);

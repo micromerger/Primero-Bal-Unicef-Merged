@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 
 import buildInsightValues from "./build-insight-values";
@@ -10,6 +8,7 @@ describe("<InsightsSubReport />/utils/buildInsightValues", () => {
       const values = buildInsightValues.default({
         getLookupValue: (_key, value) => value.get("id"),
         key: "key",
+        labels: {},
         data: fromJS([
           { id: "option_1", total: 5 },
           { id: "option_2", total: 10 }
@@ -30,6 +29,7 @@ describe("<InsightsSubReport />/utils/buildInsightValues", () => {
         key: "key",
         isGrouped: true,
         groupedBy: "year",
+        labels: {},
         data: fromJS([
           {
             group_id: 2022,
@@ -69,6 +69,7 @@ describe("<InsightsSubReport />/utils/buildInsightValues", () => {
         key: "key",
         isGrouped: true,
         groupedBy: "year",
+        labels: {},
         data: fromJS([
           {
             group_id: 2022,
@@ -108,6 +109,7 @@ describe("<InsightsSubReport />/utils/buildInsightValues", () => {
         isGrouped: true,
         groupedBy: "year",
         ageRanges: ["0 - 5", "6 - 11", "12 - 17", "18+"],
+        labels: {},
         data: fromJS([
           {
             group_id: 2022,
@@ -148,6 +150,7 @@ describe("<InsightsSubReport />/utils/buildInsightValues", () => {
         key: "key",
         isGrouped: true,
         groupedBy: "month",
+        labels: {},
         data: fromJS([
           {
             group_id: "2021-10",
@@ -197,6 +200,7 @@ describe("<InsightsSubReport />/utils/buildInsightValues", () => {
         key: "key",
         isGrouped: true,
         groupedBy: "month",
+        labels: {},
         lookupValues: [
           { id: "option_3", display_text: "option_3" },
           { id: "option_1", display_text: "option_1" },
@@ -254,6 +258,7 @@ describe("<InsightsSubReport />/utils/buildInsightValues", () => {
         isGrouped: true,
         groupedBy: "month",
         subColumnItems: ["boys", "girls", "total"],
+        labels: {},
         data: fromJS([
           {
             group_id: "2021-10",
@@ -305,6 +310,7 @@ describe("<InsightsSubReport />/utils/buildInsightValues", () => {
           }
         ]),
         getLookupValue: (_key, value) => value.get("id"),
+        labels: {},
         key: "verified_information_violations"
       });
 

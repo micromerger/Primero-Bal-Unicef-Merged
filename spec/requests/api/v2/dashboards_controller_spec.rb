@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe Api::V2::DashboardsController, type: :request do
@@ -57,7 +55,7 @@ describe Api::V2::DashboardsController, type: :request do
         @permission_dashboard,
         @permission_case
       ],
-      modules: [@primero_module],
+      primero_modules: [@primero_module],
       group_permission: Permission::GROUP
     )
     @role.save(validate: false)
@@ -128,6 +126,7 @@ describe Api::V2::DashboardsController, type: :request do
                   })
     Child.create!(data: { record_state: true, status: 'open', owned_by: 'bar', workflow: 'new' })
     Child.create!(data: { record_state: true, status: 'open', owned_by: 'bar' })
+    Child.create!(data: { record_state: true, status: 'identified', owned_by: 'bar' })
   end
 
   let(:json) { JSON.parse(response.body) }
@@ -363,6 +362,24 @@ describe Api::V2::DashboardsController, type: :request do
       expect(national_admin_summary['indicators']['closed_this_week']['count']).to eq(2)
     end
 
+    it 'lists statistics for the action needed identified cases dashboard' do
+      login_for_test(
+        user_name: 'foo',
+        group_permission: Permission::ALL,
+        permissions: [
+          @permission_case,
+          Permission.new(resource: Permission::DASHBOARD, actions: [Permission::DASH_ACTION_NEEDED_IDENTIFIED])
+        ]
+      )
+
+      get '/api/v2/dashboards'
+
+      expect(response).to have_http_status(200)
+
+      action_needed_identified_dashboard = json['data'].find { |d| d['name'] == 'dashboard.action_needed_identified' }
+      expect(action_needed_identified_dashboard['indicators']['identified']['count']).to eq(1)
+    end
+
     describe 'Test the shared with dashboard', search: true do
       before :each do
         @permission_refer_case = Permission.new(
@@ -388,11 +405,11 @@ describe Api::V2::DashboardsController, type: :request do
         @role = Role.new(permissions: [
                            @permission_refer_case,
                            @permission_dashboard_shared_from_my_team
-                         ], modules: [@primero_module], group_permission: Permission::GROUP)
+                         ], primero_modules: [@primero_module], group_permission: Permission::GROUP)
         @role2 = Role.new(permissions: [
                             @permission_refer_case,
                             @permission_dashboard_shared_with_my_team_overview
-                          ], group_permission: Permission::GROUP, modules: [@primero_module])
+                          ], group_permission: Permission::GROUP, primero_modules: [@primero_module])
         @role.save(validate: false)
         @group_a = UserGroup.create!(name: 'Group_a')
         @user1 = User.new(user_name: 'user1', role: @role, user_groups: [@group_a])
@@ -436,10 +453,19 @@ describe Api::V2::DashboardsController, type: :request do
           ]
         )
         Referral.create!(transitioned_by: 'user1', transitioned_to: 'user2', record: @case_a)
+        referral1 = Referral.create!(transitioned_by: 'user1', transitioned_to: 'user2', record: @case_a)
+        referral1.accept!
+
+        referral2 = Referral.create!(transitioned_by: 'user1', transitioned_to: 'user2', record: @case_a)
+        referral2.reject!(@user2)
+
+        referral3 = Referral.create!(transitioned_by: 'user1', transitioned_to: 'user2', record: @case_a)
+        referral3.accept!
+        referral3.done!(@user2, { success_status: Referral::REFERRAL_SUCCESSFUL })
+
         Transfer.create!(transitioned_by: 'user1', transitioned_to: 'user2', record: @case_a)
-        Transfer.create!(transitioned_by: 'user1', transitioned_to: 'user2', record: @case_b)
-        @case_b.update(transfer_status: Transition::STATUS_REJECTED)
-        @case_a.save!
+        transfer2 = Transfer.create!(transitioned_by: 'user1', transitioned_to: 'user2', record: @case_b)
+        transfer2.reject!(@user2)
       end
 
       it 'lists statistics for permitted shared with me dashboards' do
@@ -454,13 +480,17 @@ describe Api::V2::DashboardsController, type: :request do
 
         shared_with_me_dashboard = json['data'][0]['indicators']
         expect(shared_with_me_dashboard['shared_with_me_total_referrals']['count']).to eq(1)
-        expect(shared_with_me_dashboard['shared_with_me_new_referrals']['count']).to eq(1)
-        expect(shared_with_me_dashboard['shared_with_me_transfers_awaiting_acceptance']['count']).to eq(2)
+        expect(shared_with_me_dashboard['shared_with_me_pending_referrals']['count']).to eq(1)
+        expect(shared_with_me_dashboard['shared_with_me_accepted_referrals']['count']).to eq(1)
+        expect(shared_with_me_dashboard['shared_with_me_transfers_awaiting_acceptance']['count']).to eq(1)
         expect(shared_with_me_dashboard['shared_with_me_total_referrals']['query']).to match_array(
           %w[referred_users=user2 record_state=true status=open]
         )
-        expect(shared_with_me_dashboard['shared_with_me_new_referrals']['query']).to match_array(
-          %w[referred_users=user2 not[last_updated_by]=user2 record_state=true status=open]
+        expect(shared_with_me_dashboard['shared_with_me_pending_referrals']['query']).to match_array(
+          %w[referred_users_pending=user2 record_state=true status=open]
+        )
+        expect(shared_with_me_dashboard['shared_with_me_accepted_referrals']['query']).to match_array(
+          %w[referred_users_accepted=user2 record_state=true status=open]
         )
         expect(shared_with_me_dashboard['shared_with_me_transfers_awaiting_acceptance']['query']).to match_array(
           %w[transferred_to_users=user2 record_state=true status=open]
@@ -478,6 +508,10 @@ describe Api::V2::DashboardsController, type: :request do
         expect(response).to have_http_status(200)
 
         expect(json['data'][0]['indicators']['shared_with_others_referrals']['count']).to eq(1)
+        expect(json['data'][0]['indicators']['shared_with_others_referrals_pending']['count']).to eq(1)
+        expect(json['data'][0]['indicators']['shared_with_others_referrals_accepted']['count']).to eq(1)
+        expect(json['data'][0]['indicators']['shared_with_others_referrals_rejected']['count']).to eq(1)
+        expect(json['data'][0]['indicators']['shared_with_others_referrals_done']['count']).to eq(1)
         expect(json['data'][0]['indicators']['shared_with_others_pending_transfers']['count']).to eq(1)
         expect(json['data'][0]['indicators']['shared_with_others_rejected_transfers']['count']).to eq(1)
       end
@@ -489,10 +523,16 @@ describe Api::V2::DashboardsController, type: :request do
         expect(response).to have_http_status(200)
 
         dash = json['data'][0]['indicators']
-        expect(dash['shared_from_my_team_referrals'][@user1.user_name]['count']).to eq(1)
+        expect(dash['shared_from_my_team_pending_referrals'][@user1.user_name]['count']).to eq(1)
+        expect(dash['shared_from_my_team_accepted_referrals'][@user1.user_name]['count']).to eq(1)
+        expect(dash['shared_from_my_team_rejected_referrals'][@user1.user_name]['count']).to eq(1)
+        expect(dash['shared_from_my_team_done_referrals'][@user1.user_name]['count']).to eq(1)
         expect(dash['shared_from_my_team_pending_transfers'][@user1.user_name]['count']).to eq(1)
         expect(dash['shared_from_my_team_rejected_transfers'][@user1.user_name]['count']).to eq(1)
-        expect(dash['shared_from_my_team_referrals'].count).to eq(1)
+        expect(dash['shared_from_my_team_pending_referrals'].count).to eq(1)
+        expect(dash['shared_from_my_team_accepted_referrals'].count).to eq(1)
+        expect(dash['shared_from_my_team_rejected_referrals'].count).to eq(1)
+        expect(dash['shared_from_my_team_done_referrals'].count).to eq(1)
         expect(dash['shared_from_my_team_pending_transfers'].count).to eq(1)
         expect(dash['shared_from_my_team_rejected_transfers'].count).to eq(1)
       end
@@ -507,8 +547,9 @@ describe Api::V2::DashboardsController, type: :request do
 
           expect(response).to have_http_status(200)
           indicators = json['data'][0]['indicators']
-          expect(indicators['shared_with_my_team_referrals'][@user2.user_name]['count']).to eq(1)
-          expect(indicators['shared_with_my_team_pending_transfers'][@user2.user_name]['count']).to eq(2)
+          expect(indicators['shared_with_my_team_pending_referrals'][@user2.user_name]['count']).to eq(1)
+          expect(indicators['shared_with_my_team_accepted_referrals'][@user2.user_name]['count']).to eq(1)
+          expect(indicators['shared_with_my_team_pending_transfers'][@user2.user_name]['count']).to eq(1)
         end
 
         it 'lists statistics for a user with group permissions' do
@@ -521,8 +562,9 @@ describe Api::V2::DashboardsController, type: :request do
 
           expect(response).to have_http_status(200)
           indicators = json['data'][0]['indicators']
-          expect(indicators['shared_with_my_team_referrals'][@user2.user_name]['count']).to eq(1)
-          expect(indicators['shared_with_my_team_pending_transfers'][@user2.user_name]['count']).to eq(2)
+          expect(indicators['shared_with_my_team_pending_referrals'][@user2.user_name]['count']).to eq(1)
+          expect(indicators['shared_with_my_team_accepted_referrals'][@user2.user_name]['count']).to eq(1)
+          expect(indicators['shared_with_my_team_pending_transfers'][@user2.user_name]['count']).to eq(1)
         end
 
         it 'do not list statistics if values are not in the scope of the user' do
@@ -534,7 +576,8 @@ describe Api::V2::DashboardsController, type: :request do
 
           expect(response).to have_http_status(200)
           indicators = json['data'][0]['indicators']
-          expect(indicators['shared_with_my_team_referrals']).to be_empty
+          expect(indicators['shared_with_my_team_pending_referrals']).to be_empty
+          expect(indicators['shared_with_my_team_accepted_referrals']).to be_empty
           expect(indicators['shared_with_my_team_pending_transfers']).to be_empty
         end
       end
@@ -565,9 +608,12 @@ describe Api::V2::DashboardsController, type: :request do
             Permission::DASH_PERPETRATOR_ARMED_FORCE_GROUP_PARTY_NAMES
           ]
         )
+        @mrm_module = PrimeroModule.create!(
+          unique_id: PrimeroModule::MRM, name: 'MRM', associated_record_types: %w[incident]
+        )
         @role = Role.new(
           permissions: [@permission_violation_dashboards],
-          modules: [@primero_module],
+          primero_modules: [@mrm_module],
           group_permission: Permission::GROUP
         )
         @role.save(validate: false)
@@ -635,6 +681,93 @@ describe Api::V2::DashboardsController, type: :request do
         expect(
           json['data'][2]['indicators']['perpetrator_armed_force_group_party_names']['armed_force_1']['count']
         ).to eq(1)
+      end
+    end
+
+    describe 'action needed dashboards' do
+      before do
+        clean_data(Alert, User, UserGroup, Role, Incident, Child, Location, SystemSettings, Lookup)
+
+        @permission_refer_case = Permission.new(
+          resource: Permission::CASE,
+          actions: [
+            Permission::READ, Permission::WRITE, Permission::CREATE,
+            Permission::REFERRAL, Permission::RECEIVE_REFERRAL,
+            Permission::TRANSFER, Permission::RECEIVE_TRANSFER
+          ]
+        )
+        @permission_dashboard_action_needed_new_referrals = Permission.new(
+          resource: Permission::DASHBOARD,
+          actions: [Permission::DASH_ACTION_NEEDED_NEW_REFERRALS]
+        )
+        @role = Role.new(
+          permissions: [@permission_refer_case, @permission_dashboard_action_needed_new_referrals],
+          primero_modules: [@primero_module],
+          group_permission: Permission::SELF
+        )
+        @role.save(validate: false)
+        @group_a = UserGroup.create!(name: 'Group_a')
+        @user_action_needed = User.new(user_name: 'user_action_needed', role: @role, user_groups: [@group_a])
+        @user_action_needed.save(validate: false)
+        @user2 = User.new(user_name: 'user2', role: @role, user_groups: [@group_a])
+        @user2.save(validate: false)
+        @pending_referral_case = Child.create(
+          data: {
+            name: 'Test_a', owned_by: 'user2',
+            disclosure_other_orgs: true, consent_for_services: true,
+            module_id: @primero_module.unique_id
+          }
+        )
+        Referral.create!(
+          transitioned_by: 'user2', transitioned_to: 'user_action_needed', record: @pending_referral_case
+        )
+      end
+
+      it 'list statistics for a user with admin permissions' do
+        sign_in(@user_action_needed)
+        get '/api/v2/dashboards'
+
+        expect(response).to have_http_status(200)
+        indicators = json['data'][0]['indicators']
+        expect(indicators['shared_with_me_pending_referrals']['count']).to eq(1)
+      end
+    end
+
+    describe 'cases by incident type dashboard' do
+      before do
+        clean_data(Alert, User, UserGroup, Role, Incident, Child)
+
+        @role = Role.new(
+          permissions: [
+            @permission_case,
+            Permission.new(resource: Permission::DASHBOARD, actions: [Permission::DASH_CASES_BY_INCIDENT_TYPE])
+          ],
+          primero_modules: [@primero_module],
+          group_permission: Permission::SELF
+        )
+        @role.save(validate: false)
+        @user_incident_types = User.new(user_name: 'user_incident_types', role: @role)
+        @user_incident_types.save(validate: false)
+
+        [
+          { record_state: true, status: 'open', owned_by: 'user_incident_types', incident_types: %w[physical sexual] },
+          { record_state: true, status: 'open', owned_by: 'user_incident_types', incident_types: %w[physical] },
+          { record_state: true, status: 'closed', owned_by: 'user_incident_types', incident_types: %w[physical] },
+          { record_state: false, status: 'open', owned_by: 'user_incident_types', incident_types: %w[physical] },
+          { record_state: true, status: 'open', owned_by: 'other_user', incident_types: %w[physical] }
+        ].each { |data| Child.create!(data: data.merge(module_id: @primero_module.unique_id)) }
+      end
+
+      it 'counts the open cases owned by the user for each incident type' do
+        sign_in(@user_incident_types)
+        get '/api/v2/dashboards'
+
+        expect(response).to have_http_status(200)
+        dashboard = json['data'].find { |d| d['name'] == 'dashboard.dash_cases_by_incident_type' }
+        indicator = dashboard['indicators']['cases_by_incident_type']
+        expect(indicator['physical']['count']).to eq(2)
+        expect(indicator['sexual']['count']).to eq(1)
+        expect(indicator['physical']['query']).to include('incident_types=physical')
       end
     end
   end

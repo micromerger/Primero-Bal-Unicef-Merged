@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 export const FILTER_TYPES = Object.freeze({
   CHECKBOX: "checkbox",
   SELECT: "select",
@@ -48,18 +46,22 @@ export const VIOLATIONS_FILTER_NAMES = Object.freeze([
   "child_role",
   "abduction_purpose_single",
   "military_use_type",
-  "types_of_aid_disrupted_denial"
+  "types_of_aid_disrupted_denial",
+  "reasons_deprivation_liberty",
+  "victim_facilty_victims_held",
+  "torture_punishment_while_deprivated_liberty"
 ]);
 
 export const PRIMARY_FILTERS = ["sex", "gender", "age", "risk_level", "approval_status_case_plan", "last_updated_at"];
 
 export const DEFAULT_FILTERS = ["fields", "status", "record_state", ID_SEARCH];
 
-export const OR_FIELDS = ["owned_by", "assigned_user_names"];
+export const OR_FIELDS = ["owned_by", "assigned_user_names", "assign"];
 
 export const MY_CASES_FILTER_NAME = "my_cases";
 
 export const OR_FILTER_NAME = "or";
+export const AND_FILTER_NAME = "and";
 export const DEFAULT_SELECTED_RECORDS_VALUE = {};
 
 export const FILTER_CATEGORY = Object.freeze({

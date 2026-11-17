@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 export { default } from "./component";
 
 export { default as usePermissions } from "./use-permissions";
@@ -41,6 +39,7 @@ export {
   RESOURCES,
   SHOW_APPROVALS,
   SHOW_AUDIT_LOGS,
+  SHOW_ACCESS_LOG,
   SHOW_CHANGE_LOG,
   SHOW_EXPORTS,
   SHOW_FIND_MATCH,

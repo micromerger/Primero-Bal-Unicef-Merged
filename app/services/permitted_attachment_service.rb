@@ -1,10 +1,8 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # A service to determine if an attachment is permitted for a user
 class PermittedAttachmentService
-  PREVIEW_TYPES = [Attachment::IMAGE, Attachment::AUDIO].freeze
+  PREVIEW_TYPES = [Attachment::IMAGE, Attachment::AUDIO, Attachment::SIGNATURE].freeze
 
   attr_accessor :user, :write, :attachment, :permitted_form_fields_service
 
@@ -45,11 +43,14 @@ class PermittedAttachmentService
   def permitted_to_preview?
     # TODO: To preview an attachment a user needs to have Permission::DISPLAY_VIEW_PAGE
     # the fields displayed in the preview are those where show_on_minify_form: true.
-    # Should we check the if the attachment field is permitted and if the field is show_on_minify_form: true?
+    previewable_type? && attachment_field_on_preview_form? &&
+      user.can?(:search_owned_by_others, attachment.record.class) && (
+        user.can_preview?(attachment.record.class) || permitted_to_view_record_list_photo?
+      )
+  end
 
-    previewable_type? && user.can?(:search_owned_by_others, attachment.record.class) && (
-      user.can_preview?(attachment.record.class) || permitted_to_view_record_list_photo?
-    )
+  def attachment_field_on_preview_form?
+    attachment.record.class.preview_field_names.include?(attachment.field_name)
   end
 
   def permitted_to_view_record_list_photo?
@@ -65,7 +66,7 @@ class PermittedAttachmentService
       authorized_roles,
       PrimeroModelService.to_name(attachment.record_type),
       attachment.record&.module_id,
-      write
+      write ? 'create' : 'read'
     )
   end
 

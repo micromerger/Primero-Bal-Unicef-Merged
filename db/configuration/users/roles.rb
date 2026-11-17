@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 def create_or_update_role(role_hash)
   role = Role.create_or_update!(role_hash)
   role.associate_all_forms unless role_hash[:form_sections].present?
@@ -129,7 +127,7 @@ create_or_update_role(
   permissions: cp_admin_permissions,
   group_permission: Permission::ALL,
   is_manager: true,
-  modules: [PrimeroModule.cp]
+  primero_modules: [PrimeroModule.cp]
 )
 
 cp_admin_families_permissions = [
@@ -274,7 +272,7 @@ create_or_update_role(
   permissions: cp_admin_families_permissions,
   group_permission: Permission::ALL,
   is_manager: true,
-  modules: [PrimeroModule.cp]
+  primero_modules: [PrimeroModule.cp]
 )
 
 cp_caseworker_permissions = [
@@ -338,7 +336,7 @@ create_or_update_role(
   unique_id: 'role-cp-case-worker',
   name: 'CP Case Worker',
   permissions: cp_caseworker_permissions,
-  modules: [PrimeroModule.cp]
+  primero_modules: [PrimeroModule.cp]
 )
 
 cp_caseworker_families_permissions = [
@@ -423,7 +421,7 @@ create_or_update_role(
   unique_id: 'role-cp-case-worker-families',
   name: 'CP Case Worker with Families',
   permissions: cp_caseworker_families_permissions,
-  modules: [PrimeroModule.cp]
+  primero_modules: [PrimeroModule.cp]
 )
 
 cp_manager_permissions = [
@@ -512,7 +510,7 @@ create_or_update_role(
   permissions: cp_manager_permissions,
   group_permission: Permission::GROUP,
   is_manager: true,
-  modules: [PrimeroModule.cp]
+  primero_modules: [PrimeroModule.cp]
 )
 
 cp_manager_families_permissions = [
@@ -623,7 +621,7 @@ create_or_update_role(
   permissions: cp_manager_families_permissions,
   group_permission: Permission::GROUP,
   is_manager: true,
-  modules: [PrimeroModule.cp]
+  primero_modules: [PrimeroModule.cp]
 )
 
 cp_user_manager_permissions = [
@@ -696,7 +694,7 @@ create_or_update_role(
   permissions: cp_user_manager_permissions,
   group_permission: Permission::GROUP,
   is_manager: true,
-  modules: [PrimeroModule.cp]
+  primero_modules: [PrimeroModule.cp]
 )
 
 agency_user_admin_permissions = [
@@ -731,7 +729,7 @@ create_or_update_role(
   permissions: agency_user_admin_permissions,
   group_permission: Permission::GROUP,
   is_manager: true,
-  modules: [PrimeroModule.cp]
+  primero_modules: [PrimeroModule.cp]
 )
 
 referral_permissions = [
@@ -764,7 +762,7 @@ create_or_update_role(
   permissions: referral_permissions,
   referral: true,
   form_sections: FormSection.where(unique_id: %w[basic_identity]),
-  modules: [PrimeroModule.cp]
+  primero_modules: [PrimeroModule.cp]
 )
 
 transfer_permissions = [
@@ -796,7 +794,7 @@ create_or_update_role(
   name: 'Transfer',
   permissions: transfer_permissions,
   transfer: true,
-  modules: [PrimeroModule.cp]
+  primero_modules: [PrimeroModule.cp]
 )
 
 cp_serviceprovider_permissions = [
@@ -833,7 +831,7 @@ create_or_update_role(
   referral: true,
   permissions: cp_serviceprovider_permissions,
   form_sections: FormSection.where(unique_id: cp_serviceprovider_forms),
-  modules: [PrimeroModule.cp]
+  primero_modules: [PrimeroModule.cp]
 )
 
 superuser_permissions = [
@@ -925,5 +923,5 @@ create_or_update_role(
   permissions: superuser_permissions,
   group_permission: Permission::ALL,
   is_manager: true,
-  modules: PrimeroModule.all
+  primero_modules: PrimeroModule.all
 )

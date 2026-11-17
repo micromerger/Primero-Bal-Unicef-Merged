@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import * as index from "./index";
 
 describe("<Form /> - Utils", () => {
@@ -9,6 +7,7 @@ describe("<Form /> - Utils", () => {
     [
       "buildLinkedIncidentOptions",
       "buildRoleOptions",
+      "formatAgeRange",
       "get",
       "notPropagatedOnSubmit",
       "notVisible",

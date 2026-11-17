@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # AverageFollowupMeetingsPerCase
 # A Kpi to count the average number of followup up meetings for all
 # accessible cases
@@ -44,7 +42,7 @@ class Kpi::AverageFollowupMeetingsPerCase < Kpi::Search
   def to_json(*_args)
     {
       data: {
-        average_meetings: search.to_a&.first&.fetch('average_followup_meetings_per_case', 0.0)
+        average_meetings: search.to_a.first&.fetch('average_followup_meetings_per_case', 0.0)
       }
     }
   end

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Concern of Historical
 # rubocop:disable  Metrics/ModuleLength
 module Historical
@@ -55,7 +53,7 @@ module Historical
   def creation_fields_for(user)
     self.created_by = user&.user_name
     self.created_by_full_name = user&.full_name
-    self.created_organization = user&.organization&.unique_id
+    self.created_organization = user&.agency&.unique_id
     self.created_agency_office = user&.agency_office
     self.created_by_groups = user&.user_group_unique_ids
     other_creation_fields_for(user)
@@ -68,7 +66,7 @@ module Historical
   end
 
   def update_organization
-    self.created_organization ||= created_by_user&.organization&.unique_id
+    self.created_organization ||= created_by_user&.agency&.unique_id
   end
 
   def created_by_user
@@ -85,6 +83,20 @@ module Historical
     record_histories.order(datetime: :desc)
   end
 
+  def filter_histories(field_names:, form_unique_ids:)
+    return ordered_histories if field_names.blank? && form_unique_ids.blank?
+
+    names =
+      if field_names.present?
+        field_names
+      else
+        Field.joins(:form_section).where(form_sections: { unique_id: form_unique_ids })
+             .pluck(:name).uniq
+      end
+
+    ordered_histories.where('record_changes ?| array[:values]', values: names)
+  end
+
   # This is an alias to make migration easier
   def histories
     ordered_histories
@@ -93,7 +105,7 @@ module Historical
   def add_creation_history
     RecordHistory.create(
       record: self, record_type: self.class.name,
-      user_name: created_by, datetime: self.created_at,
+      user_name: created_by, datetime: created_at,
       action: EVENT_CREATE, record_changes: saved_changes_to_record
     )
   end

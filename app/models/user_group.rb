@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Users belong to user groups which may be used to limit the records that an individual user may have access to.
 class UserGroup < ApplicationRecord
   include ConfigurationRecord
@@ -16,6 +14,8 @@ class UserGroup < ApplicationRecord
   has_and_belongs_to_many :users
   has_and_belongs_to_many :agencies
 
+  scope :enabled, -> { where(disabled: false) }
+
   before_create :generate_unique_id
   class << self
     def order_insensitive_attribute_names
@@ -27,7 +27,7 @@ class UserGroup < ApplicationRecord
     end
 
     def permitted_api_params
-      %w[id unique_id name description disabled] + [agency_ids: [], agency_unique_ids: []]
+      %w[id unique_id name description disabled] + [{ agency_ids: [], agency_unique_ids: [] }]
     end
 
     def list(user, opts = {})

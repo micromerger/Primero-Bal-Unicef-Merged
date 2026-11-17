@@ -1,16 +1,15 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS, List } from "immutable";
 import isEmpty from "lodash/isEmpty";
 import sortBy from "lodash/sortBy";
 import isNil from "lodash/isNil";
 import omitBy from "lodash/omitBy";
 import { createCachedSelector } from "re-reselect";
-import { createSelectorCreator, defaultMemoize } from "reselect";
+import { createSelectorCreator, lruMemoize } from "reselect";
 import { memoize } from "proxy-memoize";
 
 import { RECORD_PATH } from "../../config";
 import {
+  getPrimaryAgeRanges,
   getIncidentReportingLocationConfig,
   getReportingLocationConfig,
   getRoles,
@@ -33,12 +32,12 @@ import { CP_VIOLENCE_TYPE } from "../incidents-from-case/components/panel/consta
 import { selectorEqualityFn } from "../../libs/use-memoized-selector";
 
 import { OPTION_TYPES, CUSTOM_LOOKUPS } from "./constants";
-import { buildLinkedIncidentOptions, buildRoleOptions } from "./utils";
+import { buildLinkedIncidentOptions, buildRoleOptions, formatAgeRange } from "./utils";
 
 // TODO: Move to useMemoizedSelector
 const defaultCacheSelectorOptions = {
   keySelector: (_state, options) => JSON.stringify(omitBy(options, isNil)),
-  selectorCreator: createSelectorCreator(defaultMemoize, selectorEqualityFn)
+  selectorCreator: createSelectorCreator(lruMemoize, selectorEqualityFn)
 };
 
 const lookupsList = memoize(state => state.getIn(["forms", "options", "lookups"], fromJS([])));
@@ -146,6 +145,8 @@ const agenciesParser = (
         ...(includeUniqueID && { unique_id: current.get("unique_id") }),
         display_text: current.getIn(["name", locale], ""),
         disabled: current.get("disabled", false),
+        terms_of_use_enabled: current.get("terms_of_use_enabled", false),
+        terms_of_use_uploaded_at: current.get("terms_of_use_uploaded_at", false),
         ...(includeServices && { services: current.get("services", fromJS([])).toArray() })
       }
     ],
@@ -517,6 +518,23 @@ const linkedIncidents = createCachedSelector(
     buildLinkedIncidentOptions(data.get("incident_details", fromJS([])), violenceLookupValues, options)
 )(defaultCacheSelectorOptions);
 
+const ageRanges = createCachedSelector(
+  state => getPrimaryAgeRanges(state) || [],
+  primaryAgeRanges =>
+    (primaryAgeRanges || fromJS([])).reduce(
+      (acc, range) => acc.concat({ id: range, display_text: formatAgeRange(range) }),
+      []
+    )
+)(defaultCacheSelectorOptions);
+
+const usersIdentified = createCachedSelector(
+  state => state.getIn(["forms", "options", "users", "identified"], fromJS([])),
+  users =>
+    users.reduce((acc, user) => {
+      return acc.concat({ id: user.get("user_name"), display_text: user.get("user_name") });
+    }, [])
+)(defaultCacheSelectorOptions);
+
 export const getOptions = source => {
   switch (source) {
     case OPTION_TYPES.AGENCY:
@@ -561,6 +579,10 @@ export const getOptions = source => {
       return transferToUsers;
     case OPTION_TYPES.LINKED_INCIDENTS:
       return linkedIncidents;
+    case OPTION_TYPES.AGE_RANGES:
+      return ageRanges;
+    case OPTION_TYPES.USER_IDENTIFIED:
+      return usersIdentified;
     default:
       return lookupValues;
   }

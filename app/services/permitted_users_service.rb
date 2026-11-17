@@ -1,13 +1,12 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Calculate the permitted users for a user if specified
 class PermittedUsersService
-  attr_accessor :user
+  attr_accessor :user, :include_activity_stats
 
-  def initialize(user = nil)
+  def initialize(user = nil, include_activity_stats = false)
     self.user = user
+    self.include_activity_stats = include_activity_stats
   end
 
   def find_permitted_users(filters = nil, pagination = nil, order_params = nil)
@@ -23,10 +22,18 @@ class PermittedUsersService
     { total:, users: }
   end
 
+  def bulk_disable_users(filters)
+    users_for_filters(filters).update_all(disabled: true, updated_at: Time.current)
+  end
+
+  def users_for_filters(filters = nil)
+    apply_filters(permitted_users, filters)
+  end
+
   private
 
   def permitted_users
-    users = User.all.includes(:user_groups, role: :primero_modules)
+    users = User.with_audit_dates_if(include_activity_stats).all.includes(:user_groups, role: :primero_modules)
 
     return users if user.blank? || user.super_user?
 
@@ -52,19 +59,31 @@ class PermittedUsersService
                       ))
   end
 
+  # rubocop:disable Metrics/AbcSize
   def apply_filters(users_query, filters)
     return users_query unless filters.present?
 
+    users_query = users_query.apply_date_filters(users_query, filters) if include_activity_stats
+
+    users_query = users_query.where(id: filters[:ids]) if filters[:ids].present?
+
     query_filters = build_query_filters(filters)
     users_query = users_query.joins(:user_groups) if query_filters[:user_groups].present?
-
+    users_query = users_query.where(build_location_filter(filters))
     users_query = build_search_query(users_query, filters[:query])
     users_query.where(query_filters)
   end
+  # rubocop:enable Metrics/AbcSize
+
+  def build_location_filter(filters)
+    return unless filters[:location].present?
+
+    location_filter = SearchFilters::LocationList.new(column_name: 'location', values: filters[:location])
+    location_filter.json_path_query
+  end
 
   def build_query_filters(filters)
-    query_filters = filters.except(:query).compact
-    query_filters['disabled'] = query_filters['disabled'].values if query_filters['disabled'].present?
+    query_filters = filters.except(:query, :ids, :location, *User::AUDIT_LAST_DATE.keys).compact
     user_group_ids = query_filters.delete('user_group_ids')
 
     return query_filters if user_group_ids.blank?
@@ -76,7 +95,7 @@ class PermittedUsersService
     return users_query if query_filter.blank?
 
     users_query.where(
-      'user_name ILIKE :value OR full_name ILIKE :value',
+      'users.user_name ILIKE :value OR users.full_name ILIKE :value',
       value: "%#{ActiveRecord::Base.sanitize_sql_like(query_filter)}%"
     )
   end
@@ -98,7 +117,7 @@ class PermittedUsersService
   end
 
   def agency_only_users(users_query)
-    users_query.where(organization: user.organization)
+    users_query.where(agency: user.agency)
   end
 
   def group_permitted_users(users_query)

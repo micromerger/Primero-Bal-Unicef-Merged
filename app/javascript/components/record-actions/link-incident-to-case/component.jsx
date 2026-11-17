@@ -4,7 +4,7 @@ import { useForm, FormProvider } from "react-hook-form";
 import { useCallback, useState } from "react";
 import { fromJS } from "immutable";
 
-import { useI18n } from "../../i18n";
+import useSystemStrings, { ACTION_BUTTON } from "../../application/use-system-strings";
 import buildSelectedIds from "../utils/build-selected-ids";
 import { useMemoizedSelector } from "../../../libs";
 import { getRecordsData, getRecords } from "../../index-table";
@@ -19,7 +19,7 @@ import css from "./styles.css";
 import Content from "./content";
 
 function Component({ close, open, currentPage, selectedRecords, recordType, record }) {
-  const i18n = useI18n();
+  const { label } = useSystemStrings(ACTION_BUTTON);
   const dispatch = useDispatch();
   const { ...methods } = useForm();
 
@@ -74,7 +74,7 @@ function Component({ close, open, currentPage, selectedRecords, recordType, reco
 
   return (
     <>
-      <SubformDrawer title={i18n.t("incident.link_incident_to_case")} open={open} cancelHandler={handleClose}>
+      <SubformDrawer title={label("incident.link_incident_to_case")} open={open} cancelHandler={handleClose}>
         <div className={css.form}>
           <FormProvider {...methods}>
             <form onSubmit={methods.handleSubmit(handleSubmit)} data-testid="search-form-for-link-to-case">

@@ -1,11 +1,10 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { parseISO } from "date-fns";
 import { fromJS } from "immutable";
 
 import {
   APPROVALS,
   CASE_RELATIONSHIPS,
+  ACCESS_LOGS,
   CHANGE_LOGS,
   FAMILY_FROM_CASE,
   INCIDENT_FROM_CASE,
@@ -220,18 +219,35 @@ describe("<RecordForms /> - utils", () => {
 
   describe("getRedirectPath", () => {
     it("should return the path to the case id if there is a incidentFromCase", () => {
-      expect(utils.getRedirectPath({ isNew: true }, {}, "case-id-1")).toBe("/cases/case-id-1");
+      expect(utils.getRedirectPath({ mode: { isNew: true }, params: {}, fetchFromCaseId: "case-id-1" })).toBe(
+        "/cases/case-id-1"
+      );
     });
 
     it("should return the path to the incident id if is not new", () => {
       //
-      expect(utils.getRedirectPath({ isEdit: true }, { recordType: "incidents", id: "incident-id-1" })).toBe(
-        "/incidents/incident-id-1"
-      );
+      expect(
+        utils.getRedirectPath({ mode: { isEdit: true }, params: { recordType: "incidents", id: "incident-id-1" } })
+      ).toBe("/incidents/incident-id-1");
     });
 
     it("should return the path to incidents if is new", () => {
-      expect(utils.getRedirectPath({ isNew: true }, { recordType: "incidents", id: "incident-id-1" }, "")).toBe("");
+      expect(
+        utils.getRedirectPath({
+          mode: { isNew: true },
+          params: { recordType: "incidents", id: "incident-id-1" },
+          fetchFromCaseId: ""
+        })
+      ).toBe("");
+    });
+
+    it("should return the path to redirect", () => {
+      expect(
+        utils.getRedirectPath({
+          mode: { isNew: true },
+          redirectTo: "/path/redirect"
+        })
+      ).toBe("/path/redirect");
     });
   });
 
@@ -568,7 +584,8 @@ describe("<RecordForms /> - utils", () => {
         REGISTRY_FROM_CASE,
         FAMILY_FROM_CASE,
         CASE_RELATIONSHIPS,
-        SUMMARY_INCIDENT_MRM
+        SUMMARY_INCIDENT_MRM,
+        ACCESS_LOGS
       ]);
     });
   });

@@ -1,6 +1,6 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { isImmutable } from "immutable";
+import isEmpty from "lodash/isEmpty";
+import omitBy from "lodash/omitBy";
 
 import { FETCH_TIMEOUT, ROUTES } from "../../config";
 import { DEFAULT_FETCH_OPTIONS } from "../constants";
@@ -59,7 +59,8 @@ const fetchSinglePayload = async (action, store, options) => {
     db,
     external,
     queueAttachments,
-    mode
+    mode,
+    arrayFormat
   } = api;
 
   const [attachments, formData] = queueAttachments
@@ -68,13 +69,16 @@ const fetchSinglePayload = async (action, store, options) => {
       )
     : [false, false];
 
+  const bodyData = formData ? { data: formData } : body;
+  const serializedBody = isImmutable(bodyData) ? bodyData.toJS() : bodyData;
+
   const fetchOptions = {
     ...DEFAULT_FETCH_OPTIONS,
     method,
     mode,
     signal: controller.signal,
     ...((formData || body) && {
-      body: JSON.stringify(formData ? { data: formData } : body)
+      body: JSON.stringify(serializedBody)
     })
   };
 
@@ -91,7 +95,7 @@ const fetchSinglePayload = async (action, store, options) => {
 
   const urlParams = isImmutable(params) ? params.toJS() : params;
 
-  const fetchPath = buildPath(path, options, urlParams, external);
+  const fetchPath = buildPath(path, options, urlParams, external, arrayFormat);
 
   const fetch = async () => {
     fetchStatus({ store, type }, "STARTED", true);
@@ -105,6 +109,7 @@ const fetchSinglePayload = async (action, store, options) => {
       if (status === 503 || (status === 204 && `/${checkHealthUrl}` === ROUTES.check_health)) {
         handleConfiguration(status, store, options, response, { fetchStatus, fetchSinglePayload, type });
       }
+
       const json =
         status === 204 ? { data: { id: body?.data?.id }, ...buildAttachmentData(action) } : await response.json();
 
@@ -137,47 +142,51 @@ const fetchSinglePayload = async (action, store, options) => {
         }
 
         if (!action.type.includes("SAVE_ATTACHMENT") && status !== 422) {
-          throw new Error(window.I18n.t("error_message.error_something_went_wrong"));
+          throw new FetchError(response, json, window.I18n.t("error_message.error_something_went_wrong"));
+        }
+      } else {
+        await handleSuccess(store, {
+          type,
+          json,
+          normalizeFunc,
+          path,
+          db,
+          fromQueue,
+          fromAttachment,
+          params: urlParams
+        });
+
+        messageQueueSuccess(action);
+
+        handleRestCallback(store, successCallback, response, json, fromQueue);
+
+        if (!isEmpty(omitBy(attachments, isEmpty))) {
+          processAttachments({
+            attachments,
+            id: id || json?.data?.id,
+            recordType
+          });
+        }
+
+        fetchStatus({ store, type }, "FINISHED", false);
+
+        if (configurationCallback && response.ok) {
+          store.dispatch(disableNavigation());
+          handleRestCallback(store, applyingConfigMessage(), response, {});
+          fetchSinglePayload(configurationCallback, store, options);
         }
       }
-      await handleSuccess(store, {
-        type,
-        json,
-        normalizeFunc,
-        path,
-        db,
-        fromQueue,
-        fromAttachment,
-        params: urlParams
-      });
-
-      messageQueueSuccess(action);
-
-      handleRestCallback(store, successCallback, response, json, fromQueue);
-
-      if (attachments) {
-        processAttachments({
-          attachments,
-          id: id || json?.data?.id,
-          recordType
-        });
-      }
-
-      fetchStatus({ store, type }, "FINISHED", false);
-
-      if (configurationCallback && response.ok) {
-        store.dispatch(disableNavigation());
-        handleRestCallback(store, applyingConfigMessage(), response, {});
-        fetchSinglePayload(configurationCallback, store, options);
-      }
     } catch (error) {
-      const silenceErrors = [["AbortError"].includes(error.name), error === "logging_out"];
+      const silenceErrors = [["AbortError", "SyntaxError"].includes(error.name), error === "logging_out"];
 
       if (silenceErrors.some(condition => condition === true)) {
+        // eslint-disable-next-line no-console
+        console.warn("Error suppressed:", error);
+
         return;
       }
 
-      const errorDataObject = { json: error?.json, recordType, fromQueue, id, error };
+      const errorDataObject = { json: error?.json, recordType, fromQueue, id, error, fromAttachment };
 
       if (fromAttachment && error?.response?.status === 422) {
         deleteFromQueue(fromQueue);
@@ -194,7 +203,7 @@ const fetchSinglePayload = async (action, store, options) => {
       fetchStatus({ store, type }, "FAILURE", false);
 
       if (failureCallback) {
-        handleRestCallback(store, failureCallback, {}, {});
+        handleRestCallback(store, failureCallback, error?.response, {});
       } else {
         defaultErrorCallback({ ...errorDataObject, store, response: error?.response });
       }

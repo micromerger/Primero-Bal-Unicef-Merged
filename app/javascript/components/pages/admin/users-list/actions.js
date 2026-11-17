@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { namespaceActions } from "../../../../libs";
 import NAMESPACE from "../namespace";
 
@@ -9,5 +7,15 @@ export default namespaceActions(NAMESPACE, [
   "USERS_FINISHED",
   "USERS_STARTED",
   "USERS_SUCCESS",
-  "SET_USERS_FILTER"
+  "SET_USERS_FILTER",
+  "DISABLE_USERS",
+  "DISABLE_USERS_STARTED",
+  "DISABLE_USERS_SUCCESS",
+  "DISABLE_USERS_FAILURE",
+  "DISABLE_USERS_FINISHED",
+  "SEND_EMAILS",
+  "SEND_EMAILS_STARTED",
+  "SEND_EMAILS_SUCCESS",
+  "SEND_EMAILS_FAILURE",
+  "SEND_EMAILS_FINISHED"
 ]);

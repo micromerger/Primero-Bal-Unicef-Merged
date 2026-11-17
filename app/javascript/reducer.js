@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import reduceReducers from "reduce-reducers";
 import { combineReducers } from "redux-immutable";
 
@@ -60,11 +58,15 @@ import {
 import { reducer as accountReducer } from "./components/pages/account";
 import { reducer as connectivityReducer } from "./components/connectivity";
 import { reducer as changeLogsReducers } from "./components/change-logs";
+import { reducer as accessLogsReducers } from "./components/access-logs";
 import { reducer as codesOfConductReducer } from "./components/code-of-conduct";
 import { reducer as adminCodeOfConductReducer } from "./components/pages/admin/code-of-conduct";
+import { reducer as termsOfUseReducer } from "./components/terms-of-use";
 import { reducer as drawerReducer } from "./components/drawer";
 import { reducer as formFiltersReducer } from "./components/form-filters";
 import { reducer as insightsReducer } from "./components/insights";
+import { reducer as intakeReducer } from "./components/intake";
+import { reducer as unusedFieldsReportReducer } from "./components/unused-fields-report";
 import { RECORD_TYPES } from "./config";
 
 const initialState = null;
@@ -109,6 +111,8 @@ const rootReducer = {
       ...flaggingReducer,
       ...savedSearchesReducer,
       ...changeLogsReducers,
+      ...accessLogsReducers,
+      ...unusedFieldsReportReducer,
       codeOfConduct: adminCodeOfConductReducer,
       admin: combineReducers({
         forms: reduceReducers(initialState, adminFormListReducer, adminFormBuilderReducer),
@@ -120,12 +124,13 @@ const rootReducer = {
         usage_reports: reduceReducers(initialState, UsageReportsReducer)
       }),
       activity_logs: activityLogReducer,
+      ...intakeReducer,
       ...kpiReducer
     }),
     transferApprovalReducer,
     revokeModalReducer
   ),
-  user: reduceReducers(initialState, userReducer, accountReducer, codesOfConductReducer),
+  user: reduceReducers(initialState, userReducer, accountReducer, codesOfConductReducer, termsOfUseReducer),
   ui: combineReducers({
     ...navReducer,
     ...i18nReducer,

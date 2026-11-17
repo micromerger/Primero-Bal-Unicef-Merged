@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import PropTypes from "prop-types";
 
 import { useMemoizedSelector } from "../../../libs";
@@ -11,7 +9,16 @@ import ActionForm from "../action-form";
 
 import { NAME, SERVICES_SUBFORM_NAME } from "./constants";
 
-function Component({ open, close, pending, recordType, selectedRowsIndex, setPending, primeroModule }) {
+function Component({
+  open,
+  close,
+  pending,
+  recordType,
+  selectedRowsIndex,
+  setPending,
+  primeroModule,
+  pendingTransitionIds
+}) {
   const servicesFormId = useMemoizedSelector(state => getServicesForm(state, primeroModule));
 
   const props = {
@@ -27,7 +34,9 @@ function Component({ open, close, pending, recordType, selectedRowsIndex, setPen
     recordType,
     selectedRowsIndex,
     setPending,
-    skipRecordAlerts: false
+    pendingTransitionIds,
+    skipRecordAlerts: false,
+    includeRecordModuleID: true
   };
 
   return <ActionForm Fields={Fields} {...props} />;
@@ -37,6 +46,7 @@ Component.propTypes = {
   close: PropTypes.func,
   open: PropTypes.bool,
   pending: PropTypes.bool,
+  pendingTransitionIds: PropTypes.array,
   primeroModule: PropTypes.string,
   records: PropTypes.array,
   recordType: PropTypes.string,

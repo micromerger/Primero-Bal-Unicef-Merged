@@ -1,13 +1,16 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import formatRows from "./format-rows";
 import getColumnsTableData from "./get-columns-table-data";
 import getRowsTableData from "./get-rows-table-data";
 import translateReportData from "./translate-report-data";
 
-export default (report, i18n, { agencies, ageRanges, locations }) => {
+export default (report, i18n, { agencies, ageRanges, locations, registryOptions }) => {
   const reportData = report.toJS();
-  const translatedReport = translateReportData(reportData, i18n, { agencies, locations });
+  const translatedReport = translateReportData(reportData, i18n, {
+    agencies,
+    locations,
+    registryOptions,
+    groupDatesBy: reportData.group_dates_by
+  });
   const translatedReportWithAllFields = {
     ...translatedReport,
     fields: reportData.fields

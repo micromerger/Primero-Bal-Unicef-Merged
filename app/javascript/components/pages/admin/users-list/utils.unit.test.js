@@ -1,10 +1,8 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 
 import { FILTER_TYPES } from "../../../index-filters";
 
-import { DISABLED, AGENCY, USER_GROUP } from "./constants";
+import { DISABLED, AGENCY, USER_GROUP, ACTION_IDS, FILTER_BY_AGENCY } from "./constants";
 import * as helper from "./utils";
 
 describe("<AuditLogs /> - Helpers", () => {
@@ -12,28 +10,14 @@ describe("<AuditLogs /> - Helpers", () => {
     it("should have known methods", () => {
       const clone = { ...helper };
 
-      ["agencyBodyRender", "buildObjectWithIds", "buildUsersQuery", "getFilters"].forEach(property => {
-        expect(clone).toHaveProperty(property);
-        expect(clone[property]).toBeInstanceOf(Function);
-        delete clone[property];
-      });
+      ["agencyBodyRender", "roleBodyRender", "buildObjectWithIds", "getFilters", "buildActionList"].forEach(
+        property => {
+          expect(clone).toHaveProperty(property);
+          expect(clone[property]).toBeInstanceOf(Function);
+          delete clone[property];
+        }
+      );
       expect(Object.keys(clone)).toHaveLength(0);
-    });
-  });
-
-  describe("buildUsersQuery", () => {
-    it("should convert the data to filter users", () => {
-      const data = {
-        agency: { id: 1, display_name: "agency_test" }
-      };
-
-      const expected = {
-        agency: 1
-      };
-
-      const converted = helper.buildUsersQuery(data);
-
-      expect(converted).toEqual(expected);
     });
   });
 
@@ -58,6 +42,7 @@ describe("<AuditLogs /> - Helpers", () => {
         {
           name: "cases.filter_by.agency",
           field_name: AGENCY,
+          clearDependentValues: [USER_GROUP, FILTER_BY_AGENCY],
           options: [
             {
               id: 1,
@@ -65,15 +50,54 @@ describe("<AuditLogs /> - Helpers", () => {
             }
           ],
           type: FILTER_TYPES.MULTI_SELECT,
-          multiple: false,
+          multiple: true,
           permitted_filter: false
         },
         {
+          field_name: "role_id",
+          multiple: true,
+          name: "cases.filter_by.role",
+          options: undefined,
+          type: "multi_select"
+        },
+        {
           field_name: USER_GROUP,
-          multiple: false,
+          multiple: true,
           name: "cases.filter_by.user_group",
+          filterFn: expect.any(Function),
           options: [],
-          type: FILTER_TYPES.MULTI_SELECT
+          toggleName: FILTER_BY_AGENCY,
+          toggleLabel: "users.filters.filter_by_agency",
+          type: FILTER_TYPES.MULTI_SELECT,
+          watchedInputs: [AGENCY, FILTER_BY_AGENCY]
+        },
+        {
+          field_name: "last_date",
+          name: "cases.filter_by.by_date",
+          options: {
+            en: [
+              {
+                display_name: "users.filters.date_last_login",
+                id: "last_access"
+              },
+              {
+                display_name: "users.filters.date_last_case_view",
+                id: "last_case_viewed"
+              },
+              {
+                display_name: "users.filters.date_last_case_updated",
+                id: "last_case_updated"
+              }
+            ]
+          },
+          type: "dates"
+        },
+        {
+          field_name: "location",
+          multiple: true,
+          name: "cases.filter_by.location",
+          option_strings_source: "Location",
+          type: "multi_select"
         }
       ];
 
@@ -81,7 +105,89 @@ describe("<AuditLogs /> - Helpers", () => {
         agency: false
       };
 
-      expect(helper.getFilters(i18n, options, null, filterPermission)).toEqual(expected);
+      expect(helper.getFilters(i18n, options, null, filterPermission)).toStrictEqual(expected);
+    });
+  });
+
+  describe("buildActionList", () => {
+    it("should return action list when canDisableMultiple is true", () => {
+      const i18n = { t: value => value };
+      const handleDialogClick = jest.fn();
+      const canDisableMultiple = true;
+      const expected = [
+        {
+          id: ACTION_IDS.disable,
+          name: "actions.disable",
+          disableOffline: true,
+          condition: true,
+          action: expect.any(Function)
+        }
+      ];
+
+      const result = helper.buildActionList({ i18n, handleDialogClick, canDisableMultiple });
+
+      expect(result).toEqual(expected);
+    });
+
+    it("should return empty array when canDisableMultiple is false", () => {
+      const i18n = { t: value => value };
+      const handleDialogClick = jest.fn();
+      const canDisableMultiple = false;
+
+      const result = helper.buildActionList({ i18n, handleDialogClick, canDisableMultiple });
+
+      expect(result).toEqual([]);
+    });
+
+    it("should call handleDialogClick when action is executed", () => {
+      const i18n = { t: value => value };
+      const handleDialogClick = jest.fn();
+      const canDisableMultiple = true;
+
+      const result = helper.buildActionList({ i18n, handleDialogClick, canDisableMultiple });
+
+      result[0].action();
+
+      expect(handleDialogClick).toHaveBeenCalledWith("DisableDialog", "disable");
+    });
+
+    it("should return the send email action when canSendEmailMultiple is true", () => {
+      const i18n = { t: value => value };
+      const handleDialogClick = jest.fn();
+      const expected = [
+        {
+          id: ACTION_IDS.sendEmail,
+          name: "users.send_email_title",
+          disableOffline: true,
+          condition: true,
+          action: expect.any(Function)
+        }
+      ];
+
+      const result = helper.buildActionList({
+        i18n,
+        handleDialogClick,
+        canDisableMultiple: false,
+        canSendEmailMultiple: true
+      });
+
+      expect(result).toEqual(expected);
+    });
+
+    it("should call handleDialogClick with the send email dialog when the action is executed", () => {
+      const i18n = { t: value => value };
+      const handleDialogClick = jest.fn();
+
+      const result = helper.buildActionList({
+        i18n,
+        handleDialogClick,
+        canDisableMultiple: false,
+        canSendEmailMultiple: true
+      });
+
+      result[0].action();
+
+      expect(handleDialogClick).toHaveBeenCalledWith("SendEmailDialog", "send_email");
     });
   });
 });

@@ -1,13 +1,12 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe BulkAssignService do
   before do
     clean_data(
-      User, Role, PrimeroModule, PrimeroProgram, Field, FormSection, UserGroup, Agency, Incident, Child, Transition
+      Alert, Transition, User, Role, PrimeroModule, PrimeroProgram, Field, FormSection, UserGroup,
+      Agency, Incident, Child, Family
     )
   end
 
@@ -16,15 +15,19 @@ describe BulkAssignService do
   end
 
   let(:role) do
-    create(:role, is_manager: true, modules: [primero_module], group_permission: Permission::ALL)
+    create(:role, is_manager: true, primero_modules: [primero_module], group_permission: Permission::ALL)
   end
 
+  let(:user_group) { create(:user_group, name: 'Group1') }
+
   let(:user) do
-    create(:user, user_name: 'user', role:, full_name: 'Test User 1', email: 'owner@primero.dev')
+    create(:user, user_name: 'user', role:, full_name: 'Test User 1', email: 'owner@primero.dev',
+                  user_group_ids: [user_group.id])
   end
 
   let(:user2) do
-    create(:user, user_name: 'user2', role:, full_name: 'Test User 2', email: 'user2@primero.dev')
+    create(:user, user_name: 'user2', role:, full_name: 'Test User 2', email: 'user2@primero.dev',
+                  user_group_ids: [user_group.id])
   end
 
   let!(:child) do
@@ -64,7 +67,7 @@ describe BulkAssignService do
         transitioned_to: user2.user_name,
         transitioned_by: user.user_name,
         notes: 'this is a note',
-        from_bulk_export: true
+        notify_user: false
       }
     end
 
@@ -116,6 +119,24 @@ describe BulkAssignService do
           expect(assigns.pluck(:record_id)).to match_array([child.id, child3.id])
         end
       end
+
+      context 'when the user has a pending referral or transfer on some of the records' do
+        let(:bulk_assign_params) do
+          {
+            filters: { 'id' => [child.id, child2.id, child3.id] }
+          }.merge(bulk_assign_shared_params)
+        end
+
+        before do
+          Referral.create!(transitioned_by: user2.user_name, transitioned_to: user.user_name, record: child2)
+          Transfer.create!(transitioned_by: user2.user_name, transitioned_to: user.user_name, record: child3)
+        end
+
+        it 'excludes the records with a pending transition for the user' do
+          BulkAssignService.new(Child, user, **bulk_assign_params).assign_records!
+          expect(Assign.pluck(:record_id)).to eq([child.id])
+        end
+      end
     end
 
     context 'when model_class is Incident' do
@@ -131,11 +152,59 @@ describe BulkAssignService do
         expect(Assign.pluck(:record_id)).to match_array([incident.id, incident3.id])
       end
     end
+
+    context 'when there are more than 10 records' do
+      let(:bulk_assign_params) do
+        {
+          filters: {}
+        }.merge(bulk_assign_shared_params)
+      end
+
+      before do
+        # Create 8 additional children to have a total of 11 (3 existing + 8 new)
+        8.times do |i|
+          create(:child, name: "Extra Child #{i}", sex: 'female', owned_by: user.user_name,
+                         consent_for_services: true, disclosure_other_orgs: true, module_id: PrimeroModule::CP)
+        end
+      end
+
+      it 'assigns all records' do
+        expect(Child.count).to eq(11)
+        BulkAssignService.new(Child, user, **bulk_assign_params).assign_records!
+        expect(Assign.count).to eq(11)
+      end
+    end
+
+    context 'when model_class is Family' do
+      let!(:family1) do
+        f = Family.new_with_user(user, name: 'Family 1')
+        f.save! && f
+      end
+      let!(:family2) do
+        f = Family.new_with_user(user, name: 'Family 2')
+        f.save! && f
+      end
+      let!(:family3) do
+        f = Family.new_with_user(user, name: 'Family 3')
+        f.save! && f
+      end
+      let(:bulk_assign_params) do
+        {
+          filters: { 'id' => [family1.id, family2.id, family3.id] }
+        }.merge(bulk_assign_shared_params)
+      end
+
+      it 'reassigns families to a different user' do
+        BulkAssignService.new(Family, user, **bulk_assign_params).assign_records!
+        expect([family1, family2, family3].map(&:reload).map(&:owned_by).uniq).to eq([user2.user_name])
+      end
+    end
   end
 
   after :each do
     clean_data(
-      User, Role, PrimeroModule, PrimeroProgram, Field, FormSection, UserGroup, Agency, Incident, Child, Transition
+      Alert, Transition, User, Role, PrimeroModule, PrimeroProgram, Field, FormSection, UserGroup,
+      Agency, Incident, Child, Family
     )
   end
 end

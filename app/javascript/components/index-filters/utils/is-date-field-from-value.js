@@ -1,6 +1,4 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
-export default (field, keys, locale) => {
+export default (field, params, locale) => {
   if (field.type !== "dates") {
     return false;
   }
@@ -11,5 +9,5 @@ export default (field, keys, locale) => {
     return false;
   }
 
-  return datesOption?.filter(dateOption => keys.includes(dateOption.id))?.length > 0;
+  return datesOption?.filter(dateOption => params[dateOption.id])?.length > 0;
 };

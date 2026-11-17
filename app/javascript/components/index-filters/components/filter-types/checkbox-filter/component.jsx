@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { useEffect, useState, useRef } from "react";
 import PropTypes from "prop-types";
 import { useFormContext } from "react-hook-form";
@@ -18,18 +16,30 @@ import {
 } from "../utils";
 import handleFilterChange, { getFilterProps } from "../value-handlers";
 import { useMemoizedSelector } from "../../../../../libs";
+import useSystemStrings, { FILTER } from "../../../../application/use-system-strings";
 
 import { NAME } from "./constants";
 
-function Component({ filter, moreSectionFilters = {}, setMoreSectionFilters, mode, reset, setReset }) {
+function Component({
+  filter,
+  moreSectionFilters = {},
+  setMoreSectionFilters,
+  mode,
+  reset,
+  setReset,
+  disabled,
+  helpText
+}) {
   const i18n = useI18n();
+  const { label } = useSystemStrings(FILTER);
   const { register, unregister, setValue, user, getValues } = useFormContext();
   const valueRef = useRef();
 
   const { options, fieldName, optionStringsSource, isObject } = getFilterProps({
     filter,
     user,
-    i18n
+    i18n,
+    label
   });
 
   const defaultValue = isObject ? {} : [];
@@ -117,6 +127,8 @@ function Component({ filter, moreSectionFilters = {}, setMoreSectionFilters, mod
       getValues={getValues}
       handleReset={handleReset}
       selectedDefaultValueField={isObject ? "or" : null}
+      disabled={disabled}
+      helpText={helpText}
     >
       <FormControl component="fieldset">
         <FormLabel component="legend">{i18n.t("cases.status")}</FormLabel>
@@ -129,7 +141,9 @@ function Component({ filter, moreSectionFilters = {}, setMoreSectionFilters, mod
 Component.displayName = NAME;
 
 Component.propTypes = {
+  disabled: PropTypes.bool,
   filter: PropTypes.object.isRequired,
+  helpText: PropTypes.string,
   mode: PropTypes.shape({
     defaultFilter: PropTypes.bool,
     secondary: PropTypes.bool

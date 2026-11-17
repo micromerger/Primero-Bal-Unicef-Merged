@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import * as constants from "./constants";
 
 describe("<RecordActions /> - exports/constants", () => {
@@ -18,12 +16,14 @@ describe("<RecordActions /> - exports/constants", () => {
       "FILTERS_TO_SKIP",
       "FORMS_ID",
       "FORM_TO_EXPORT_FIELD",
+      "INCIDENT_RECORDER_ID",
       "INCLUDE_IMPLEMENTATION_LOGOS",
       "INCLUDE_AGENCY_LOGO",
       "INCLUDE_OTHER_LOGOS",
       "INDIVIDUAL_FIELDS_FIELD",
       "MODULE_FIELD",
       "NAME",
+      "OLD_INCIDENT_RECORDER_FORMAT",
       "PASSWORD_FIELD",
       "HEADER",
       "CUSTOM_HEADER",

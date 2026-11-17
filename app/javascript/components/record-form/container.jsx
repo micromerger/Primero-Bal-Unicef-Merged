@@ -1,108 +1,63 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import PropTypes from "prop-types";
 import { useParams } from "react-router-dom";
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
+import { fromJS } from "immutable";
 
 import useMemoizedSelector from "../../libs/use-memoized-selector";
-import { getIncidentFromCase, selectRecord, getCaseIdForIncident, fetchRecord } from "../records";
-import { RECORD_PATH, RECORD_TYPES, SUMMARY, RECORD_TYPES_PLURAL } from "../../config";
-import {
-  usePermissions,
-  SHOW_FIND_MATCH,
-  READ_RECORDS,
-  REFER_FROM_SERVICE,
-  SHOW_CHANGE_LOG,
-  RESOURCES
-} from "../permissions";
-import { getRecordAttachments, getLoadingRecordState } from "../records/selectors";
-import { READ_FAMILY_RECORD, READ_REGISTRY_RECORD, VIEW_INCIDENTS_FROM_CASE } from "../permissions/constants";
+import { getIncidentFromCase, selectRecord, getCaseIdForIncident, fetchRelatedRecords } from "../records";
+import { RECORD_PATH, RECORD_TYPES, RECORD_TYPES_PLURAL } from "../../config";
 import { useApp } from "../application";
+import { whichFormMode } from "../form";
+import { READ_RECORDS, usePermissions } from "../permissions";
 
-import {
-  getAttachmentForms,
-  getFirstTab,
-  getFormNav,
-  getPermittedForms,
-  getRecordForms,
-  getRecordFormsByUniqueId,
-  getShouldFetchRecord
-} from "./selectors";
+import { getShouldFetchRecord } from "./selectors";
 import { NAME } from "./constants";
 import { RecordForm } from "./components/record-form";
-
-let caseRegistryLoaded = false;
+import useRecordForms from "./form/use-record-forms";
 
 function Container({ mode }) {
   const params = useParams();
   const { demo } = useApp();
-  const dispatch = useDispatch();
   const recordType = RECORD_TYPES[params.recordType];
-
-  const containerMode = {
-    isNew: mode === "new",
-    isEdit: mode === "edit",
-    isShow: mode === "show"
-  };
-
+  const containerMode = whichFormMode(mode);
   const isEditOrShow = containerMode.isEdit || containerMode.isShow;
-
-  const canViewCases = usePermissions(params.recordType, READ_RECORDS);
-  const canViewSummaryForm = usePermissions(RESOURCES.potential_matches, SHOW_FIND_MATCH);
-  const canViewRegistryRecord = usePermissions(RESOURCES.cases, READ_REGISTRY_RECORD);
-  const canViewFamilyRecord = usePermissions(RESOURCES.cases, READ_FAMILY_RECORD);
-  const canViewIncidentRecord = usePermissions(RESOURCES.cases, VIEW_INCIDENTS_FROM_CASE);
-  const canRefer = usePermissions(params.recordType, REFER_FROM_SERVICE);
-  const canSeeChangeLog = usePermissions(params.recordType, SHOW_CHANGE_LOG);
+  const dispatch = useDispatch();
 
   const incidentFromCase = useMemoizedSelector(state => getIncidentFromCase(state, recordType));
   const fetchFromCaseId = useMemoizedSelector(state => getCaseIdForIncident(state, recordType));
   const record = useMemoizedSelector(state =>
     selectRecord(state, { isEditOrShow, recordType: params.recordType, id: params.id })
   );
-  const loading = useMemoizedSelector(state => getLoadingRecordState(state, params.recordType));
+  const { forms, formNav, summaryForm, recordAttachments, attachmentForms, permittedFormsIds, firstTab } =
+    useRecordForms({
+      isEditOrShow,
+      primeroModule: record ? record.get("module_id") : params.module,
+      recordType: params.recordType,
+      record,
+      checkPermittedForms: true,
+      checkWritable: true
+    });
 
-  const selectedModule = {
-    recordType,
-    primeroModule: record ? record.get("module_id") : params.module,
-    checkPermittedForms: true,
-    renderCustomForms:
-      canViewSummaryForm || canViewRegistryRecord || canViewFamilyRecord || canViewIncidentRecord || canSeeChangeLog,
-    checkWritable: true,
-    recordId: record?.get("id"),
-    isEditOrShow
-  };
-
-  const permittedFormsIds = useMemoizedSelector(state => getPermittedForms(state, selectedModule));
-  const formNav = useMemoizedSelector(state => getFormNav(state, selectedModule));
-  const forms = useMemoizedSelector(state => getRecordForms(state, selectedModule));
-  const attachmentForms = useMemoizedSelector(state => getAttachmentForms(state));
-  const firstTab = useMemoizedSelector(state => getFirstTab(state, selectedModule));
-  const recordAttachments = useMemoizedSelector(state => getRecordAttachments(state, params.recordType));
-  const summaryForm = useMemoizedSelector(state =>
-    getRecordFormsByUniqueId(state, { ...selectedModule, formName: SUMMARY, getFirst: true })
-  );
   const shouldFetchRecord = useMemoizedSelector(state => getShouldFetchRecord(state, params));
+  const canViewRegistryRecords = usePermissions(RECORD_TYPES_PLURAL.registry_record, READ_RECORDS);
 
   const isNotANewCase = !containerMode.isNew && params.recordType === RECORD_PATH.cases;
   const isCaseIdEqualParam = params?.id === record?.get("id");
-  const approvalSubforms = record?.get("approval_subforms");
-  const incidentsSubforms = record?.get("incident_details");
-  const registryRecordID = record?.get("registry_record_id", false);
 
   useEffect(() => {
-    if (registryRecordID && !loading && !caseRegistryLoaded && params.recordType === RECORD_PATH.cases) {
-      dispatch(fetchRecord(RECORD_TYPES_PLURAL.registry_record, registryRecordID));
-      caseRegistryLoaded = true;
+    const registryRecordIds = record?.get("registry_record_ids", fromJS([]));
+
+    if (registryRecordIds?.size && canViewRegistryRecords) {
+      dispatch(
+        fetchRelatedRecords({
+          recordType: params.recordType,
+          relatedRecordType: RECORD_TYPES_PLURAL.registry_record,
+          data: { id: registryRecordIds.toJS(), per: registryRecordIds.size }
+        })
+      );
     }
-  }, [loading, registryRecordID]);
-
-  useEffect(() => {
-    return () => {
-      caseRegistryLoaded = false;
-    };
-  }, []);
+  }, [record, params, canViewRegistryRecords]);
 
   return (
     <RecordForm
@@ -114,22 +69,16 @@ function Container({ mode }) {
       recordAttachments={recordAttachments}
       firstTab={firstTab}
       attachmentForms={attachmentForms}
-      canViewCases={canViewCases}
-      canViewSummaryForm={canViewSummaryForm}
       formNav={formNav}
       fetchFromCaseId={fetchFromCaseId}
       userPermittedFormsIds={permittedFormsIds}
       demo={demo}
-      canRefer={canRefer}
-      canSeeChangeLog={canSeeChangeLog}
       containerMode={containerMode}
       mode={mode}
       record={record}
       recordType={recordType}
       isNotANewCase={isNotANewCase}
       isCaseIdEqualParam={isCaseIdEqualParam}
-      approvalSubforms={approvalSubforms}
-      incidentsSubforms={incidentsSubforms}
     />
   );
 }

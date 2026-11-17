@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # This has to be after initialize because we need to load first the locale first
 Rails.application.config.after_initialize do
   Rails.logger.info 'Generating locations JSON file on server boot'
@@ -22,7 +20,9 @@ Rails.application.config.after_initialize do
         "
       ).first
 
-      GenerateLocationFilesService.generate if !system_settings['has_locations_attachment'] && count_locations.positive?
+      if system_settings && !system_settings['has_locations_attachment'] && count_locations.positive?
+        GenerateLocationFilesService.generate
+      end
     end
   rescue StandardError => e
     Rails.logger.error 'Locations options not generated'

@@ -1,17 +1,16 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Service that allow users to remove data and handling referential integrity
 class DataRemovalService
-  RECORD_MODELS = [Child, Incident, TracingRequest].freeze
+  RECORD_MODELS = [Child, Incident, TracingRequest, Family, RegistryRecord].freeze
   DATA_MODELS = [
-    Trace, Flag, Alert, Attachment, AuditLog, BulkExport, RecordHistory, SavedSearch, Transition, Violation,
+    Trace, Flag, Alert, Attachment, Signature, AuditLog, BulkExport, RecordHistory, SavedSearch, Transition, Violation,
     SearchableIdentifier
   ].freeze
   METADATA_MODELS = [
     Agency, ContactInformation, Field, FormSection, Location, Lookup, PrimeroModule, PrimeroProgram, Report, Role,
-    SystemSettings, UserGroup, ExportConfiguration, PrimeroConfiguration, Webhook, IdentityProvider
+    SystemSettings, UserGroup, ExportConfiguration, PrimeroConfiguration, Webhook, IdentityProvider, Theme,
+    CodeOfConduct
   ].freeze
   # TODO: This format might be erroneous see report.rb#35
   DATE_TIME_FORMAT = 'YYYY-MM-DDTHH:MI:SS'
@@ -45,7 +44,6 @@ class DataRemovalService
         agency_blob_ids = ActiveStorage::Attachment.where(record_type: 'Agency').pluck(:blob_id).join(', ')
         blobs_conditional = agency_blob_ids.present? ? "WHERE id NOT IN (#{agency_blob_ids})" : ''
         ActiveRecord::Base.connection.execute("DELETE FROM active_storage_blobs #{blobs_conditional}")
-        ActiveRecord::Base.connection.execute('DELETE FROM form_sections_roles')
       end
 
       remove_from_solr
@@ -53,8 +51,16 @@ class DataRemovalService
 
     def remove_config(args = {})
       metadata_models = args[:include_users] == true ? [User] : []
-      metadata_models += args[:metadata].present? ? metadata_models_to_delete(args[:metadata]) : METADATA_MODELS
+      metadata_models += if args[:metadata].present?
+                           metadata_models_to_delete(args[:metadata])
+                         else
+                           METADATA_MODELS - [PrimeroConfiguration]
+                         end
       metadata_models.each { |model| ModelDeletionService.new(model_class: model).delete_all! }
+      # TODO: primero_modules_saved_searches will be orphaned
+      return unless metadata_models.intersect?([FormSection, Role])
+
+      ActiveRecord::Base.connection.execute('DELETE FROM form_sections_roles')
     end
 
     private

@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import PropTypes from "prop-types";
 
 import { getIsDashboardGroupLoading, getProtectionConcerns } from "../../selectors";
@@ -27,14 +25,14 @@ function Component() {
   return (
     <Permission resources={RESOURCES.dashboards} actions={ACTIONS.DASH_PROTECTION_CONCERNS}>
       <OptionsBox
-        title={i18n.t("dashboard.protection_concerns")}
+        title={label("dashboard.protection_concerns")}
         hasData={Boolean(protectionConcerns.size) && !loading}
         loading={loading}
       >
         <DashboardTable
           pathname={ROUTES.cases}
           title={label("dashboard.protection_concerns")}
-          {...toProtectionConcernTable(protectionConcerns, i18n, protectionConcernsLookup)}
+          {...toProtectionConcernTable(protectionConcerns, i18n, protectionConcernsLookup, label)}
         />
       </OptionsBox>
     </Permission>

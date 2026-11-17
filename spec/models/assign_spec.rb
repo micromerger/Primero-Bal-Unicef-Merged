@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe Assign do
@@ -16,7 +14,7 @@ describe Assign do
       resource: Permission::CASE,
       actions: [Permission::READ, Permission::WRITE, Permission::CREATE, Permission::ASSIGN]
     )
-    @role = Role.new(permissions: [permission_case], modules: [@primero_module])
+    @role = Role.new(permissions: [permission_case], primero_modules: [@primero_module])
     @role.save(validate: false)
     @group1 = UserGroup.create!(name: 'Group1')
     @agency1 = Agency.create!(name: 'Agency One', agency_code: 'agency1')
@@ -37,7 +35,7 @@ describe Assign do
     before do
       @case = Child.create(data: { 'name' => 'Test', 'owned_by' => 'user1',
                                    module_id: @primero_module.unique_id })
-      Assign.create!(transitioned_by: 'user1', transitioned_to: 'user2', record: @case)
+      Assign.create!(transitioned_by: 'user1', transitioned_to: 'user2', record: @case, notify_user: true)
     end
 
     it 'changes owned_by' do
@@ -164,7 +162,8 @@ describe Assign do
       context 'when should_notify? is false' do
         before do
           clear_enqueued_jobs
-          Assign.create!(transitioned_by: 'user1', transitioned_to: 'user2', record: @case, from_bulk_export: true)
+          Assign.create!(transitioned_by: 'user1', transitioned_to: 'user2', record: @case,
+                         notify_user: false)
         end
 
         it 'should enqueue a TransitionNotifyJob' do
@@ -332,10 +331,10 @@ describe Assign do
         ]
       )
       @role_case_incident = Role.new(
-        permissions: [permission_case, permission_incident_assign], modules: [@primero_module]
+        permissions: [permission_case, permission_incident_assign], primero_modules: [@primero_module]
       )
       @role_case_incident.save(validate: false)
-      @role_incident = Role.new(permissions: [permission_incident], modules: [@primero_module])
+      @role_incident = Role.new(permissions: [permission_incident], primero_modules: [@primero_module])
       @role_incident.save(validate: false)
       @user4 = User.new(user_name: 'user4', role: @role_case_incident, user_groups: [@group1])
       @user4.save(validate: false)

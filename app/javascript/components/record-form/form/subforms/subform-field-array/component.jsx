@@ -1,20 +1,20 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { getIn } from "formik";
 import { cx } from "@emotion/css";
 import { List } from "@mui/material";
+import sortBy from "lodash/sortBy";
 
 import SubformFields from "../subform-fields";
 import SubformEmptyData from "../subform-empty-data";
 import SubformAddEntry from "../subform-add-entry";
 import { SUBFORM_FIELD_ARRAY } from "../constants";
-import { VIOLATIONS_ASSOCIATIONS_FORM } from "../../../../../config";
+import { SERVICES_SUBFORM_FIELD, VIOLATIONS_ASSOCIATIONS_FORM } from "../../../../../config";
 import css from "../styles.css";
 import { isFamilyDetailSubform, isFamilyMemberSubform, isViolationSubform } from "../../utils";
 import { GuidingQuestions } from "../../components";
 import ChildFunctioningSummary from "../../../../child-functioning-summary";
+import ServicesReferralLink from "../services-referral-link";
 
 import { isEmptyOrAllDestroyed, isTracesSubform } from "./utils";
 
@@ -112,8 +112,9 @@ function Component({
     </div>
   );
 
+  const sortedOrderValues = sortBy(orderedValues, ["date_cfm_start"]).reverse();
   const getlatestValue = arr => arr?.[0] ?? null;
-  const latestValue = getlatestValue(orderedValues);
+  const latestValue = getlatestValue(sortedOrderValues);
 
   return (
     <div className={css.fieldArray} data-testid="subform-field-array">
@@ -144,6 +145,9 @@ function Component({
           arrayHelpers={arrayHelpers}
         />
       </div>
+      {!renderAsAccordion && name === SERVICES_SUBFORM_FIELD && (
+        <ServicesReferralLink recordType={recordType} primeroModule={recordModuleID} />
+      )}
       {renderGuidingQuestions}
       {renderEmptyData}
       <components.SubformItem

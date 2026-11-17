@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # An indicator that returns the type of use of violation type Recruitment
 class ManagedReports::Indicators::TypeOfUse < ManagedReports::SqlReportIndicator
   class << self
@@ -9,12 +7,11 @@ class ManagedReports::Indicators::TypeOfUse < ManagedReports::SqlReportIndicator
       'type_of_use'
     end
 
-    # rubocop:disable Metrics/MethodLength
     # rubocop:disable Metrics/AbcSize
     # rubocop:disable Metrics/CyclomaticComplexity
     # rubocop:disable Metrics/PerceivedComplexity
     def sql(current_user, params = {})
-      %{
+      <<~SQL
         select name, key, sum(value::integer)
         #{group_id_alias(params['grouped_by'])&.dup&.prepend(', ')}
         from (
@@ -27,6 +24,8 @@ class ManagedReports::Indicators::TypeOfUse < ManagedReports::SqlReportIndicator
         from violations violations
         inner join incidents incidents
           on incidents.id = violations.incident_id
+          AND incidents.srch_status = 'open'
+          AND incidents.srch_record_state = TRUE
           #{user_scope_query(current_user, 'incidents')&.prepend('and ')}
         cross join json_each_text((violations."data"->>'violation_tally')::JSON)
         where violations.data->>'violation_tally' is not null
@@ -36,13 +35,13 @@ class ManagedReports::Indicators::TypeOfUse < ManagedReports::SqlReportIndicator
         #{date_range_query(params['ctfmr_verified_date'], 'violations')&.prepend('and ')}
         #{equal_value_query(params['ctfmr_verified'], 'violations')&.prepend('and ')}
         #{equal_value_query(params['type'], 'violations')&.prepend('and ')}
+        #{equal_value_query(params['has_late_verified_violations'], 'incidents')&.prepend('and ')}
         ) keys_values
         group by key, name
         #{group_id_alias(params['grouped_by'])&.dup&.prepend(', ')}
         order by name, key
-      }
+      SQL
     end
-    # rubocop:enable Metrics/MethodLength
     # rubocop:enable Metrics/AbcSize
     # rubocop:enable Metrics/CyclomaticComplexity
     # rubocop:enable Metrics/PerceivedComplexity

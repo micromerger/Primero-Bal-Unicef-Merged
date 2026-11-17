@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { useRef, useState } from "react";
 import PropTypes from "prop-types";
 
@@ -14,9 +12,10 @@ import { usePermissions, RESOURCES, CONSENT_OVERRIDE } from "../../permissions";
 import { useIncidentFromCase } from "../../incidents-from-case";
 import { RECORD_TYPES } from "../../../config";
 import { getAllowCaseCreationFromReferral } from "../../application/selectors";
+import { currentUser } from "../../user/selectors";
 
 import { NAME, REFERRAL_FORM_ID, TRANSFER_FORM_ID, MAX_BULK_RECORDS } from "./constants";
-import { hasProvidedConsent } from "./components/utils";
+import { hasProvidedConsent, hasPendingTransfer } from "./components/utils";
 import { ReassignForm, TransitionDialog, Transfers } from "./components";
 import Referrals from "./referrals/component";
 
@@ -30,7 +29,8 @@ function Transitions({
   setPending,
   currentPage,
   selectedRecords,
-  mode
+  mode,
+  pendingTransitionIds = []
 }) {
   const i18n = useI18n();
   const providedConsent = (record && hasProvidedConsent(record)) || false;
@@ -38,6 +38,8 @@ function Transitions({
   const [disabledReferButton, setDisabledReferButton] = useState(false);
   const [disabledTransferButton, setDisabledTransferButton] = useState(false);
   const allowCaseCreationFromReferral = useMemoizedSelector(state => getAllowCaseCreationFromReferral(state));
+  const currentUserName = useMemoizedSelector(state => currentUser(state));
+  const pendingTransferReceived = hasPendingTransfer(record, currentUserName);
 
   const transitionDialogOpen = dialog => currentDialog === dialog && open;
 
@@ -49,8 +51,11 @@ function Transitions({
   const records = useMemoizedSelector(state => getRecordsData(state, recordType));
 
   const selectedRecordsLength = Object.values(selectedRecords || {}).flat()?.length;
-  const selectedIds = buildSelectedIds(selectedRecords, records, currentPage, "id");
+  const selectedIds = buildSelectedIds(selectedRecords, records, currentPage, "id", pendingTransitionIds);
   const { present: incidentFromCasePresent } = useIncidentFromCase({ recordType: RECORD_TYPES[recordType], record });
+  const hasRecordOutOfScope = records?.some(
+    _record => selectedIds.includes(_record.get("id")) && !_record.get("record_in_scope")
+  );
 
   const commonDialogProps = {
     omitCloseAfterSuccess: true,
@@ -77,6 +82,7 @@ function Transitions({
         <Transfers
           {...commonTransitionProps}
           isBulkTransfer={false}
+          hasPendingTransfer={pendingTransferReceived}
           disabled={disabledTransferButton}
           setDisabled={setDisabledTransferButton}
         />
@@ -101,6 +107,8 @@ function Transitions({
           assignRef={assignFormikRef}
           selectedRecordsLength={selectedRecordsLength}
           formDisabled={incidentFromCasePresent}
+          hasRecordOutOfScope={hasRecordOutOfScope}
+          pendingTransitionIds={pendingTransitionIds}
         />
       );
     }
@@ -140,7 +148,7 @@ function Transitions({
         confirmButtonLabel: i18n.t("buttons.transfer"),
         open: isTransferDialogOpen,
         transitionType: TRANSITIONS_TYPES.transfer,
-        enabledSuccessButton: disabledTransferButton || providedConsent,
+        enabledSuccessButton: (disabledTransferButton || providedConsent) && !pendingTransferReceived,
         confirmButtonProps: { type: "submit", form: TRANSFER_FORM_ID }
       };
     }
@@ -153,7 +161,10 @@ function Transitions({
         confirmButtonLabel: i18n.t("buttons.save"),
         open: isAssignDialogOpen,
         successHandler,
-        enabledSuccessButton: selectedRecordsLength <= MAX_BULK_RECORDS && !incidentFromCasePresent,
+        enabledSuccessButton:
+          selectedRecordsLength <= MAX_BULK_RECORDS &&
+          !incidentFromCasePresent &&
+          (selectedRecordsLength === 0 || selectedIds.length > 0),
         transitionType: TRANSITIONS_TYPES.reassign
       };
     }
@@ -183,6 +194,7 @@ Transitions.propTypes = {
   mode: PropTypes.object,
   open: PropTypes.bool,
   pending: PropTypes.bool,
+  pendingTransitionIds: PropTypes.array,
   record: PropTypes.object,
   recordType: PropTypes.string.isRequired,
   selectedRecords: PropTypes.object,

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 # Configurable reports for aggregating data over Primero records.
 # rubocop:disable Metrics/ClassLength
 class Report < ApplicationRecord
@@ -33,6 +31,7 @@ class Report < ApplicationRecord
   DATE_RANGES = [DAY, WEEK, MONTH, YEAR].freeze
   DATE_FORMAT = 'YYYY-MM-DD'
   DATE_TIME_FORMAT = 'YYYY-MM-DD"T"HH24:MI:SS'
+  INCOMPLETE_DATA = 'incomplete_data'
 
   localize_properties :name, :description
 
@@ -40,7 +39,7 @@ class Report < ApplicationRecord
   #      The report builds a value hash with an array of strings as keys. CouchDB/CouchRest converts this array to
   #      a string. Not clear what benefit could be gained by storing the data but converting keys to strings on the fly
   #      when rendering the graph and table. So for now we will rebuild the data.
-  attr_accessor :data
+  attr_accessor :data, :registry_records
   attr_accessor :add_default_filters, :aggregate_by_ordered, :disaggregate_by_ordered, :permission_filter
 
   self.unique_id_from_attribute = 'name_en'
@@ -87,37 +86,72 @@ class Report < ApplicationRecord
 
   def build_report
     results = ActiveRecord::Base.connection.execute(build_query).to_a
+    @registry_record_ids = []
     self.data = results.each_with_object({}) { |result, acc| write_result(result, acc) }
+    # Fetch the registry records associated with the report data. We don't expect a lot of registry records.
+    self.registry_records = RegistryRecord.where(id: @registry_record_ids) if @registry_record_ids.present?
+    data
   end
 
   def write_result(result, data_hash)
     field_queries.reduce(data_hash) do |acc, field_query|
-      fill_lookup_rows(acc, field_query.field) unless exclude_empty_rows?
-      value = result[field_query.column_name.delete('"')]
+      fill_lookup_rows(acc, field_query) unless exclude_empty_rows?
+      value = result[field_query.column_alias.delete('"')]
       break if value.blank?
 
-      write_field_data(acc, value, result)
+      @registry_record_ids << value if field_query.field.type == Field::REGISTRY && value != INCOMPLETE_DATA
+      write_field_data(acc, value, result, field_query)
     end
   end
 
-  def write_field_data(field_hash, value, result)
+  def write_field_data(field_hash, value, result, field_query)
     if field_hash[value].present?
       field_hash[value]['_total'] += result['total']
     else
       field_hash[value] = { '_total' => result['total'] }
     end
 
+    write_query_filters(field_hash, value, field_query)
     field_hash[value]
   end
 
-  def fill_lookup_rows(field_acc, field)
-    lookup_values = field.options_list(locale: I18n.locale, lookups:)
+  def fill_lookup_rows(field_acc, field_query)
+    lookup_values = field_query.field.options_list(locale: I18n.locale, lookups:)
     return unless lookup_values.is_a?(Array)
 
     lookup_values&.each do |lookup_value|
       next unless field_acc[lookup_value['id']].blank?
 
       field_acc[lookup_value['id']] = { '_total' => 0 }
+      write_query_filters(field_acc, lookup_value['id'], field_query)
+    end
+  end
+
+  def write_query_filters(field_hash, value, field_query)
+    return if nested_model?
+
+    parent_query = field_hash['query'] || query_filters
+    field_hash[value]['query'] ||= []
+    field_hash[value]['query'] |= nest_repeated_filters(parent_query + build_query_filter(field_query, value))
+  end
+
+  def build_query_filter(field_query, value)
+    return ["#{field_query.field.name}=is_null"] if value == INCOMPLETE_DATA
+    return ["#{field_query.field.name}=#{value}"] unless field_query.respond_to?(:admin_level)
+
+    ["loc:#{field_query.field.name}#{field_query.admin_level}=#{value}"]
+  end
+
+  def nest_repeated_filters(filters)
+    counts = filters.map { |filter| filter.split('=', 2).first }.tally
+    index = filters.count { |filter| filter.match?(/and\[\d+\]/) }
+    filters.map do |pair|
+      key, value = pair.split('=', 2)
+      next pair unless counts[key] > 1
+
+      filter = "and[#{index}][#{key}]=#{value}"
+      index += 1
+      filter
     end
   end
 
@@ -134,7 +168,7 @@ class Report < ApplicationRecord
   end
 
   def build_query
-    query = model.try(:parent_record_type).present? ? join_nested_model : model
+    query = nested_model? ? join_nested_model : model
     query = select_fields(query)
     query = apply_filters(query)
     query = query.group(group_by_fields)
@@ -142,12 +176,22 @@ class Report < ApplicationRecord
     query.to_sql
   end
 
+  def nested_model?
+    model.try(:parent_record_type).present?
+  end
+
   def join_nested_model
     model.parent_record_type.joins(
       ActiveRecord::Base.sanitize_sql_for_conditions(
-        ["CROSS JOIN jsonb_array_elements(data->'%s') as %s", model.record_field_name, model.record_field_name]
+        ["CROSS JOIN jsonb_array_elements(data->'%s') as %s", model.record_field_name, nested_model_alias]
       )
     )
+  end
+
+  def nested_model_alias
+    return unless model.respond_to?(:parent_record_type)
+
+    model.record_field_name.split('_').map(&:first).join
   end
 
   def group_by_fields
@@ -155,24 +199,31 @@ class Report < ApplicationRecord
   end
 
   def column_names
-    @column_names ||= field_queries.map(&:column_name)
+    @column_names ||= field_queries.map(&:column_alias)
   end
 
   def sort_fields
-    @sort_fields ||= field_queries.map(&:sort_field)
+    @sort_fields ||= field_queries.map(&:sort_alias)
   end
 
   def field_queries
-    @field_queries ||= pivots_map.entries.map do |(pivot, field)|
-      next(build_date_field_query(field)) if field.type == Field::DATE_FIELD
-      next(build_numeric_field_query(field)) if field.type == Field::NUMERIC_FIELD
+    @field_queries ||= pivots_map.entries.map { |(pivot, field)| build_query_for(field, pivot) }
+  end
 
-      if field.type == Field::SELECT_BOX && field.option_strings_source == 'Location'
-        next(build_location_field_query(field, pivot))
-      end
-
+  def build_query_for(field, pivot)
+    case field.type
+    when Field::DATE_FIELD then build_date_field_query(field)
+    when Field::NUMERIC_FIELD then build_numeric_field_query(field)
+    when Field::SELECT_BOX then build_select_box_query(field, pivot)
+    else
       build_field_query(field)
     end
+  end
+
+  def build_select_box_query(field, pivot)
+    return build_location_field_query(field, pivot) if field.option_strings_source == 'Location'
+
+    build_field_query(field)
   end
 
   def build_location_field_query(field, pivot)
@@ -188,12 +239,9 @@ class Report < ApplicationRecord
   end
 
   def build_numeric_field_query(field)
-    args = { field:, record_field_name: record_field_name(field) }
-    range = AgeRangeService.primary_age_ranges(module_id)
-
-    args = args.merge(range:, abrreviate_range: true) if age_field?(field) && group_ages?
-
-    Reports::FieldQueries::NumericFieldQuery.new(args)
+    Reports::FieldQueries::NumericFieldQuery.new(
+      { field:, record_field_name: record_field_name(field), range: AgeRangeService.primary_age_ranges(module_id) }
+    )
   end
 
   def build_field_query(field)
@@ -201,11 +249,10 @@ class Report < ApplicationRecord
   end
 
   def record_field_name(field)
-    record_field_name = model.try(:record_field_name)
-    return unless record_field_name.present?
+    return unless nested_model_alias.present?
     return if model.parent_record_type.minimum_reportable_fields.values.flatten.include?(field.name)
 
-    record_field_name
+    nested_model_alias
   end
 
   def apply_filters(query)
@@ -213,7 +260,6 @@ class Report < ApplicationRecord
     if model.try(:parent_record_type).present?
       filter_query = apply_filters_for_nested_model(filter_query)
     else
-      search_filters = Reports::ReportFilterService.build_filters(filters, filters_map)
       search_filters.each { |filter| filter_query = filter_query.where(filter.query) }
     end
 
@@ -240,10 +286,6 @@ class Report < ApplicationRecord
     query.where(srch_module_id: module_id)
   end
 
-  def age_field?(field)
-    field.type == Field::NUMERIC_FIELD && field.name.starts_with?(AGE)
-  end
-
   def validate_modules_present
     if module_id.present? && module_id.length >= 1
       if module_id.split('-').first != 'primeromodule'
@@ -259,7 +301,25 @@ class Report < ApplicationRecord
 
     self.filters ||= []
     default_filters = model.report_filters
-    self.filters = (self.filters + default_filters).uniq
+    self.filters = (filters + default_filters).uniq
+  end
+
+  def search_filters
+    @search_filters ||= Reports::ReportFilterService.build_filters(filters, filters_map)
+  end
+
+  def query_filters
+    return @query_filters unless @query_filters.nil?
+
+    permission_filters = ["module_id=#{module_id}", permission_search_filter.to_s].compact_blank
+    @query_filters = nested_model? ? [] : search_filters.map(&:to_s) + permission_filters
+    @query_filters
+  end
+
+  def permission_search_filter
+    return unless permission_filter.present?
+
+    SearchFilters::TextList.new(field_name: permission_filter['attribute'], values: permission_filter['value'])
   end
 
   def pivots_map
@@ -294,15 +354,12 @@ class Report < ApplicationRecord
     field_names.to_h do |field_name|
       field = fields[field_name] || fields[Field.remove_location_parts(field_name)]
       [field_name, field]
-    end
+    end.compact
   end
 
   def select_fields(query)
-    query.select(
-      Arel.sql(
-        "#{ActiveRecord::Base.sanitize_sql(field_queries.map(&:to_sql).join(",\n"))}, count(*) as total"
-      )
-    )
+    select_queries = field_queries.map(&:to_sql) + ['COUNT(*) AS total']
+    query.select(Arel.sql(ActiveRecord::Base.sanitize_sql(select_queries.join(",\n"))))
   end
 end
 # rubocop:enable Metrics/ClassLength

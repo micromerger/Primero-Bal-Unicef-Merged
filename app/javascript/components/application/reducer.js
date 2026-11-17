@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { fromJS } from "immutable";
 
 import { mapEntriesToRecord } from "../../libs/reducer-helpers";
@@ -32,7 +30,11 @@ const reducer = (state = DEFAULT_STATE, { type, payload }) => {
         audit_log: auditLog,
         field_labels: fieldLabels,
         exact_search_fields: exactSearchFields,
-        phonetic_search_fields: phoneticSearchFields
+        phonetic_search_fields: phoneticSearchFields,
+        phone_number_search_fields: phoneNumberSearchFields,
+        terms_of_use_agency_sign: termsOfUseAgencySign,
+        terms_of_use_acknowledge: termsOfUseAcknowledge,
+        registry_options: registryOptions
       } = payload.data;
 
       return state.merge(
@@ -51,9 +53,13 @@ const reducer = (state = DEFAULT_STATE, { type, payload }) => {
           exportRequirePassword,
           primaryAgeRange,
           auditLog,
-          fieldLabels,
+          fieldLabels: fieldLabels ?? fromJS({}),
           exactSearchFields,
-          phoneticSearchFields
+          phoneticSearchFields,
+          phoneNumberSearchFields,
+          termsOfUseAgencySign,
+          termsOfUseAcknowledge,
+          registryOptions
         })
       );
     }
@@ -104,8 +110,14 @@ const reducer = (state = DEFAULT_STATE, { type, payload }) => {
       return state.setIn(["referralAuthorizationRoles", "loading"], false);
     case actions.FETCH_REFERRAL_AUTHORIZATION_ROLES_FAILURE:
       return state.setIn(["referralAuthorizationRoles", "errors"], true);
+    case actions.FETCH_SANDBOX_UI_STARTED:
+      return state.set("loading", true).set("errors", false);
     case actions.FETCH_SANDBOX_UI_SUCCESS:
       return state.set("primero", fromJS(payload.data));
+    case actions.FETCH_SANDBOX_UI_FAILURE:
+      return state.set("errors", true);
+    case actions.FETCH_SANDBOX_UI_FINISHED:
+      return state.set("loading", false);
     case actions.FETCH_AGENCY_LOGO_OPTIONS_SUCCESS:
       return state.setIn(["primero", "agenciesLogoPdf"], fromJS(payload.data));
     case actions.SET_RETURN_URL:

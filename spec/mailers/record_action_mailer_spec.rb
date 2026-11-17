@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe RecordActionMailer, type: :mailer do
@@ -89,7 +87,7 @@ describe RecordActionMailer, type: :mailer do
 
       it 'renders the headers' do
         expect(mail.subject).to eq("Case: #{@child.short_id} - Approval Request")
-        expect(mail.to).to eq(['manager2@primero.dev'])
+        expect(mail['to'].to_s).to eq('manager2 <manager2@primero.dev>')
       end
 
       it 'renders the body' do
@@ -109,7 +107,7 @@ describe RecordActionMailer, type: :mailer do
 
       it 'renders the headers in arabic locale' do
         expect(mail.subject).to eq("الملفّ: #{@child.short_id} - طلب الموافقة")
-        expect(mail.to).to eq(['manager3@primero.dev'])
+        expect(mail['to'].to_s).to eq('manager3 <manager3@primero.dev>')
       end
       # TODO: Skipping this test till translated in Transifex
       xit 'renders the body in arabic locale' do
@@ -129,7 +127,7 @@ describe RecordActionMailer, type: :mailer do
 
       it 'renders the headers' do
         expect(mail.subject).to eq("Case: #{@child.short_id} - Approval Response")
-        expect(mail.to).to eq(['owner@primero.dev'])
+        expect(mail['to'].to_s).to eq('Jordy Nelson <owner@primero.dev>')
       end
 
       it 'renders the body' do
@@ -149,7 +147,7 @@ describe RecordActionMailer, type: :mailer do
 
       it 'renders the headers in arabic locale' do
         expect(mail.subject).to eq("الملفّ: #{@arabic_child.short_id} - إستجابة حول الموافقة")
-        expect(mail.to).to eq(['arabic_owner@primero.dev'])
+        expect(mail['to'].to_s).to eq('Jhon Doe <arabic_owner@primero.dev>')
       end
 
       # TODO: Skipping this test till translated in Transifex
@@ -209,7 +207,7 @@ describe RecordActionMailer, type: :mailer do
 
         it 'renders the headers' do
           expect(mail.subject).to eq("Case: #{@child.short_id} - Assigned to you")
-          expect(mail.to).to eq(['user2@primero.dev'])
+          expect(mail['to'].to_s).to eq('User random <user2@primero.dev>')
         end
       end
     end
@@ -231,7 +229,7 @@ describe RecordActionMailer, type: :mailer do
           Permission::REFERRAL, Permission::RECEIVE_REFERRAL
         ]
       )
-      @role = Role.new(permissions: [@permission_assign_case], modules: [@primero_module])
+      @role = Role.new(permissions: [@permission_assign_case], primero_modules: [@primero_module])
       @role.save(validate: false)
       agency = Agency.create!(name: 'Test Agency', agency_code: 'TA')
       @group1 = UserGroup.create!(name: 'Group1')
@@ -307,7 +305,7 @@ describe RecordActionMailer, type: :mailer do
 
       it 'renders the headers' do
         expect(mail.subject).to eq("Case: #{@case.short_id} - Referral Request")
-        expect(mail.to).to eq(['uzer_to@test.com'])
+        expect(mail['to'].to_s).to eq('user2 <uzer_to@test.com>')
       end
 
       it 'renders the body' do
@@ -353,7 +351,7 @@ describe RecordActionMailer, type: :mailer do
 
       it 'renders the headers' do
         expect(mail.subject).to eq("Case: #{@case.short_id} - Transfer")
-        expect(mail.to).to eq(['uzer_to@test.com'])
+        expect(mail['to'].to_s).to eq('user2 <uzer_to@test.com>')
       end
 
       it 'renders the body' do
@@ -388,7 +386,7 @@ describe RecordActionMailer, type: :mailer do
 
       it 'renders the headers' do
         expect(mail.subject).to eq("Case: #{@case.short_id} - Assigned to you")
-        expect(mail.to).to eq(['uzer_to@test.com'])
+        expect(mail['to'].to_s).to eq('user2 <uzer_to@test.com>')
       end
 
       it 'renders the body' do
@@ -405,7 +403,7 @@ describe RecordActionMailer, type: :mailer do
 
       it 'renders the headers' do
         expect(mail.subject).to eq("حالة/ملفّ: #{@case.short_id} - مُعيّن لك")
-        expect(mail.to).to eq(['ar_uzer_to@test.com'])
+        expect(mail['to'].to_s).to eq('user3 <ar_uzer_to@test.com>')
       end
 
       it 'renders the body' do
@@ -422,7 +420,7 @@ describe RecordActionMailer, type: :mailer do
 
       it 'renders the headers' do
         expect(mail.subject).to eq('Transfer request for one of your cases')
-        expect(mail.to).to eq(['uzer1@test.com'])
+        expect(mail['to'].to_s).to eq('user1 <uzer1@test.com>')
       end
 
       it 'renders the body' do
@@ -442,7 +440,7 @@ describe RecordActionMailer, type: :mailer do
 
       it 'renders the headers' do
         expect(mail.subject).to eq('طلب تحويل لحالة من حالاتك')
-        expect(mail.to).to eq(['uzer1@test.com'])
+        expect(mail['to'].to_s).to eq('user1 <uzer1@test.com>')
       end
 
       it 'renders the body' do
@@ -452,7 +450,7 @@ describe RecordActionMailer, type: :mailer do
               #{@case.short_id} \(https://localhost:3000/v2/cases/#{@case.id}\)
               بحيث يتمكنون من تقديم خدمات إدارة للشخص في منطقتهم. إذا كان التحويل مقبولا من طرفك، يرجى النقر على رابط معرف نوع السجل
               Case في هذا الايميل لفتح نوع السجل Case في بريميرو والبدء بعملية التحويل.).squish
-            )
+          )
       end
     end
 
@@ -486,7 +484,7 @@ describe RecordActionMailer, type: :mailer do
     describe 'alert' do
       it 'renders the headers' do
         expect(mail.subject).to eq("Case: #{@child.short_id} - Form Section Name Updated")
-        expect(mail.to).to eq(['owner@primero.dev'])
+        expect(mail['to'].to_s).to eq('Owner <owner@primero.dev>')
       end
 
       it 'renders the body' do

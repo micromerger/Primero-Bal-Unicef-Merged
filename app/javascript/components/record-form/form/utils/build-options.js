@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import isEmpty from "lodash/isEmpty";
 
 import { SERVICE_SECTION_FIELDS } from "../../../record-actions/transitions/components/referrals";
@@ -17,7 +15,6 @@ export default (name, option, value, options = [], stickyOption, filterState) =>
   }
 
   if (
-    hasOptions &&
     option === CUSTOM_STRINGS_SOURCE.user &&
     !filterState?.filtersChanged &&
     name.endsWith(SERVICE_SECTION_FIELDS.implementingAgencyIndividual)

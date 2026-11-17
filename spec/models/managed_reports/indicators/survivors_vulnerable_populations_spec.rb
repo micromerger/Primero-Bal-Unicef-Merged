@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 require 'rails_helper'
 
 describe ManagedReports::Indicators::SurvivorsVulnerablePopulations do
@@ -121,7 +119,8 @@ describe ManagedReports::Indicators::SurvivorsVulnerablePopulations do
       {
         disability_type: 'true',
         unaccompanied_separated_status: 'separated_child',
-        incident_date: Date.new(2020, 8, 12)
+        incident_date: Date.new(2020, 8, 12),
+        consent_reporting: 'true'
       }
     ).save!
     Incident.new_with_user(
@@ -129,7 +128,8 @@ describe ManagedReports::Indicators::SurvivorsVulnerablePopulations do
       {
         disability_type: 'true',
         unaccompanied_separated_status: 'separated_child',
-        incident_date: Date.new(2020, 9, 12)
+        incident_date: Date.new(2020, 9, 12),
+        consent_reporting: 'true'
       }
     ).save!
     Incident.new_with_user(
@@ -137,14 +137,16 @@ describe ManagedReports::Indicators::SurvivorsVulnerablePopulations do
       {
         disability_type: 'true',
         unaccompanied_separated_status: 'unaccompanied_minor',
-        incident_date: Date.new(2021, 1, 12)
+        incident_date: Date.new(2021, 1, 12),
+        consent_reporting: 'true'
       }
     ).save!
     Incident.new_with_user(
       all_user,
       {
         unaccompanied_separated_status: 'other_vulnerable_child',
-        incident_date: Date.new(2021, 2, 12)
+        incident_date: Date.new(2021, 2, 12),
+        consent_reporting: 'true'
       }
     ).save!
     Incident.new_with_user(
@@ -152,14 +154,16 @@ describe ManagedReports::Indicators::SurvivorsVulnerablePopulations do
       {
         disability_type: 'true',
         unaccompanied_separated_status: 'other_vulnerable_child',
-        incident_date: Date.new(2021, 3, 12)
+        incident_date: Date.new(2021, 3, 12),
+        consent_reporting: 'true'
       }
     ).save!
     Incident.new_with_user(
       all_user,
       {
         unaccompanied_separated_status: 'no',
-        incident_date: Date.new(2021, 3, 10)
+        incident_date: Date.new(2021, 3, 10),
+        consent_reporting: 'true'
       }
     ).save!
   end
@@ -239,8 +243,8 @@ describe ManagedReports::Indicators::SurvivorsVulnerablePopulations do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'year'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2022-10-10'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2022-10-10')
             )
           }
         ).data
@@ -275,8 +279,8 @@ describe ManagedReports::Indicators::SurvivorsVulnerablePopulations do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'month'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2021-03-31'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2021-03-31')
             )
           }
         ).data
@@ -328,8 +332,8 @@ describe ManagedReports::Indicators::SurvivorsVulnerablePopulations do
             'grouped_by' => SearchFilters::Value.new(field_name: 'grouped_by', value: 'quarter'),
             'incident_date' => SearchFilters::DateRange.new(
               field_name: 'incident_date',
-              from: '2020-08-01',
-              to: '2021-03-31'
+              from: Date.parse('2020-08-01'),
+              to: Date.parse('2021-03-31')
             )
           }
         ).data

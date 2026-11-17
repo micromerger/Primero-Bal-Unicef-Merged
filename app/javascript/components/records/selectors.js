@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { Map, List, fromJS } from "immutable";
 
 import { RECORD_PATH } from "../../config";
@@ -47,9 +45,16 @@ export const selectRecordAttribute = (state, recordType, id, attribute) => {
 export const selectRecordsByIndexes = (state, recordType, indexes) =>
   (indexes || []).map(index => state.getIn(["records", recordType, "data"], List([])).get(index));
 
-export const getSavingRecord = (state, recordType) => state.getIn(["records", recordType, "saving"], false);
+export const getSavingRecord = (state, recordType) =>
+  state.getIn(["records", recordType, "saving"], state.getIn(["records", "intake", "saving"], false));
 
 export const getLoadingRecordState = (state, recordType) => state.getIn(["records", recordType, "loading"], false);
+
+export const getIsIdentifiedRecordNotFound = (state, recordType) => {
+  const serverError = state.getIn(["records", recordType, "serverErrors"], fromJS([])).first();
+
+  return serverError?.get("status") === 404 && serverError?.get("resource")?.endsWith("/identified");
+};
 
 export const getMarkForMobileLoading = (state, recordType) =>
   state.getIn(["records", recordType, "markForMobileLoading"], false);
@@ -122,6 +127,12 @@ export const getSelectedRecordData = (state, recordType) => {
   return selectRecord(state, { id: selectedRecordId, recordType, isEditOrShow: true });
 };
 
+export const getSelectedRecordOrNull = (state, recordType) => {
+  const selectedRecordId = getSelectedRecord(state, recordType);
+
+  return state.getIn(["records", recordType, "data"], fromJS([])).find(r => r.get("id") === selectedRecordId) || null;
+};
+
 export const getCaseFormFamilyMemberLoading = (state, recordType) =>
   state.getIn(["records", recordType, "case_from_family", "loading"], false);
 
@@ -150,6 +161,9 @@ export const getRecordRelationship = (state, query) => {
 export const getRecordRelationshipsLoading = (state, recordType = "cases") =>
   state.getIn(["records", recordType, "relationships", "loading"], false);
 
+export const getRelatedRecordIsLoading = (state, recordType = "cases") =>
+  state.getIn(["records", recordType, "related_records", "loading"], false);
+
 export const getRelatedRecord = (state, query = {}) => {
   const { recordType, id, fromRelationship } = query;
 
@@ -165,3 +179,6 @@ export const getRelatedRecord = (state, query = {}) => {
 
   return state.getIn(["records", recordType, "related_records", "data", index], Map({}));
 };
+
+export const getIsRecordCreationFlow = (state, recordType) =>
+  state.getIn(["records", recordType, "isRecordCreationFlow"], false);

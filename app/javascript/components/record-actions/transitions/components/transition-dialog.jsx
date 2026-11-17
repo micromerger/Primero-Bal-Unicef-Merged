@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 /* eslint-disable react/display-name */
 import PropTypes from "prop-types";
 
@@ -35,8 +33,8 @@ function TransitionDialog({
 
     const recordTypeLabel =
       selectedRecordsLength > 0
-        ? i18n.t(`${recordType}.label`)
-        : i18n.t(`forms.record_types.${RECORD_TYPES[recordType]}`);
+        ? label(`${recordType}.label`)
+        : label(`forms.record_types.${RECORD_TYPES[recordType]}`);
     const recordWithId = `${recordTypeLabel} ${recordId}`;
 
     const typeLabel = i18n.t(`transition.type.${type}`);

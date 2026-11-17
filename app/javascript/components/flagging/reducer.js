@@ -1,5 +1,3 @@
-// Copyright (c) 2014 - 2023 UNICEF. All rights reserved.
-
 import { Map, fromJS } from "immutable";
 
 import { listEntriesToRecord } from "../../libs";
@@ -27,6 +25,7 @@ const reducer = (state = DEFAULT_STATE, { type, payload }) => {
 
       return state.set("selectedFlag", selectedFlag);
     }
+    case actions.UPDATE_FLAG_SUCCESS:
     case actions.UNFLAG_SUCCESS: {
       const flagIndex = state.get("data", fromJS([])).findIndex(flag => flag.get("id") === payload.data.id);
 
