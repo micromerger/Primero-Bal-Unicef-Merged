@@ -5,7 +5,7 @@
 # Endpoint for managing flags for a record
 class Api::V2::FlagsController < Api::V2::RecordResourceController
   before_action { authorize! :flag, model_class }
-
+  before_action :authorize_record_read, only: :index
   def create
     authorize! :flag_record, @record
     @flag = @record.add_flag!(permitted_create_params[:message], permitted_create_params[:date], current_user.user_name)
@@ -53,4 +53,8 @@ class Api::V2::FlagsController < Api::V2::RecordResourceController
 
     'flag_resolve'
   end
+  private
+  def authorize_record_read
+  authorize! :read, @record
+end
 end
